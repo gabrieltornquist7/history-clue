@@ -33,11 +33,13 @@ export default function GuessingInterface({
         <label htmlFor="year" className={labelClasses}>Year: {selectedYear}</label>
         <input type="range" id="year" min="1800" max="2025" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full" />
       </div>
-      <button
-        onClick={handleGuessSubmit}
-        className="col-span-2 p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sepia-dark">
-        Make Guess
-      </button>
+      <div className="col-span-2 flex justify-center mt-4">
+        <button
+          onClick={handleGuessSubmit}
+          className="px-12 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sepia-dark shadow-md">
+          Make Guess
+        </button>
+      </div>
     </div>
   );
 }
