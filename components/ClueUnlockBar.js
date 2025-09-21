@@ -5,15 +5,16 @@ export default function ClueUnlockBar({ unlockedClues, activeClue, handleUnlockC
       {[1, 2, 3, 4, 5].map((num) => {
         const isUnlocked = unlockedClues.includes(num);
         const isActive = activeClue === num;
+
         const baseClasses = "p-3 rounded-md text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#785e48]";
-        // The "not-allowed" cursor has been removed
-        const lockedClasses = "bg-stone-200 text-stone-400 opacity-70";
+        const lockedClasses = "bg-stone-200 text-stone-500 hover:bg-stone-300";
         const unlockedClasses = "bg-[#fcf8f0] text-stone-700 hover:bg-stone-200 border border-stone-300";
         const activeClasses = "bg-[#785e48] text-white border-[#785e48] shadow-inner";
+
         const finalClasses = `${baseClasses} ${isActive ? activeClasses : (isUnlocked ? unlockedClasses : lockedClasses)}`;
 
         return (
-          <button key={num} className={finalClasses} onClick={() => handleUnlockClue(num)} disabled={!isUnlocked}>
+          <button key={num} className={finalClasses} onClick={() => handleUnlockClue(num)}>
             <div>Clue {num}</div>
             <div className="text-xs font-normal opacity-80">({CLUE_COSTS[num] === 0 ? 'Free' : `${CLUE_COSTS[num]}`})</div>
           </button>
