@@ -21,13 +21,6 @@ export default function HomePage() {
   const [gameState, setGameState] = useState('playing');
   const [results, setResults] = useState(null);
 
-  const fetchNewPuzzle = async () => { /* Logic is unchanged */ };
-  useEffect(() => { fetchNewPuzzle(); }, []);
-  const handleUnlockClue = (clueNumber) => { /* Logic is unchanged */ };
-  const handleGuessSubmit = () => { /* Logic is unchanged */ };
-  const handlePlayAgain = () => { /* Logic is unchanged */ };
-
-  // --- Full function definitions ---
   const fetchNewPuzzle = async () => {
     const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true });
     const randomIndex = Math.floor(Math.random() * count);
@@ -35,16 +28,24 @@ export default function HomePage() {
     if (error) console.error('Error fetching puzzle:', error);
     else setPuzzle(data);
   };
+
+  useEffect(() => {
+    fetchNewPuzzle();
+  }, []);
+
   const handleUnlockClue = (clueNumber) => {
+    if (unlockedClues.includes(clueNumber)) {
+      setActiveClue(clueNumber);
+      return;
+    }
     const cost = CLUE_COSTS[clueNumber];
-    if (score >= cost && !unlockedClues.includes(clueNumber)) {
+    if (score >= cost) {
       setScore(score - cost);
       setUnlockedClues([...unlockedClues, clueNumber]);
       setActiveClue(clueNumber);
-    } else if (unlockedClues.includes(clueNumber)) {
-      setActiveClue(clueNumber);
     }
   };
+
   const handleGuessSubmit = () => {
     if (!selectedCity || !selectedCountry) { alert('Please select a country and city.'); return; }
     const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year };
@@ -59,6 +60,7 @@ export default function HomePage() {
     setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer: answer, finalScore: Math.round(finalScore) });
     setGameState('finished');
   };
+
   const handlePlayAgain = () => {
     setPuzzle(null); setUnlockedClues([1]); setActiveClue(1); setScore(10000);
     setSelectedCountry(''); setSelectedCity(''); setSelectedYear(1950);

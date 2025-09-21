@@ -5,9 +5,8 @@ export default function ClueUnlockBar({ unlockedClues, activeClue, handleUnlockC
       {[1, 2, 3, 4, 5].map((num) => {
         const isUnlocked = unlockedClues.includes(num);
         const isActive = activeClue === num;
-
         const baseClasses = "p-3 rounded-md text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#785e48]";
-        // The 'cursor-not-allowed' class has been removed from here
+        // The "not-allowed" cursor has been removed
         const lockedClasses = "bg-stone-200 text-stone-400 opacity-70";
         const unlockedClasses = "bg-[#fcf8f0] text-stone-700 hover:bg-stone-200 border border-stone-300";
         const activeClasses = "bg-[#785e48] text-white border-[#785e48] shadow-inner";
