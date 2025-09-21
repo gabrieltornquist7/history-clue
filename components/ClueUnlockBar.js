@@ -7,10 +7,10 @@ export default function ClueUnlockBar({ unlockedClues, activeClue, handleUnlockC
         const isUnlocked = unlockedClues.includes(num);
         const isActive = activeClue === num;
 
-        const baseClasses = "p-3 rounded-md text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#785e48]";
-        const lockedClasses = "bg-stone-200 text-stone-500 hover:bg-stone-300";
-        const unlockedClasses = "bg-[#fcf8f0] text-stone-700 hover:bg-stone-200 border border-stone-300";
-        const activeClasses = "bg-[#785e48] text-white border-[#785e48] shadow-inner";
+        const baseClasses = "p-3 rounded-lg text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sepia";
+        const lockedClasses = "bg-sepia/20 text-sepia/70 hover:bg-sepia/30";
+        const unlockedClasses = "bg-parchment text-sepia-dark hover:bg-sepia/10 border border-sepia/30";
+        const activeClasses = "bg-sepia-dark text-white border-sepia-dark shadow-inner";
 
         const finalClasses = `${baseClasses} ${isActive ? activeClasses : (isUnlocked ? unlockedClasses : lockedClasses)}`;
 

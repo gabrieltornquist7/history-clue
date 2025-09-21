@@ -6,11 +6,11 @@ export default function GuessingInterface({
     setSelectedCountry(e.target.value);
     setSelectedCity('');
   };
-  const labelClasses = "font-bold text-left text-stone-800";
-  const selectorClasses = "w-full p-2 border border-stone-300 rounded-md bg-white focus:ring-2 focus:ring-[#785e48] focus:border-[#785e48] transition";
+  const labelClasses = "font-bold text-left text-ink";
+  const selectorClasses = "w-full p-2 border border-sepia/30 rounded-md bg-parchment focus:ring-2 focus:ring-sepia-dark focus:border-sepia-dark transition shadow-sm";
 
   return (
-    <div className="w-full grid grid-cols-2 gap-6 pt-6 border-t border-stone-300">
+    <div className="w-full grid grid-cols-2 gap-6 pt-6 border-t border-sepia/20">
       <div className="flex flex-col gap-2">
         <label htmlFor="country" className={labelClasses}>Country</label>
         <select id="country" value={selectedCountry} onChange={handleCountryChange} className={selectorClasses}>
@@ -22,7 +22,7 @@ export default function GuessingInterface({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="city" className={labelClasses}>City</label>
-        <select id="city" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} disabled={!selectedCountry} className={`${selectorClasses} disabled:bg-stone-200`}>
+        <select id="city" value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} disabled={!selectedCountry} className={`${selectorClasses} disabled:bg-sepia/10`}>
           <option value="">{selectedCountry ? 'Select City...' : 'Select a country first'}</option>
           {selectedCountry && locations[selectedCountry].sort().map((city) => (
             <option key={city} value={city}>{city}</option>
@@ -35,7 +35,7 @@ export default function GuessingInterface({
       </div>
       <button
         onClick={handleGuessSubmit}
-        className="col-span-2 p-4 bg-[#785e48] text-white font-bold text-lg rounded-lg hover:bg-[#5a4b41] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#785e48]">
+        className="col-span-2 p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sepia-dark">
         Make Guess
       </button>
     </div>
