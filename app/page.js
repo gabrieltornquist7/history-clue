@@ -20,7 +20,7 @@ export default function HomePage() {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedYear, setSelectedYear] = useState(1950);
-  
+
   const [gameState, setGameState] = useState('playing'); // 'playing' or 'finished'
   const [results, setResults] = useState(null);
 
@@ -61,7 +61,6 @@ export default function HomePage() {
       year: puzzle.year
     };
 
-    // --- CORRECTED SCORING LOGIC ---
     const yearDifference = Math.abs(selectedYear - answer.year);
     const timePenalty = yearDifference * 50;
     let guessScore = score - timePenalty;
@@ -98,18 +97,20 @@ export default function HomePage() {
   };
 
   return (
-    <main style={{ fontFamily: 'sans-serif', textAlign: 'center' }}>
-      <h1>HistoryClue</h1>
+    <main className="min-h-screen p-8 text-center flex flex-col items-center">
+      <h1 className="text-6xl font-serif mt-8 mb-4 text-[#3d352e]">The Traveller's Chronicle</h1>
       <ScoreDisplay score={score} />
-      <ClueDisplay puzzle={puzzle} activeClue={activeClue} />
-      <ClueUnlockBar unlockedClues={unlockedClues} activeClue={activeClue} handleUnlockClue={handleUnlockClue} />
-      <GuessingInterface
-        locations={LOCATIONS}
-        selectedCountry={selectedCountry} setSelectedCountry={setSelectedCountry}
-        selectedCity={selectedCity} setSelectedCity={setSelectedCity}
-        selectedYear={selectedYear} setSelectedYear={setSelectedYear}
-        handleGuessSubmit={handleGuessSubmit}
-      />
+      <div className="w-full max-w-2xl bg-[#fefdfa] p-8 rounded-2xl shadow-lg border border-[#e0d8cc]">
+        <ClueDisplay puzzle={puzzle} activeClue={activeClue} />
+        <ClueUnlockBar unlockedClues={unlockedClues} activeClue={activeClue} handleUnlockClue={handleUnlockClue} />
+        <GuessingInterface
+          locations={LOCATIONS}
+          selectedCountry={selectedCountry} setSelectedCountry={setSelectedCountry}
+          selectedCity={selectedCity} setSelectedCity={setSelectedCity}
+          selectedYear={selectedYear} setSelectedYear={setSelectedYear}
+          handleGuessSubmit={handleGuessSubmit}
+        />
+      </div>
       {gameState === 'finished' && <ResultsScreen results={results} handlePlayAgain={handlePlayAgain} />}
     </main>
   );

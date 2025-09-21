@@ -3,7 +3,21 @@
 @tailwind utilities;
 
 body {
-  background-color: #f4f1ea; /* A warm, parchment-like color */
-  color: #3d352e; /* A dark brown for text */
-  font-family: Georgia, serif; /* A classic, readable font */
+  background-color: #fcf8f0; /* A very light, warm cream */
+  color: #5a4b41; /* A muted dark brown for main text */
+  font-family: 'Georgia', serif; /* Keeps the classic font */
+  line-height: 1.6;
+}
+
+h1 {
+  font-family: 'Playfair Display', serif; /* A more elegant title font */
+  font-size: 3.5rem; /* Larger title */
+  color: #3d352e; /* Darker brown for titles */
+  margin-bottom: 0.5rem;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+h2 {
+  font-family: 'Playfair Display', serif;
+  color: #3d352e;
 }
