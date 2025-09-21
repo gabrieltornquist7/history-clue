@@ -1,9 +1,8 @@
-// components/ScoreDisplay.js
 export default function ScoreDisplay({ score }) {
   return (
-    <div className="my-6 text-2xl font-bold text-stone-700">
+    <div className="my-4 text-xl text-stone-600">
       <span>Potential Score: </span>
-      <span className="text-black">{score.toLocaleString()}</span>
+      <span className="font-bold text-stone-800">{score.toLocaleString()}</span>
     </div>
   );
 }
