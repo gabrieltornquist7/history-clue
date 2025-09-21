@@ -14,12 +14,11 @@ export default function ClueUnlockBar({ unlockedClues, activeClue, handleUnlockC
 
         const finalClasses = `${baseClasses} ${isActive ? activeClasses : (isUnlocked ? unlockedClasses : lockedClasses)}`;
 
-        // The text inside the button is now conditional
         return (
           <button key={num} className={finalClasses} onClick={() => handleUnlockClue(num)}>
             <div>Clue {num}</div>
             <div className="text-xs font-normal opacity-80">
-              {isUnlocked ? '(Unlocked)' : `(${CLUE_COSTS[num]} pts)`}
+              {isUnlocked && num !== 1 ? '(Unlocked)' : `(${CLUE_COSTS[num] === 0 ? 'Free' : `${CLUE_COSTS[num]} pts`})`}
             </div>
           </button>
         );
