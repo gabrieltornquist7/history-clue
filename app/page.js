@@ -20,8 +20,7 @@ export default function HomePage() {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedYear, setSelectedYear] = useState(1950);
-
-  const [gameState, setGameState] = useState('playing'); // 'playing' or 'finished'
+  const [gameState, setGameState] = useState('playing');
   const [results, setResults] = useState(null);
 
   const fetchNewPuzzle = async () => {
@@ -54,64 +53,5 @@ export default function HomePage() {
       alert('Please select a country and city.');
       return;
     }
-
-    const answer = {
-      country: Object.keys(LOCATIONS).find(country => LOCATIONS[country].includes(puzzle.city_name)),
-      city: puzzle.city_name,
-      year: puzzle.year
-    };
-
+    const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year };
     const yearDifference = Math.abs(selectedYear - answer.year);
-    const timePenalty = yearDifference * 50;
-    let guessScore = score - timePenalty;
-    guessScore = Math.max(0, guessScore);
-
-    let finalScore;
-    if (selectedCountry === answer.country && selectedCity === answer.city) {
-      finalScore = guessScore;
-    } else if (selectedCountry === answer.country) {
-      finalScore = guessScore * 0.5;
-    } else {
-      finalScore = 0;
-    }
-
-    setResults({
-      guess: { country: selectedCountry, city: selectedCity, year: selectedYear },
-      answer: answer,
-      finalScore: Math.round(finalScore)
-    });
-    setGameState('finished');
-  };
-
-  const handlePlayAgain = () => {
-    setPuzzle(null);
-    setUnlockedClues([1]);
-    setActiveClue(1);
-    setScore(10000);
-    setSelectedCountry('');
-    setSelectedCity('');
-    setSelectedYear(1950);
-    setResults(null);
-    setGameState('playing');
-    fetchNewPuzzle();
-  };
-
-  return (
-    <main className="min-h-screen p-8 text-center flex flex-col items-center">
-      <h1 className="text-6xl font-serif mt-8 mb-4 text-[#3d352e]">The Traveller's Chronicle</h1>
-      <ScoreDisplay score={score} />
-      <div className="w-full max-w-2xl bg-[#fefdfa] p-8 rounded-2xl shadow-lg border border-[#e0d8cc]">
-        <ClueDisplay puzzle={puzzle} activeClue={activeClue} />
-        <ClueUnlockBar unlockedClues={unlockedClues} activeClue={activeClue} handleUnlockClue={handleUnlockClue} />
-        <GuessingInterface
-          locations={LOCATIONS}
-          selectedCountry={selectedCountry} setSelectedCountry={setSelectedCountry}
-          selectedCity={selectedCity} setSelectedCity={setSelectedCity}
-          selectedYear={selectedYear} setSelectedYear={setSelectedYear}
-          handleGuessSubmit={handleGuessSubmit}
-        />
-      </div>
-      {gameState === 'finished' && <ResultsScreen results={results} handlePlayAgain={handlePlayAgain} />}
-    </main>
-  );
-}
