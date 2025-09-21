@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 body {
-  @apply bg-[#fcf8f0] text-[#5a4b41];
+  background-color: #fcf8f0;
+  color: #5a4b41;
   font-family: var(--font-inter), sans-serif;
 }
 

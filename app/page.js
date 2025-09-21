@@ -56,8 +56,8 @@ export default function HomePage() {
     let guessScore = score - timePenalty;
     guessScore = Math.max(0, guessScore);
     let finalScore;
-    if (selectedCountry === answer.country && selectedCity === answer.city) { finalScore = guessScore; }
-    else if (selectedCountry === answer.country) { finalScore = guessScore * 0.5; }
+    if (selectedCountry === answer.country && selectedCity === answer.city) { finalScore = guessScore; } 
+    else if (selectedCountry === answer.country) { finalScore = guessScore * 0.5; } 
     else { finalScore = 0; }
     setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer: answer, finalScore: Math.round(finalScore) });
     setGameState('finished');
