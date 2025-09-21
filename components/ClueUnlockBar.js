@@ -2,22 +2,24 @@
 export default function ClueUnlockBar({ unlockedClues, activeClue, handleUnlockClue }) {
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
 
-  const baseStyle = { flexGrow: 1, padding: '10px', fontSize: '0.9em', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' };
-  const lockedStyle = { ...baseStyle, backgroundColor: '#ddd', color: '#888' };
-  const unlockedStyle = { ...baseStyle, backgroundColor: '#eee', color: '#333' };
-  const activeStyle = { ...unlockedStyle, backgroundColor: '#333', color: 'white' };
-
   return (
-    <div style={{ display: 'flex', gap: '10px', maxWidth: '600px', margin: '20px auto' }}>
+    <div className="max-w-2xl mx-auto grid grid-cols-5 gap-2 px-4">
       {[1, 2, 3, 4, 5].map((num) => {
         const isUnlocked = unlockedClues.includes(num);
         const isActive = activeClue === num;
-        const style = isActive ? activeStyle : (isUnlocked ? unlockedStyle : lockedStyle);
+
+        // We build the list of Tailwind classes based on the button's state
+        const baseClasses = "p-2 rounded-lg text-sm transition-all duration-200";
+        const lockedClasses = "bg-stone-200 text-stone-400 cursor-not-allowed";
+        const unlockedClasses = "bg-white hover:bg-stone-100 border border-stone-300";
+        const activeClasses = "bg-stone-800 text-white border-stone-800";
+
+        const finalClasses = `${baseClasses} ${isActive ? activeClasses : (isUnlocked ? unlockedClasses : lockedClasses)}`;
 
         return (
-          <button key={num} style={style} onClick={() => handleUnlockClue(num)}>
-            Clue {num}<br/>
-            <span style={{ fontSize: '0.8em', fontWeight: 'normal' }}>
+          <button key={num} className={finalClasses} onClick={() => handleUnlockClue(num)}>
+            <span className="font-bold">Clue {num}</span><br/>
+            <span className="text-xs">
               {isUnlocked ? '(Unlocked)' : `(${CLUE_COSTS[num]} pts)`}
             </span>
           </button>
