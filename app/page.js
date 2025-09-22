@@ -77,6 +77,7 @@ function Auth({ setView }) {
   );
 }
 
+
 // --- MAIN MENU COMPONENT ---
 function MainMenu({ setView, session, onSignOut }) {
   return (
@@ -199,7 +200,7 @@ function ProfileView({ setView, session }) {
     );
 }
 
-// --- CHALLENGE VIEW COMPONENT (CORRECTED) ---
+// --- CHALLENGE VIEW COMPONENT ---
 function ChallengeView({ setView, session, setActiveChallengeId }) {
     const [tab, setTab] = useState('challenges');
     const [profiles, setProfiles] = useState([]);
@@ -216,7 +217,7 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
             const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
             setProfiles(profilesData || []);
 
-            const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username, avatar_url), user2:user_id_2(id, username, avatar_url)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+            const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
             setFriendships(friendshipsData || []);
             
             const { data: challengesData } = await supabase.from('challenges').select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`).or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`);
