@@ -1,11 +1,57 @@
-export default function ClueDisplay({ puzzle, activeClue }) {
-  const clueText = puzzle?.puzzle_translations?.[0]?.[`clue_${activeClue}_text`];
+import React from "react";
+
+export default function ClueCard({ clue }) {
   return (
-    <div className="bg-parchment border border-sepia/30 rounded-lg p-6 my-6 min-h-[120px] flex flex-col justify-center shadow-inner">
-      <h2 className="text-xl font-bold text-ink mb-2">
-        Clue {activeClue}
-      </h2>
-      <p className="text-sepia-dark text-lg leading-relaxed">{clueText || 'Loading clue...'}</p>
+    <div
+      className="max-w-3xl mx-auto rounded-2xl p-6 shadow-lg border relative overflow-hidden
+                 transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl"
+      style={{ background: "linear-gradient(180deg,#F6E6CF 0%, #ffffff 70%)" }}
+    >
+      {/* subtle paper texture */}
+      <div className="absolute inset-0 pointer-events-none opacity-30"
+           style={{
+             backgroundImage:
+               "radial-gradient(circle at 10% 10%, rgba(255,255,255,0.05), transparent 8%)",
+           }}
+      />
+
+      {/* Clue Title */}
+      <div
+        className="relative inline-block px-3 py-1 rounded-lg font-semibold shadow-sm"
+        style={{
+          color: "#8B5A2B", // adventure brown
+          background: "rgba(255,255,255,0.35)",
+        }}
+      >
+        The Clue
+      </div>
+
+      {/* Clue Body */}
+      <div className="relative mt-4 p-4 rounded-lg bg-white/90 ring-1 ring-inset ring-[rgba(27,24,17,0.05)]">
+        <p className="text-slate-800 leading-relaxed">{clue}</p>
+      </div>
+
+      {/* Actions */}
+      <div className="relative mt-4 flex gap-3">
+        <button
+          className="px-4 py-2 rounded-full font-semibold shadow-sm
+                     transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#D4A373]"
+          style={{ background: "#D4A373", color: "#1F2937" }}
+        >
+          Inspect
+        </button>
+        <button
+          className="px-4 py-2 rounded-full font-semibold border transition-transform
+                     active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#D4A373]"
+          style={{
+            color: "#8B5A2B",
+            borderColor: "rgba(139,90,43,0.2)",
+            background: "transparent",
+          }}
+        >
+          Take
+        </button>
+      </div>
     </div>
   );
 }
