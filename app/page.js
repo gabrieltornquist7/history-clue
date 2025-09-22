@@ -14,20 +14,9 @@ function Auth({ setView }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
-
     if (isSigningUp) {
-      if (!username) {
-        alert('Please enter a username.');
-        setLoading(false);
-        return;
-      }
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username: username }
-        }
-      });
+      if (!username) { alert('Please enter a username.'); setLoading(false); return; }
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { username: username } } });
       if (error) alert(error.error_description || error.message);
       else alert('Check your email for the confirmation link!');
     } else {
@@ -158,7 +147,6 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
 
 // --- GAME VIEW COMPONENT ---
 function GameView({ setView, challengeId = null, session, onChallengeComplete, dailyPuzzleInfo = null, onDailyStepComplete = null }) {
-    // This component remains unchanged from the previous version
     const [puzzle, setPuzzle] = useState(null);
     const [unlockedClues, setUnlockedClues] = useState([1]);
     const [score, setScore] = useState(10000);
@@ -254,7 +242,7 @@ function GameView({ setView, challengeId = null, session, onChallengeComplete, d
     );
 }
 
-// --- DAILY CHALLENGE VIEW (NEW) ---
+// --- DAILY CHALLENGE VIEW ---
 function DailyChallengeView({ setView, session, setActiveDailyPuzzle }) {
     const [loading, setLoading] = useState(true);
     const [dailyPuzzleSet, setDailyPuzzleSet] = useState(null);
@@ -300,10 +288,10 @@ function DailyChallengeView({ setView, session, setActiveDailyPuzzle }) {
             
             {loading ? <div className="text-center text-sepia">Loading today's challenge...</div> : (
                 <div className="text-center p-8 bg-papyrus rounded-lg shadow-lg border border-sepia/20">
-                    {!dailyPuzzleSet ? ( <p className="text-2xl font-serif text-ink">Today's challenge has not been set up yet. Please check back later!</p> ) 
+                    {!dailyPuzzleSet ? ( <p className="text-2xl font-serif text-ink">Today&apos;s challenge has not been set up yet. Please check back later!</p> ) 
                     : userAttempt ? (
                         <div>
-                            <p className="text-2xl font-serif text-ink">You have already attempted today's challenge.</p>
+                            <p className="text-2xl font-serif text-ink">You have already attempted today&apos;s challenge.</p>
                             <p className="text-lg text-sepia mt-4">You completed <span className="font-bold text-gold-rush">{userAttempt.puzzles_completed}</span> of 5 puzzles.</p>
                             <p className="text-lg text-sepia">Your total score was <span className="font-bold text-gold-rush">{userAttempt.final_score.toLocaleString()}</span>.</p>
                             <p className="text-ink mt-6">Come back tomorrow for a new set of puzzles!</p>
@@ -344,7 +332,7 @@ export default function Page() {
         setActiveChallengeId(null);
         setView('challenge');
     };
-
+    
     const handleDailyStepComplete = async (score) => {
         const SCORE_TARGETS = [3000, 3500, 5000, 7500, 10000];
         const currentStep = activeDailyPuzzle.step;
@@ -361,7 +349,7 @@ export default function Page() {
                 scoreTarget: SCORE_TARGETS[nextStep - 1],
                 totalScore: newTotalScore
             });
-            setView('game');
+            // The view remains 'game' to show the next puzzle
         } else {
             const puzzlesCompleted = score >= SCORE_TARGETS[currentStep - 1] ? currentStep : currentStep - 1;
             await supabase.from('daily_attempts').update({
