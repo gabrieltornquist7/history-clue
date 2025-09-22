@@ -19,6 +19,7 @@ module.exports = {
         },
         'ink': '#3a3a3a',
         'papyrus': '#f8f5f0',
+        'gold-rush': '#D4A373', // A nice golden-brown color
       },
     },
   },
