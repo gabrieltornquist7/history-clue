@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from 'next/image'; // Import the Image component
+import Image from 'next/image';
 import { supabase } from '../lib/supabaseClient';
 import { LOCATIONS } from '../lib/locations';
 
@@ -100,7 +100,6 @@ export default function Page() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      {/* Updated Header with Logo */}
       <header className="mb-8 flex items-center justify-center text-center relative">
         <Image src="/logo.png" alt="HistoryClue Logo" width={60} height={60} className="absolute left-0 top-1/2 -translate-y-1/2" />
         <div>
@@ -112,6 +111,7 @@ export default function Page() {
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Left: Clues */}
         <div className="md:col-span-2 space-y-4">
           {[1, 2, 3, 4, 5].map((num) => {
             const isUnlocked = unlockedClues.includes(num);
@@ -131,8 +131,73 @@ export default function Page() {
                   <span className="text-sm font-semibold text-sepia-dark">{CLUE_COSTS[num].toLocaleString()} pts</span>
                 </div>
               </button>
-            )
+            );
           })}
         </div>
 
-        <aside className="space-y-6"></aside>
+        {/* Right: Controls */}
+        <aside>
+          <div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg">
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-1 text-ink">Country</label>
+              <select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" value={selectedCountry} onChange={(e) => { setSelectedCountry(e.target.value); setSelectedCity(''); }}>
+                <option value="">Select Country...</option>
+                {Object.keys(LOCATIONS).sort().map((country) => <option key={country} value={country}>{country}</option>)}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-1 text-ink">City</label>
+              <select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" disabled={!selectedCountry} value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}>
+                <option value="">{selectedCountry ? 'Select City...' : 'Select a country first'}</option>
+                {selectedCountry && LOCATIONS[selectedCountry].sort().map((city) => <option key={city} value={city}>{city}</option>)}
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-bold mb-1 text-ink">Year</label>
+              <input type="range" min={1800} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark" />
+              <div className="mt-2 text-center text-sm text-ink">
+                Guess year: <span className="font-bold text-lg">{selectedYear}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>
+                Make Guess
+              </button>
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1">
+              <p className="text-lg text-sepia">Potential Score: <span className="font-bold text-ink">{score.toLocaleString()}</span></p>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      {results && (
+        <section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush">
+            <h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2>
+            <div className="flex justify-around bg-papyrus p-4 rounded-lg border border-sepia/20 my-6">
+              <div className="text-left">
+                <h4 className="text-lg font-serif font-bold text-sepia">Your Guess</h4>
+                <p>{results.guess.city}, {results.guess.country}</p>
+                <p>{results.guess.year}</p>
+              </div>
+              <div className="text-left">
+                <h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4>
+                <p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.country}</p>
+                <p className="text-green-700 font-semibold">{results.answer.year}</p>
+              </div>
+            </div>
+            <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>
+            <button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">
+              Play Again
+            </button>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
