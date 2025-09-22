@@ -201,7 +201,7 @@ function ProfileView({ setView, session }) {
 }
 
 // --- CHALLENGE VIEW COMPONENT ---
-function ChallengeView({ setView, session }) {
+function ChallengeView({ setView, session, setActiveChallengeId }) {
     const [tab, setTab] = useState('challenges');
     const [profiles, setProfiles] = useState([]);
     const [friendships, setFriendships] = useState([]);
@@ -212,15 +212,11 @@ function ChallengeView({ setView, session }) {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            
-            const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
-            if (profilesError) console.error("Error fetching profiles:", profilesError);
-            else setProfiles(profilesData || []);
+            const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
+            setProfiles(profilesData || []);
 
-            const { data: friendshipsData, error: friendshipsError } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username, avatar_url), user2:user_id_2(id, username, avatar_url)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
-            if (friendshipsError) console.error("Error fetching friendships:", friendshipsError);
-            else setFriendships(friendshipsData || []);
-            
+            const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+            setFriendships(friendshipsData || []);
             setLoading(false);
         };
         fetchData();
@@ -248,9 +244,26 @@ function ChallengeView({ setView, session }) {
         else alert('Friend request accepted!');
     };
     
-    const sendChallenge = (opponentId) => alert(`Challenge sent! (Functionality coming soon)`);
-    const challengeRandom = () => alert('Challenging a random player! (Functionality coming soon)');
-    
+    const sendChallenge = async (opponentId) => {
+        const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true });
+        if (!count) return alert('Could not find any puzzles.');
+        const randomIndex = Math.floor(Math.random() * count);
+        const { data: puzzle, error: puzzleError } = await supabase.from('puzzles').select('id').range(randomIndex, randomIndex).single();
+        if (puzzleError || !puzzle) return alert('Error selecting a puzzle for the challenge.');
+
+        const { data: challenge, error: challengeError } = await supabase.from('challenges').insert({
+            puzzle_id: puzzle.id,
+            challenger_id: currentUserId,
+            opponent_id: opponentId,
+            status: 'pending'
+        }).select().single();
+
+        if (challengeError) return alert('Could not create challenge: ' + challengeError.message);
+
+        setActiveChallengeId(challenge.id);
+        setView('game');
+    };
+
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
             <header className="mb-8 text-center relative"><button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">&larr; Menu</button><h1 className="text-5xl font-serif font-bold text-gold-rush">Challenge Mode</h1></header>
@@ -260,7 +273,7 @@ function ChallengeView({ setView, session }) {
                 <div>
                     {tab === 'challenges' && (
                         <div>
-                            <button onClick={challengeRandom} className="w-full mb-6 p-4 bg-gold-rush text-ink font-bold text-lg rounded-lg hover:bg-amber-600 transition-colors shadow-md">Challenge a Random Player</button>
+                            <button className="w-full mb-6 p-4 bg-gold-rush text-ink font-bold text-lg rounded-lg cursor-not-allowed opacity-50">Challenge a Random Player (Coming Soon)</button>
                             <h3 className="text-2xl font-serif font-bold text-ink mb-4">Challenge a Friend</h3>
                             <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                                 {friendProfiles.length > 0 ? friendProfiles.map(friend => (
@@ -290,9 +303,8 @@ function ChallengeView({ setView, session }) {
     );
 }
 
-
-// --- ENDLESS MODE (GAME) COMPONENT ---
-function GameView({ setView }) {
+// --- GAME VIEW COMPONENT (UPDATED FOR CHALLENGES) ---
+function GameView({ setView, challengeId = null, session }) {
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
@@ -302,20 +314,87 @@ function GameView({ setView }) {
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
-  const fetchNewPuzzle = async () => { setIsLoading(true); const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true }); if (count === 0 || !count) { setIsLoading(false); return; } const randomIndex = Math.floor(Math.random() * count); const { data, error } = await supabase.from('puzzles').select(`*, puzzle_translations (*)`).eq('puzzle_translations.language_code', 'en-US').range(randomIndex, randomIndex).single(); if (error) console.error('Error fetching puzzle:', error); else setPuzzle(data); setIsLoading(false); };
-  useEffect(() => { fetchNewPuzzle(); }, []);
+
+  useEffect(() => {
+    const fetchPuzzleData = async () => {
+        setIsLoading(true);
+        let puzzleData;
+        if (challengeId) {
+            // Fetch the puzzle for the specific challenge
+            const { data: challengeData, error } = await supabase.from('challenges').select('*, puzzles(*, puzzle_translations(*))').eq('id', challengeId).single();
+            if (error || !challengeData) console.error("Error fetching challenge puzzle");
+            else puzzleData = challengeData.puzzles;
+        } else {
+            // Fetch a random puzzle for Endless Mode
+            const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true });
+            if (count > 0) {
+                const randomIndex = Math.floor(Math.random() * count);
+                const { data, error } = await supabase.from('puzzles').select(`*, puzzle_translations (*)`).eq('puzzle_translations.language_code', 'en-US').range(randomIndex, randomIndex).single();
+                if (error) console.error('Error fetching random puzzle:', error);
+                else puzzleData = data;
+            }
+        }
+        setPuzzle(puzzleData);
+        setIsLoading(false);
+    };
+    fetchPuzzleData();
+  }, [challengeId]);
+
   const handleUnlockClue = (clueNumber) => { if (results || unlockedClues.includes(clueNumber)) return; const cost = CLUE_COSTS[clueNumber]; if (score >= cost) { setScore(score - cost); setUnlockedClues([...unlockedClues, clueNumber].sort()); } else { alert("Not enough points!"); } };
-  const handleGuessSubmit = async () => { if (!selectedCity || !selectedCountry) return alert('Please select a country and city.'); if (!puzzle) return; const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year }; const yearDifference = Math.abs(selectedYear - answer.year); const timePenalty = yearDifference * 50; let scoreAfterPenalty = Math.max(0, score - timePenalty); let finalScore; if (selectedCountry === answer.country && selectedCity === answer.city) finalScore = scoreAfterPenalty; else if (selectedCountry === answer.country) finalScore = scoreAfterPenalty * 0.5; else finalScore = 0; const finalScoreRounded = Math.round(finalScore); const { data: { user } } = await supabase.auth.getUser(); if (user) { const { error } = await supabase.from('scores').insert({ user_id: user.id, score: finalScoreRounded }); if (error) console.error("Error saving score:", error); } setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer, finalScore: finalScoreRounded }); };
-  const handlePlayAgain = () => { setPuzzle(null); setUnlockedClues([1]); setScore(10000); setSelectedCountry(''); setSelectedCity(''); setSelectedYear(1950); setResults(null); fetchNewPuzzle(); };
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-ink text-2xl font-serif">Loading a new mystery...</div>;
+  
+  const handleGuessSubmit = async () => {
+    if (!selectedCity || !selectedCountry) return alert('Please select a country and city.');
+    if (!puzzle) return;
+    const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year };
+    const yearDifference = Math.abs(selectedYear - answer.year);
+    const timePenalty = yearDifference * 50;
+    let scoreAfterPenalty = Math.max(0, score - timePenalty);
+    let finalScore;
+    if (selectedCountry === answer.country && selectedCity === answer.city) finalScore = scoreAfterPenalty;
+    else if (selectedCountry === answer.country) finalScore = scoreAfterPenalty * 0.5;
+    else finalScore = 0;
+    const finalScoreRounded = Math.round(finalScore);
+
+    if (challengeId) {
+        // Update the challenge score
+        const { data: challenge, error: fetchError } = await supabase.from('challenges').select('challenger_id').eq('id', challengeId).single();
+        if (fetchError) return alert('Could not find challenge to save score.');
+
+        const scoreColumn = session.user.id === challenge.challenger_id ? 'challenger_score' : 'opponent_score';
+        const { error: updateError } = await supabase.from('challenges').update({ [scoreColumn]: finalScoreRounded }).eq('id', challengeId);
+        if (updateError) alert('Error saving challenge score: ' + updateError.message);
+
+    } else {
+        // Insert a new score for endless mode
+        const { error } = await supabase.from('scores').insert({ user_id: session.user.id, score: finalScoreRounded });
+        if (error) console.error("Error saving score:", error);
+    }
+    
+    setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer, finalScore: finalScoreRounded });
+  };
+
+  const handlePlayAgain = () => {
+    if (challengeId) {
+        setView('challenge'); // Go back to challenge list if it was a challenge match
+    } else {
+        setPuzzle(null); setUnlockedClues([1]); setScore(10000); setSelectedCountry(''); setSelectedCity(''); setSelectedYear(1950); setResults(null);
+        fetchNewPuzzle();
+    }
+  };
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-ink text-2xl font-serif">Loading puzzle...</div>;
+
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <header className="mb-8 text-center relative"><button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">&larr; Menu</button><div><h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1><p className="text-lg text-sepia mt-2">Endless Mode</p></div></header>
+      <header className="mb-8 text-center relative">
+        <button onClick={() => setView(challengeId ? 'challenge' : 'menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">&larr; Back</button>
+        <div><h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1><p className="text-lg text-sepia mt-2">{challengeId ? 'Challenge Match' : 'Endless Mode'}</p></div>
+      </header>
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-4">{[1, 2, 3, 4, 5].map((num) => { const isUnlocked = unlockedClues.includes(num); const clueText = puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`]; return isUnlocked ? (<article key={num} className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm"><span className="block font-serif font-bold text-ink">Clue {num}</span><p className={`mt-1 text-sepia-dark ${num === 1 ? "italic text-lg" : ""}`}>{clueText || 'Loading...'}</p></article>) : (<button key={num} className="w-full p-4 border border-sepia/30 rounded-lg hover:bg-sepia/10 text-left transition-colors" onClick={() => handleUnlockClue(num)}><div className="flex justify-between items-center"><span className="font-semibold text-lg text-ink">Unlock Clue {num}</span><span className="text-sm font-semibold text-sepia-dark">{CLUE_COSTS[num].toLocaleString()} pts</span></div></button>) })}</div>
         <aside><div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg"><div className="mb-4"><label className="block text-sm font-bold mb-1 text-ink">Country</label><select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" value={selectedCountry} onChange={(e) => { setSelectedCountry(e.target.value); setSelectedCity(''); }}><option value="">Select Country...</option>{Object.keys(LOCATIONS).sort().map((country) => <option key={country} value={country}>{country}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-bold mb-1 text-ink">City</label><select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" disabled={!selectedCountry} value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}><option value="">{selectedCountry ? 'Select City...' : 'Select a country first'}</option>{selectedCountry && LOCATIONS[selectedCountry].sort().map((city) => <option key={city} value={city}>{city}</option>)}</select></div><div className="mb-6"><label className="block text-sm font-bold mb-1 text-ink">Year</label><input type="range" min={1800} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark" /><div className="mt-2 text-center text-sm text-ink">Guess year: <span className="font-bold text-lg">{selectedYear}</span></div></div><div className="flex justify-center"><button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>Make Guess</button></div><div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1"><p className="text-lg text-sepia">Potential Score: <span className="font-bold text-ink">{score.toLocaleString()}</span></p></div></div></aside>
       </section>
-      {results && (<section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"><div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush"><h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2><div className="flex justify-around bg-papyrus p-4 rounded-lg border border-sepia/20 my-6"><div className="text-left"><h4 className="text-lg font-serif font-bold text-sepia">Your Guess</h4><p>{results.guess.city}, {results.guess.country}</p><p>{results.guess.year}</p></div><div className="text-left"><h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4><p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.country}</p><p className="text-green-700 font-semibold">{results.answer.year}</p></div></div><h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3><button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">Play Again</button></div></section>)}
+      {results && (<section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"><div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush"><h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2><div className="flex justify-around bg-papyrus p-4 rounded-lg border border-sepia/20 my-6"><div className="text-left"><h4 className="text-lg font-serif font-bold text-sepia">Your Guess</h4><p>{results.guess.city}, {results.guess.country}</p><p>{results.guess.year}</p></div><div className="text-left"><h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4><p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.country}</p><p className="text-green-700 font-semibold">{results.answer.year}</p></div></div><h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3><button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">{challengeId ? 'Back to Challenges' : 'Play Again'}</button></div></section>)}
     </main>
   );
 }
@@ -323,7 +402,8 @@ function GameView({ setView }) {
 // --- MAIN PAGE CONTROLLER ---
 export default function Page() {
     const [session, setSession] = useState(null);
-    const [view, setView] = useState('menu'); // 'menu', 'endless', 'auth', 'profile', 'challenge'
+    const [view, setView] = useState('menu');
+    const [activeChallengeId, setActiveChallengeId] = useState(null);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -336,14 +416,15 @@ export default function Page() {
         setView('menu');
     };
 
-    if ((view === 'endless' || view === 'profile' || view === 'challenge') && !session) {
+    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game') && !session) {
         return <Auth setView={setView} />;
     }
 
-    if (view === 'endless') return <GameView setView={setView} />;
+    if (view === 'game') return <GameView setView={setView} challengeId={activeChallengeId} session={session} />;
+    if (view === 'endless') return <GameView setView={setView} session={session} />;
     if (view === 'auth') return <Auth setView={setView} />;
     if (view === 'profile') return <ProfileView setView={setView} session={session} />;
-    if (view === 'challenge') return <ChallengeView setView={setView} session={session} />;
+    if (view === 'challenge') return <ChallengeView setView={setView} session={session} setActiveChallengeId={setActiveChallengeId} />;
     
     return <MainMenu setView={setView} session={session} onSignOut={handleSignOut} />;
 }
