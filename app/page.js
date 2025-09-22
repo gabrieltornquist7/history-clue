@@ -1,17 +1,5 @@
-// app/page.jsx
 "use client";
-
 import { useState } from "react";
-
-/*
-  Simple local UI implementation (no Supabase calls).
-  This file focuses on the styling changes you requested:
-  - white page background & black text (root layout)
-  - country/city selects are black text on white bg
-  - visible borders around buttons
-  - results card has its own solid background
-  - clue cards styled consistently
-*/
 
 const countryCities = {
   IT: ["Rome", "Florence", "Venice", "Milan"],
@@ -36,21 +24,17 @@ const samplePuzzle = {
 
 export default function Page() {
   const [puzzle] = useState(samplePuzzle);
-
-  // unlocked flags (clue 1 free)
   const [unlocked, setUnlocked] = useState([true, false, false, false, false]);
   const costs = [0, 1000, 1500, 2000, 3000];
   const [spent, setSpent] = useState(0);
   const [potential, setPotential] = useState(10000);
-
-  const [guessedCountry, setGuessedCountry] = useState(puzzle.country);
-  const [guessedCity, setGuessedCity] = useState(puzzle.city);
-  const [guessYear, setGuessYear] = useState(puzzle.year);
-
+  const [guessedCountry, setGuessedCountry] = useState('IT');
+  const [guessedCity, setGuessedCity] = useState('Rome');
+  const [guessYear, setGuessYear] = useState(1850);
   const [result, setResult] = useState(null);
 
   function unlock(i) {
-    if (unlocked[i]) return;
+    if (unlocked[i] || result) return;
     setUnlocked((s) => {
       const next = [...s];
       next[i] = true;
@@ -61,157 +45,83 @@ export default function Page() {
   }
 
   function handleGuess() {
+    if (result) return;
     const timePenalty = Math.abs(guessYear - puzzle.year) * 50;
     const afterTime = Math.max(0, potential - timePenalty);
-
     let locMatch = "none";
     if (guessedCountry === puzzle.country) {
-      locMatch =
-        guessedCity.toLowerCase() === puzzle.city.toLowerCase() ? "city" : "country";
+      locMatch = guessedCity.toLowerCase() === puzzle.city.toLowerCase() ? "city" : "country";
     }
-
     const multiplier = locMatch === "city" ? 1 : locMatch === "country" ? 0.5 : 0;
     const final = Math.max(0, Math.round(afterTime * multiplier));
-
     setResult({ correct: { ...puzzle }, final, timePenalty, locMatch });
   }
 
-  function resetRound() {
-    setUnlocked([true, false, false, false, false]);
-    setSpent(0);
-    setPotential(10000);
-    setResult(null);
-    setGuessedCountry(puzzle.country);
-    setGuessedCity(puzzle.city);
-    setGuessYear(puzzle.year);
-  }
-
   return (
-    <main>
-      <header className="mb-6">
-        <h1 className="text-4xl font-bold">HistoryClue</h1>
-        <p className="text-sm text-gray-600 mt-1">
+    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <header className="mb-8 text-center">
+        <h1 className="text-5xl font-serif font-bold text-ink">HistoryClue</h1>
+        <p className="text-lg text-sepia mt-2">
           Deduce the city and year from five clues. Unlock more clues at a cost.
         </p>
       </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Left: Clues */}
-        <div className="md:col-span-2">
-          <div className="space-y-3">
-            {puzzle.clues.map((clue, i) =>
-              unlocked[i] ? (
-                <article
-                  key={i}
-                  className="p-4 mb-0 bg-gray-50 border border-gray-300 rounded-lg hc-card"
-                >
-                  <span className="block font-semibold text-gray-800">Clue {i + 1}</span>
-
-                  <p
-                    className={
-                      i === 0
-                        ? "mt-1 text-gray-800 italic text-lg"
-                        : i === 2
-                        ? "mt-1 text-gray-800 font-bold"
-                        : i === 4
-                        ? "mt-1 font-mono uppercase tracking-wider text-gray-800"
-                        : "mt-1 text-gray-700"
-                    }
-                  >
-                    {clue}
-                  </p>
-                </article>
-              ) : (
-                <button
-                  key={i}
-                  className="w-full px-4 py-3 mb-3 border border-gray-400 rounded hover:bg-gray-100 text-left"
-                  onClick={() => unlock(i)}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Unlock Clue {i + 1}</span>
-                    <span className="text-sm text-gray-600">{costs[i]} pts</span>
-                  </div>
-                </button>
-              )
-            )}
-          </div>
+        <div className="md:col-span-2 space-y-4">
+          {puzzle.clues.map((clue, i) =>
+            unlocked[i] ? (
+              <article key={i} className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm">
+                <span className="block font-serif font-bold text-ink">Clue {i + 1}</span>
+                <p className={`mt-1 text-sepia-dark ${i === 0 ? "italic text-lg" : ""} ${i === 2 ? "font-bold" : ""} ${i === 4 ? "font-mono uppercase tracking-wider" : ""}`}>
+                  {clue}
+                </p>
+              </article>
+            ) : (
+              <button key={i} className="w-full p-4 border border-sepia/30 rounded-lg hover:bg-sepia/10 text-left transition-colors" onClick={() => unlock(i)}>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-lg text-ink">Unlock Clue {i + 1}</span>
+                  <span className="text-sm font-semibold text-sepia-dark">{costs[i]} pts</span>
+                </div>
+              </button>
+            )
+          )}
         </div>
 
         {/* Right: Controls */}
-        <aside>
-          <div className="p-4 border border-gray-300 rounded-lg bg-white">
-            <div className="mb-3">
-              <label className="block text-sm font-medium mb-1">Country</label>
-              <select
-                className="w-full p-2 border border-gray-400 rounded text-black bg-white"
-                value={guessedCountry}
-                onChange={(e) => {
-                  const nextCountry = e.target.value;
-                  setGuessedCountry(nextCountry);
-                  const cities = countryCities[nextCountry] || [];
-                  setGuessedCity(cities[0] || "");
-                }}
-              >
-                {Object.entries(countryCities).map(([code]) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mb-3">
-              <label className="block text-sm font-medium mb-1">City</label>
-              <select
-                className="w-full p-2 border border-gray-400 rounded text-black bg-white"
-                value={guessedCity}
-                onChange={(e) => setGuessedCity(e.target.value)}
-              >
-                {(countryCities[guessedCountry] || []).map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+        <aside className="space-y-6">
+          <div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg">
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-1 text-ink">Country</label>
+              <select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" value={guessedCountry} onChange={(e) => { setGuessedCountry(e.target.value); setGuessedCity(countryCities[e.target.value][0]); }}>
+                {Object.keys(countryCities).map((code) => <option key={code} value={code}>{code}</option>)}
               </select>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Year</label>
-              <input
-                type="range"
-                min={1600}
-                max={2025}
-                value={guessYear}
-                onChange={(e) => setGuessYear(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="mt-2 text-sm">
-                Guess year: <span className="font-semibold">{guessYear}</span>
+              <label className="block text-sm font-bold mb-1 text-ink">City</label>
+              <select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" value={guessedCity} onChange={(e) => setGuessedCity(e.target.value)}>
+                {(countryCities[guessedCountry] || []).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-bold mb-1 text-ink">Year</label>
+              <input type="range" min={1600} max={2025} value={guessYear} onChange={(e) => setGuessYear(Number(e.target.value))} className="w-full accent-sepia-dark" />
+              <div className="mt-2 text-center text-sm text-ink">
+                Guess year: <span className="font-bold text-lg">{guessYear}</span>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                className="flex-1 px-4 py-2 border border-gray-600 rounded hover:bg-gray-100"
-                onClick={handleGuess}
-              >
+            <div className="flex justify-center">
+              <button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuess}>
                 Make Guess
               </button>
-              <button
-                className="px-3 py-2 border border-gray-400 rounded hover:bg-gray-100"
-                onClick={resetRound}
-              >
-                Reset
-              </button>
             </div>
 
-            <div className="mt-4 text-sm text-gray-600">
-              <div>
-                Potential: <span className="font-semibold">{potential}</span>
-              </div>
-              <div>
-                Spent: <span className="font-semibold">{spent}</span>
-              </div>
+            <div className="mt-6 pt-4 border-t border-sepia/20 text-sm text-sepia text-center space-y-1">
+              <div>Potential Score: <span className="font-bold text-ink">{potential.toLocaleString()}</span></div>
+              <div>Spent: <span className="font-bold text-ink">{spent.toLocaleString()}</span></div>
             </div>
           </div>
         </aside>
@@ -219,21 +129,14 @@ export default function Page() {
 
       {/* Results card */}
       {result && (
-        <section className="mt-6 p-6 bg-gray-100 rounded-lg shadow-lg border border-gray-300">
-          <h2 className="text-2xl font-bold mb-2">Results</h2>
-          <p className="mb-1">
-            Correct:{" "}
-            <span className="font-semibold">
-              {result.correct.city}, {result.correct.country} — {result.correct.year}
-            </span>
-          </p>
-          <p className="mb-1">
-            Location match: <span className="font-semibold">{result.locMatch}</span>
-          </p>
-          <p className="mb-1">
-            Time penalty: <span className="font-semibold">{result.timePenalty}</span>
-          </p>
-          <p className="text-lg font-semibold">Final score: {result.final}</p>
+        <section className="mt-8 p-6 bg-papyrus rounded-lg shadow-xl border-2 border-sepia-dark">
+          <h2 className="text-3xl font-serif font-bold mb-4 text-ink text-center">Results</h2>
+          <div className="text-center space-y-2 text-lg">
+            <p>Correct Answer: <span className="font-bold">{result.correct.city}, {result.correct.country} — {result.correct.year}</span></p>
+            <p>Location Match: <span className="font-bold capitalize">{result.locMatch}</span></p>
+            <p>Time Penalty: <span className="font-bold">{result.timePenalty.toLocaleString()}</span></p>
+            <p className="text-2xl font-bold pt-2 text-ink">Final Score: {result.final.toLocaleString()}</p>
+          </div>
         </section>
       )}
     </main>
