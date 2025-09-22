@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from 'next/image';
+import Image from 'next/image'; // Make sure Image is imported
 import { supabase } from '../lib/supabaseClient';
 import { LOCATIONS } from '../lib/locations';
 
@@ -201,7 +201,7 @@ function ProfileView({ setView, session }) {
     );
 }
 
-// --- CHALLENGE VIEW COMPONENT (CORRECTED) ---
+// --- CHALLENGE VIEW COMPONENT ---
 function ChallengeView({ setView, session }) {
     const [tab, setTab] = useState('challenges');
     const [profiles, setProfiles] = useState([]);
@@ -213,20 +213,11 @@ function ChallengeView({ setView, session }) {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-
-            // Fetch profiles excluding the current user
-            const { data: profilesData, error: profilesError } = await supabase
-                .from('profiles')
-                .select('id, username, avatar_url')
-                .not('id', 'eq', currentUserId);
+            const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
             if (profilesError) console.error("Error fetching profiles:", profilesError);
             else setProfiles(profilesData || []);
 
-            // Fetch friendships related to the current user
-            const { data: friendshipsData, error: friendshipsError } = await supabase
-                .from('friendships')
-                .select(`*, user1:profiles!user_id_1(id, username), user2:profiles!user_id_2(id, username)`)
-                .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+            const { data: friendshipsData, error: friendshipsError } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username, avatar_url), user2:user_id_2(id, username, avatar_url)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
             if (friendshipsError) console.error("Error fetching friendships:", friendshipsError);
             else setFriendships(friendshipsData || []);
 
@@ -234,13 +225,12 @@ function ChallengeView({ setView, session }) {
         };
         fetchData();
     }, [currentUserId]);
-    
-    // Derived state from friendships
+
     const friends = friendships.filter(f => f.status === 'accepted');
     const friendProfiles = friends.map(f => f.user1.id === currentUserId ? f.user2 : f.user1);
     const friendIds = friendProfiles.map(p => p.id);
-
-    const pendingRequests = friendships.filter(f => f.status === 'pending' && f.action_user_id !== currentUserId && f.user_id_2 === currentUserId);
+    
+    const pendingRequests = friendships.filter(f => f.status === 'pending' && f.user_id_2 === currentUserId && f.action_user_id !== currentUserId);
     const sentRequests = friendships.filter(f => f.status === 'pending' && f.action_user_id === currentUserId);
     const sentRequestIds = sentRequests.map(f => f.user_id_2);
 
@@ -260,7 +250,7 @@ function ChallengeView({ setView, session }) {
     
     const sendChallenge = (opponentId) => alert(`Challenge sent! (Functionality coming soon)`);
     const challengeRandom = () => alert('Challenging a random player! (Functionality coming soon)');
-
+    
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
             <header className="mb-8 text-center relative"><button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">&larr; Menu</button><h1 className="text-5xl font-serif font-bold text-gold-rush">Challenge Mode</h1></header>
@@ -275,7 +265,7 @@ function ChallengeView({ setView, session }) {
                             <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                                 {friendProfiles.length > 0 ? friendProfiles.map(friend => (
                                     <div key={friend.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{friend.username}</span><button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-sm font-bold rounded-lg hover:bg-ink">Challenge</button></div>
-                                )) : <p className="text-sepia">You have no friends yet. Go to the &quot;Find Players&quot; tab to add some.</p>}
+                                )) : <p className="text-sepia">You haven&apos;t added any friends yet. Go to the &quot;Find Players&quot; tab.</p>}
                             </div>
                         </div>
                     )}
