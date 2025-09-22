@@ -207,8 +207,11 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
     const [friendships, setFriendships] = useState([]);
     const [challenges, setChallenges] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [dataVersion, setDataVersion] = useState(0); // <-- New state to trigger re-fetch
 
     const currentUserId = session.user.id;
+    
+    const refetchData = () => setDataVersion(v => v + 1); // <-- Function to trigger re-fetch
 
     useEffect(() => {
         const fetchData = async () => {
@@ -220,13 +223,13 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
             const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
             setFriendships(friendshipsData || []);
             
-            const { data: challengesData } = await supabase.from('challenges').select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`).or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`);
+            const { data: challengesData } = await supabase.from('challenges').select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`).or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`).order('created_at', { ascending: false });
             setChallenges(challengesData || []);
 
             setLoading(false);
         };
         fetchData();
-    }, [currentUserId]);
+    }, [currentUserId, dataVersion]); // <-- Re-fetch when dataVersion changes
 
     const friends = friendships.filter(f => f.status === 'accepted');
     const friendProfiles = friends.map(f => f.user1.id === currentUserId ? f.user2 : f.user1);
@@ -241,13 +244,19 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
     const handleAddFriend = async (profileId) => {
         const { error } = await supabase.from('friendships').insert({ user_id_1: currentUserId, user_id_2: profileId, action_user_id: currentUserId });
         if (error) alert(error.message);
-        else alert('Friend request sent!');
+        else {
+            alert('Friend request sent!');
+            refetchData(); // <-- Refresh UI
+        }
     };
 
     const handleAcceptRequest = async (friendship) => {
         const { error } = await supabase.from('friendships').update({ status: 'accepted', action_user_id: currentUserId }).eq('id', friendship.id);
         if (error) alert(error.message);
-        else alert('Friend request accepted!');
+        else {
+            alert('Friend request accepted!');
+            refetchData(); // <-- Refresh UI
+        }
     };
     
     const sendChallenge = async (opponentId) => {
@@ -289,14 +298,11 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
                     {tab === 'challenges' && (
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Incoming &amp; Pending</h3>
+                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Incoming Challenges</h3>
                                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                                     {incomingChallenges.length > 0 ? incomingChallenges.map(c => (
                                         <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger.username} challenged you!</span><button onClick={() => playChallenge(c.id)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Play</button></div>
                                     )) : <p className="text-sepia">You have no incoming challenges.</p>}
-                                    {outgoingChallenges.map(c => (
-                                        <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent.username} to play...</span><span className="text-sm text-sepia">Your Score: {c.challenger_score}</span></div>
-                                    ))}
                                 </div>
                             </div>
                              <div>
@@ -338,7 +344,7 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
 }
 
 // --- GAME VIEW COMPONENT ---
-function GameView({ setView, challengeId = null, session }) {
+function GameView({ setView, challengeId = null, session, onChallengeComplete }) {
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
@@ -418,7 +424,7 @@ function GameView({ setView, challengeId = null, session }) {
 
   const handlePlayAgain = () => {
     if (challengeId) {
-        setView('challenge');
+        onChallengeComplete(); // <-- Use the new callback
     } else {
         setPuzzle(null); setUnlockedClues([1]); setScore(10000); setSelectedCountry(''); setSelectedCity(''); setSelectedYear(1950); setResults(null);
         fetchNewPuzzle();
@@ -455,12 +461,17 @@ export default function Page() {
         await supabase.auth.signOut();
         setView('menu');
     };
+    
+    const onChallengeComplete = () => {
+        setActiveChallengeId(null);
+        setView('challenge');
+    };
 
     if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game') && !session) {
         return <Auth setView={setView} />;
     }
 
-    if (view === 'game') return <GameView setView={setView} challengeId={activeChallengeId} session={session} />;
+    if (view === 'game') return <GameView setView={setView} challengeId={activeChallengeId} session={session} onChallengeComplete={onChallengeComplete} />;
     if (view === 'endless') return <GameView setView={setView} session={session} />;
     if (view === 'auth') return <Auth setView={setView} />;
     if (view === 'profile') return <ProfileView setView={setView} session={session} />;
