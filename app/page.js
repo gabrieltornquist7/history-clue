@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from 'next/image'; // Make sure Image is imported
 import { supabase } from '../lib/supabaseClient';
 import { LOCATIONS } from '../lib/locations';
 
@@ -76,7 +77,6 @@ function Auth({ setView }) {
     </div>
   );
 }
-
 
 // --- MAIN MENU COMPONENT ---
 function MainMenu({ setView, session, onSignOut }) {
@@ -169,6 +169,7 @@ function ProfileView({ setView, session }) {
     
     const totalScore = scores.reduce((acc, s) => acc + s.score, 0);
     const averageScore = scores.length > 0 ? Math.round(totalScore / scores.length) : 0;
+    const avatarSrc = profile?.avatar_url ? `https://bisjnzssegpfhkxaayuz.supabase.co/storage/v1/object/public/avatars/${profile.avatar_url}` : 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
 
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
@@ -176,7 +177,7 @@ function ProfileView({ setView, session }) {
             {loading ? <div className="text-center text-sepia">Loading profile...</div> : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
-                        <img src={profile?.avatar_url ? `https://bisjnzssegpfhkxaayuz.supabase.co/storage/v1/object/public/avatars/${profile.avatar_url}` : 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??'} alt="Avatar" className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
+                        <Image src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
                         <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
                         <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
                         <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
@@ -199,7 +200,7 @@ function ProfileView({ setView, session }) {
     );
 }
 
-// --- CHALLENGE VIEW COMPONENT (NEW) ---
+// --- CHALLENGE VIEW COMPONENT ---
 function ChallengeView({ setView, session }) {
     const [tab, setTab] = useState('challenges'); // challenges, find, requests
     const [profiles, setProfiles] = useState([]);
@@ -212,13 +213,11 @@ function ChallengeView({ setView, session }) {
         async function fetchData() {
             setLoading(true);
             
-            // Fetch all profiles except the current user's
             const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
             if (profilesError) console.error("Error fetching profiles:", profilesError);
             else setProfiles(profilesData || []);
 
-            // Fetch all friendships related to the current user
-            const { data: friendshipsData, error: friendshipsError } = await supabase.from('friendships').select(`*, user_id_1 (username, avatar_url), user_id_2 (username, avatar_url)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+            const { data: friendshipsData, error: friendshipsError } = await supabase.from('friendships').select(`id, status, action_user_id, user_id_1(id, username), user_id_2(id, username)`);
             if (friendshipsError) console.error("Error fetching friendships:", friendshipsError);
             else setFriendships(friendshipsData || []);
             
@@ -228,10 +227,12 @@ function ChallengeView({ setView, session }) {
     }, [currentUserId]);
 
     const friends = friendships.filter(f => f.status === 'accepted');
-    const friendIds = friends.flatMap(f => [f.user_id_1.id, f.user_id_2.id]).filter(id => id !== currentUserId);
-    const pendingRequests = friendships.filter(f => f.status === 'pending' && f.action_user_id !== currentUserId);
+    const friendProfiles = friends.map(f => f.user_id_1.id === currentUserId ? f.user_id_2 : f.user_id_1);
+    const friendIds = friendProfiles.map(p => p.id);
+
+    const pendingRequests = friendships.filter(f => f.status === 'pending' && f.action_user_id !== currentUserId && f.user_id_2 === currentUserId);
     const sentRequests = friendships.filter(f => f.status === 'pending' && f.action_user_id === currentUserId);
-    const sentRequestIds = sentRequests.flatMap(f => [f.user_id_1, f.user_id_2]).filter(id => id !== currentUserId);
+    const sentRequestIds = sentRequests.map(f => f.user_id_2);
 
     const nonFriendProfiles = profiles.filter(p => !friendIds.includes(p.id) && !sentRequestIds.includes(p.id) && !pendingRequests.map(r => r.user_id_1.id).includes(p.id));
 
@@ -242,13 +243,12 @@ function ChallengeView({ setView, session }) {
     };
 
     const handleAcceptRequest = async (friendship) => {
-        const { error } = await supabase.from('friendships').update({ status: 'accepted', action_user_id: currentUserId }).match({ id: friendship.id });
+        const { error } = await supabase.from('friendships').update({ status: 'accepted', action_user_id: currentUserId }).eq('id', friendship.id);
         if (error) alert(error.message);
         else alert('Friend request accepted!');
     };
     
-    // Placeholder for challenge logic
-    const sendChallenge = (opponentId) => alert(`Challenge sent to user ID: ${opponentId}! (Functionality coming soon)`);
+    const sendChallenge = (opponentId) => alert(`Challenge sent to user! (Functionality coming soon)`);
     const challengeRandom = () => alert('Challenging a random player! (Functionality coming soon)');
 
     return (
@@ -272,15 +272,12 @@ function ChallengeView({ setView, session }) {
                             <button onClick={challengeRandom} className="w-full mb-6 p-4 bg-gold-rush text-ink font-bold text-lg rounded-lg hover:bg-amber-600 transition-colors shadow-md">Challenge a Random Player</button>
                             <h3 className="text-2xl font-serif font-bold text-ink mb-4">Challenge a Friend</h3>
                             <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
-                                {friends.length > 0 ? friends.map(friendship => {
-                                    const friend = friendship.user_id_1.id === currentUserId ? friendship.user_id_2 : friendship.user_id_1;
-                                    return (
-                                        <div key={friend.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
-                                            <span className="font-bold text-ink">{friend.username}</span>
-                                            <button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-sm font-bold rounded-lg hover:bg-ink">Challenge</button>
-                                        </div>
-                                    );
-                                }) : <p className="text-sepia">You haven't added any friends yet. Go to the "Find Players" tab.</p>}
+                                {friendProfiles.length > 0 ? friendProfiles.map(friend => (
+                                    <div key={friend.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                                        <span className="font-bold text-ink">{friend.username}</span>
+                                        <button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-sm font-bold rounded-lg hover:bg-ink">Challenge</button>
+                                    </div>
+                                )) : <p className="text-sepia">You haven&apos;t added any friends yet. Go to the &quot;Find Players&quot; tab.</p>}
                             </div>
                         </div>
                     )}
@@ -323,7 +320,7 @@ function GameView({ setView }) {
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
-  const fetchNewPuzzle = async () => { setIsLoading(true); const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true }); if (count === 0 || !count) { console.error("No puzzles found in the database."); setIsLoading(false); return; } const randomIndex = Math.floor(Math.random() * count); const { data, error } = await supabase.from('puzzles').select(`*, puzzle_translations (*)`).eq('puzzle_translations.language_code', 'en-US').range(randomIndex, randomIndex).single(); if (error) console.error('Error fetching puzzle:', error); else setPuzzle(data); setIsLoading(false); };
+  const fetchNewPuzzle = async () => { setIsLoading(true); const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true }); if (count === 0 || !count) { setIsLoading(false); return; } const randomIndex = Math.floor(Math.random() * count); const { data, error } = await supabase.from('puzzles').select(`*, puzzle_translations (*)`).eq('puzzle_translations.language_code', 'en-US').range(randomIndex, randomIndex).single(); if (error) console.error('Error fetching puzzle:', error); else setPuzzle(data); setIsLoading(false); };
   useEffect(() => { fetchNewPuzzle(); }, []);
   const handleUnlockClue = (clueNumber) => { if (results || unlockedClues.includes(clueNumber)) return; const cost = CLUE_COSTS[clueNumber]; if (score >= cost) { setScore(score - cost); setUnlockedClues([...unlockedClues, clueNumber].sort()); } else { alert("Not enough points!"); } };
   const handleGuessSubmit = async () => { if (!selectedCity || !selectedCountry) return alert('Please select a country and city.'); if (!puzzle) return; const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year }; const yearDifference = Math.abs(selectedYear - answer.year); const timePenalty = yearDifference * 50; let scoreAfterPenalty = Math.max(0, score - timePenalty); let finalScore; if (selectedCountry === answer.country && selectedCity === answer.city) finalScore = scoreAfterPenalty; else if (selectedCountry === answer.country) finalScore = scoreAfterPenalty * 0.5; else finalScore = 0; const finalScoreRounded = Math.round(finalScore); const { data: { user } } = await supabase.auth.getUser(); if (user) { const { error } = await supabase.from('scores').insert({ user_id: user.id, score: finalScoreRounded }); if (error) console.error("Error saving score:", error); } setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer, finalScore: finalScoreRounded }); };
@@ -334,13 +331,12 @@ function GameView({ setView }) {
       <header className="mb-8 text-center relative"><button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">&larr; Menu</button><div><h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1><p className="text-lg text-sepia mt-2">Endless Mode</p></div></header>
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-4">{[1, 2, 3, 4, 5].map((num) => { const isUnlocked = unlockedClues.includes(num); const clueText = puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`]; return isUnlocked ? (<article key={num} className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm"><span className="block font-serif font-bold text-ink">Clue {num}</span><p className={`mt-1 text-sepia-dark ${num === 1 ? "italic text-lg" : ""}`}>{clueText || 'Loading...'}</p></article>) : (<button key={num} className="w-full p-4 border border-sepia/30 rounded-lg hover:bg-sepia/10 text-left transition-colors" onClick={() => handleUnlockClue(num)}><div className="flex justify-between items-center"><span className="font-semibold text-lg text-ink">Unlock Clue {num}</span><span className="text-sm font-semibold text-sepia-dark">{CLUE_COSTS[num].toLocaleString()} pts</span></div></button>) })}</div>
-        <aside className="space-y-6"><div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg"><div className="mb-4"><label className="block text-sm font-bold mb-1 text-ink">Country</label><select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" value={selectedCountry} onChange={(e) => { setSelectedCountry(e.target.value); setSelectedCity(''); }}><option value="">Select Country...</option>{Object.keys(LOCATIONS).sort().map((country) => <option key={country} value={country}>{country}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-bold mb-1 text-ink">City</label><select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" disabled={!selectedCountry} value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}><option value="">{selectedCountry ? 'Select City...' : 'Select a country first'}</option>{selectedCountry && LOCATIONS[selectedCountry].sort().map((city) => <option key={city} value={city}>{city}</option>)}</select></div><div className="mb-6"><label className="block text-sm font-bold mb-1 text-ink">Year</label><input type="range" min={1800} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark" /><div className="mt-2 text-center text-sm text-ink">Guess year: <span className="font-bold text-lg">{selectedYear}</span></div></div><div className="flex justify-center"><button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>Make Guess</button></div><div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1"><p className="text-lg text-sepia">Potential Score: <span className="font-bold text-ink">{score.toLocaleString()}</span></p></div></div></aside>
+        <aside><div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg"><div className="mb-4"><label className="block text-sm font-bold mb-1 text-ink">Country</label><select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" value={selectedCountry} onChange={(e) => { setSelectedCountry(e.target.value); setSelectedCity(''); }}><option value="">Select Country...</option>{Object.keys(LOCATIONS).sort().map((country) => <option key={country} value={country}>{country}</option>)}</select></div><div className="mb-4"><label className="block text-sm font-bold mb-1 text-ink">City</label><select className="w-full p-2 border border-sepia/40 rounded bg-parchment text-ink focus:ring-2 focus:ring-sepia-dark" disabled={!selectedCountry} value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}><option value="">{selectedCountry ? 'Select City...' : 'Select a country first'}</option>{selectedCountry && LOCATIONS[selectedCountry].sort().map((city) => <option key={city} value={city}>{city}</option>)}</select></div><div className="mb-6"><label className="block text-sm font-bold mb-1 text-ink">Year</label><input type="range" min={1800} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark" /><div className="mt-2 text-center text-sm text-ink">Guess year: <span className="font-bold text-lg">{selectedYear}</span></div></div><div className="flex justify-center"><button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>Make Guess</button></div><div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1"><p className="text-lg text-sepia">Potential Score: <span className="font-bold text-ink">{score.toLocaleString()}</span></p></div></div></aside>
       </section>
       {results && (<section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"><div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush"><h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2><div className="flex justify-around bg-papyrus p-4 rounded-lg border border-sepia/20 my-6"><div className="text-left"><h4 className="text-lg font-serif font-bold text-sepia">Your Guess</h4><p>{results.guess.city}, {results.guess.country}</p><p>{results.guess.year}</p></div><div className="text-left"><h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4><p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.country}</p><p className="text-green-700 font-semibold">{results.answer.year}</p></div></div><h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3><button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">Play Again</button></div></section>)}
     </main>
   );
 }
-
 
 // --- MAIN PAGE CONTROLLER ---
 export default function Page() {
@@ -358,8 +354,8 @@ export default function Page() {
         setView('menu');
     };
 
-    if (view === 'endless' || view === 'profile' || view === 'challenge') {
-        if (!session) return <Auth setView={setView} />;
+    if ((view === 'endless' || view === 'profile' || view === 'challenge') && !session) {
+        return <Auth setView={setView} />;
     }
 
     if (view === 'endless') return <GameView setView={setView} />;
