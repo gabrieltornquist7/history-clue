@@ -31,8 +31,9 @@ function Auth({ setView }) {
       if (error) alert(error.error_description || error.message);
       else alert('Check your email for the confirmation link!');
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert(error.error_description || error.message);
+      else setView('menu'); // On successful login, go to menu
     }
     setLoading(false);
   };
@@ -76,7 +77,6 @@ function Auth({ setView }) {
   );
 }
 
-
 // --- MAIN MENU COMPONENT ---
 function MainMenu({ setView, session, onSignOut }) {
   return (
@@ -98,12 +98,14 @@ function MainMenu({ setView, session, onSignOut }) {
       </div>
       <div className="mt-8 text-center">
         {session ? (
-          <>
-            <p className="text-sepia">Signed in as {session.user.email}</p>
-            <button onClick={onSignOut} className="mt-2 font-bold text-gold-rush hover:text-amber-600">
+          <div className="flex items-center gap-6">
+            <button onClick={onSignOut} className="font-bold text-gold-rush hover:text-amber-600">
               Sign Out
             </button>
-          </>
+            <button onClick={() => setView('profile')} className="px-6 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md">
+              Profile
+            </button>
+          </div>
         ) : (
           <button onClick={() => setView('auth')} className="px-6 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md">
             Login or Sign Up
@@ -114,7 +116,136 @@ function MainMenu({ setView, session, onSignOut }) {
   );
 }
 
+// --- PROFILE VIEW COMPONENT ---
+function ProfileView({ setView, session }) {
+    const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState(null);
+    const [scores, setScores] = useState([]);
+    const [uploading, setUploading] = useState(false);
+
+    useEffect(() => {
+        async function getProfileData() {
+            setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (user) {
+                // Fetch profile
+                const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('username, avatar_url')
+                    .eq('id', user.id)
+                    .single();
+                if (profileError) console.error('Error fetching profile:', profileError);
+                else setProfile(profileData);
+
+                // Fetch scores
+                const { data: scoresData, error: scoresError } = await supabase
+                    .from('scores')
+                    .select('score')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false });
+                if (scoresError) console.error('Error fetching scores:', scoresError);
+                else setScores(scoresData);
+            }
+            setLoading(false);
+        }
+        getProfileData();
+    }, []);
+
+    const uploadAvatar = async (event) => {
+        try {
+            setUploading(true);
+            if (!event.target.files || event.target.files.length === 0) {
+                throw new Error('You must select an image to upload.');
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            const file = event.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user.id}-${Math.random()}.${fileExt}`;
+
+            const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+            if (uploadError) throw uploadError;
+
+            const { error: updateError } = await supabase.from('profiles').update({ avatar_url: filePath }).eq('id', user.id);
+            if (updateError) throw updateError;
+            
+            // Refresh profile data to show new avatar
+            setProfile(prev => ({...prev, avatar_url: filePath}));
+
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+    
+    const totalScore = scores.reduce((acc, s) => acc + s.score, 0);
+    const averageScore = scores.length > 0 ? Math.round(totalScore / scores.length) : 0;
+
+    return (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
+            <header className="mb-8 text-center relative">
+                <button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">
+                    &larr; Menu
+                </button>
+                <h1 className="text-5xl font-serif font-bold text-gold-rush">Profile</h1>
+            </header>
+
+            {loading ? (
+                <div className="text-center text-sepia">Loading profile...</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
+                        <img 
+                            src={profile?.avatar_url ? `https://bisjnzssegpfhkxaayuz.supabase.co/storage/v1/object/public/avatars/${profile.avatar_url}` : '/default-avatar.png'} 
+                            alt="Avatar" 
+                            className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"
+                            onError={(e) => { e.currentTarget.src = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??' }} // Fallback
+                        />
+                        <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
+                        <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">
+                            {uploading ? 'Uploading...' : 'Change Picture'}
+                        </label>
+                        <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
+                    </div>
+
+                    <div className="md:col-span-2 space-y-6">
+                        <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
+                            <h3 className="text-2xl font-serif font-bold text-ink mb-4">Player Stats</h3>
+                            <div className="grid grid-cols-2 gap-4 text-center">
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
+                                    <p className="text-3xl font-bold text-gold-rush">{totalScore.toLocaleString()}</p>
+                                    <p className="text-sm text-sepia">Total Score</p>
+                                </div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
+                                    <p className="text-3xl font-bold text-gold-rush">{averageScore.toLocaleString()}</p>
+                                    <p className="text-sm text-sepia">Average Score</p>
+                                </div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
+                                    <p className="text-3xl font-bold text-gold-rush">{scores.length}</p>
+                                    <p className="text-sm text-sepia">Games Played</p>
+                                </div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
+                                    <p className="text-3xl font-bold text-gold-rush">???</p>
+                                    <p className="text-sm text-sepia">Highest Score</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
+                            <h3 className="text-2xl font-serif font-bold text-ink mb-4">Titles & Badges</h3>
+                            <p className="text-center text-sepia">(Coming Soon)</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // --- ENDLESS MODE (GAME) COMPONENT ---
+// This component remains the same as before, no changes needed.
 function GameView({ setView }) {
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
@@ -273,36 +404,37 @@ function GameView({ setView }) {
 
 // --- MAIN PAGE CONTROLLER ---
 export default function Page() {
-  const [session, setSession] = useState(null);
-  const [view, setView] = useState('menu'); // 'menu', 'endless', 'auth'
+    const [session, setSession] = useState(null);
+    const [view, setView] = useState('menu'); // 'menu', 'endless', 'auth', 'profile'
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
 
-    return () => subscription.unsubscribe();
-  }, []);
+        return () => subscription.unsubscribe();
+    }, []);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setView('menu');
-  };
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        setView('menu');
+    };
 
-  // Prevent non-logged-in users from playing endless mode
-  if (view === 'endless' && !session) {
-    return <Auth setView={setView} />;
-  }
-  
-  if (view === 'endless') {
-    return <GameView setView={setView} />;
-  }
+    if (view === 'endless') {
+        if (!session) return <Auth setView={setView} />;
+        return <GameView setView={setView} />;
+    }
 
-  if (view === 'auth') {
-    return <Auth setView={setView} />;
-  }
-  
-  return <MainMenu setView={setView} session={session} onSignOut={handleSignOut} />;
+    if (view === 'auth') {
+        return <Auth setView={setView} />;
+    }
+    
+    if (view === 'profile') {
+        if (!session) return <Auth setView={setView} />;
+        return <ProfileView setView={setView} session={session} />;
+    }
+
+    return <MainMenu setView={setView} session={session} onSignOut={handleSignOut} />;
 }
