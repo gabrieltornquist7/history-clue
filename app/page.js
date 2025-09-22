@@ -289,11 +289,34 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
                     {tab === 'challenges' && (
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Incoming Challenges</h3>
+                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Incoming &amp; Pending</h3>
                                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                                     {incomingChallenges.length > 0 ? incomingChallenges.map(c => (
                                         <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger.username} challenged you!</span><button onClick={() => playChallenge(c.id)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Play</button></div>
                                     )) : <p className="text-sepia">You have no incoming challenges.</p>}
+                                    {outgoingChallenges.map(c => (
+                                        <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent.username} to play...</span><span className="text-sm text-sepia">Your Score: {c.challenger_score}</span></div>
+                                    ))}
+                                </div>
+                            </div>
+                             <div>
+                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Completed Challenges</h3>
+                                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                                    {completedChallenges.length > 0 ? completedChallenges.map(c => {
+                                        const won = c.winner_id === currentUserId;
+                                        const lost = c.winner_id !== null && c.winner_id !== currentUserId;
+                                        const draw = c.winner_id === null;
+                                        return (
+                                        <div key={c.id} className={`flex items-center justify-between p-2 bg-parchment rounded-lg ${won ? 'border-2 border-green-500' : ''} ${lost ? 'border-2 border-red-500' : ''}`}>
+                                            <div>
+                                                <p className="font-bold text-ink">{c.challenger.username} vs {c.opponent.username}</p>
+                                                <p className="text-sm text-sepia">{c.challenger_score} - {c.opponent_score}</p>
+                                            </div>
+                                            {won && <span className="font-bold text-green-600">You Won</span>}
+                                            {lost && <span className="font-bold text-red-600">You Lost</span>}
+                                            {draw && <span className="font-bold text-sepia">Draw</span>}
+                                        </div>
+                                    )}) : <p className="text-sepia">No completed challenges yet.</p>}
                                 </div>
                             </div>
                             <div>
