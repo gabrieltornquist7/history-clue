@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from '../lib/supabaseClient';
 import { LOCATIONS } from '../lib/locations';
 
-// --- AUTH COMPONENT ---
+// --- AUTH COMPONENT (Handles Login/Signup) ---
 function Auth({ setView }) {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -138,7 +138,7 @@ function GameView({ setView }) {
     }
   };
 
-  const handleGuessSubmit = () => {
+  const handleGuessSubmit = async () => {
     if (!selectedCity || !selectedCountry) return alert('Please select a country and city.');
     if (!puzzle) return;
     const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year };
@@ -149,7 +149,10 @@ function GameView({ setView }) {
     if (selectedCountry === answer.country && selectedCity === answer.city) finalScore = scoreAfterPenalty;
     else if (selectedCountry === answer.country) finalScore = scoreAfterPenalty * 0.5;
     else finalScore = 0;
-    setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer, finalScore: Math.round(finalScore) });
+    
+    const finalScoreRounded = Math.round(finalScore);
+    
+    setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer, finalScore: finalScoreRounded });
   };
 
   const handlePlayAgain = () => {
@@ -249,9 +252,15 @@ export default function Page() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      // If user logs in/out, always return to menu
+      if (view !== 'menu') {
+        setView('menu');
+      }
+    });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [view]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -259,6 +268,10 @@ export default function Page() {
   };
 
   if (view === 'endless') {
+    // Prevent non-logged-in users from playing
+    if (!session) {
+      return <Auth setView={setView} />;
+    }
     return <GameView setView={setView} />;
   }
 
