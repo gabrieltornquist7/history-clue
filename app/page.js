@@ -207,11 +207,11 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
     const [friendships, setFriendships] = useState([]);
     const [challenges, setChallenges] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [dataVersion, setDataVersion] = useState(0); // <-- New state to trigger re-fetch
+    const [dataVersion, setDataVersion] = useState(0);
 
     const currentUserId = session.user.id;
     
-    const refetchData = () => setDataVersion(v => v + 1); // <-- Function to trigger re-fetch
+    const refetchData = () => setDataVersion(v => v + 1);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -229,7 +229,7 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
             setLoading(false);
         };
         fetchData();
-    }, [currentUserId, dataVersion]); // <-- Re-fetch when dataVersion changes
+    }, [currentUserId, dataVersion]);
 
     const friends = friendships.filter(f => f.status === 'accepted');
     const friendProfiles = friends.map(f => f.user1.id === currentUserId ? f.user2 : f.user1);
@@ -246,7 +246,7 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
         if (error) alert(error.message);
         else {
             alert('Friend request sent!');
-            refetchData(); // <-- Refresh UI
+            refetchData();
         }
     };
 
@@ -255,7 +255,7 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
         if (error) alert(error.message);
         else {
             alert('Friend request accepted!');
-            refetchData(); // <-- Refresh UI
+            refetchData();
         }
     };
     
@@ -298,11 +298,14 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
                     {tab === 'challenges' && (
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Incoming Challenges</h3>
+                                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Incoming &amp; Pending</h3>
                                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                                     {incomingChallenges.length > 0 ? incomingChallenges.map(c => (
                                         <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger.username} challenged you!</span><button onClick={() => playChallenge(c.id)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Play</button></div>
                                     )) : <p className="text-sepia">You have no incoming challenges.</p>}
+                                    {outgoingChallenges.map(c => (
+                                        <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent.username} to play...</span><span className="text-sm text-sepia">Your Score: {c.challenger_score}</span></div>
+                                    ))}
                                 </div>
                             </div>
                              <div>
@@ -343,7 +346,7 @@ function ChallengeView({ setView, session, setActiveChallengeId }) {
     );
 }
 
-// --- GAME VIEW COMPONENT ---
+// --- GAME VIEW COMPONENT (FIXED) ---
 function GameView({ setView, challengeId = null, session, onChallengeComplete }) {
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
@@ -353,6 +356,8 @@ function GameView({ setView, challengeId = null, session, onChallengeComplete })
   const [selectedYear, setSelectedYear] = useState(1950);
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [gameKey, setGameKey] = useState(0); // <-- New state to trigger re-fetch
+
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
 
   useEffect(() => {
@@ -376,7 +381,7 @@ function GameView({ setView, challengeId = null, session, onChallengeComplete })
         setIsLoading(false);
     };
     fetchPuzzleData();
-  }, [challengeId]);
+  }, [challengeId, gameKey]); // <-- Re-fetch when gameKey changes
 
   const handleUnlockClue = (clueNumber) => { if (results || unlockedClues.includes(clueNumber)) return; const cost = CLUE_COSTS[clueNumber]; if (score >= cost) { setScore(score - cost); setUnlockedClues([...unlockedClues, clueNumber].sort()); } else { alert("Not enough points!"); } };
   
@@ -424,10 +429,11 @@ function GameView({ setView, challengeId = null, session, onChallengeComplete })
 
   const handlePlayAgain = () => {
     if (challengeId) {
-        onChallengeComplete(); // <-- Use the new callback
+        onChallengeComplete();
     } else {
+        // Reset state and trigger a re-fetch by changing the key
         setPuzzle(null); setUnlockedClues([1]); setScore(10000); setSelectedCountry(''); setSelectedCity(''); setSelectedYear(1950); setResults(null);
-        fetchNewPuzzle();
+        setGameKey(prevKey => prevKey + 1);
     }
   };
 
