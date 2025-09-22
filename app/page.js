@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from 'next/image'; // Make sure Image is imported
 import { supabase } from '../lib/supabaseClient';
 import { LOCATIONS } from '../lib/locations';
 
@@ -67,7 +66,7 @@ function Auth({ setView }) {
         </form>
         <div className="mt-6 text-center">
           <button onClick={() => setIsSigningUp(!isSigningUp)} className="text-sm text-sepia hover:text-ink underline">
-            {isSigningUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            {isSigningUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
           </button>
         </div>
         <button onClick={() => setView('menu')} className="w-full mt-4 text-sm text-center text-sepia hover:text-ink">
@@ -178,7 +177,7 @@ function ProfileView({ setView, session }) {
             {loading ? <div className="text-center text-sepia">Loading profile...</div> : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
-                        <Image src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
+                        <img src={avatarSrc} alt="Avatar" className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
                         <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
                         <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
                         <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
@@ -213,6 +212,7 @@ function ChallengeView({ setView, session }) {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
+            
             const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
             if (profilesError) console.error("Error fetching profiles:", profilesError);
             else setProfiles(profilesData || []);
@@ -220,7 +220,7 @@ function ChallengeView({ setView, session }) {
             const { data: friendshipsData, error: friendshipsError } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username, avatar_url), user2:user_id_2(id, username, avatar_url)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
             if (friendshipsError) console.error("Error fetching friendships:", friendshipsError);
             else setFriendships(friendshipsData || []);
-
+            
             setLoading(false);
         };
         fetchData();
@@ -289,6 +289,7 @@ function ChallengeView({ setView, session }) {
         </div>
     );
 }
+
 
 // --- ENDLESS MODE (GAME) COMPONENT ---
 function GameView({ setView }) {
