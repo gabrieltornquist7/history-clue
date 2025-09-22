@@ -33,7 +33,7 @@ function Auth({ setView }) {
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert(error.error_description || error.message);
-      else setView('menu'); // On successful login, go to menu
+      else setView('menu');
     }
     setLoading(false);
   };
@@ -92,8 +92,8 @@ function MainMenu({ setView, session, onSignOut }) {
         <button className="w-full px-6 py-3 bg-sepia/50 text-sepia-dark font-bold text-lg rounded-lg cursor-not-allowed" disabled>
           Daily Challenge (Coming Soon)
         </button>
-        <button className="w-full px-6 py-3 bg-sepia/50 text-sepia-dark font-bold text-lg rounded-lg cursor-not-allowed" disabled>
-          1v1 PvP (Coming Soon)
+        <button onClick={() => setView('challenge')} className="w-full px-6 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md">
+          Challenge a Friend
         </button>
       </div>
       <div className="mt-8 text-center">
@@ -170,7 +170,6 @@ function ProfileView({ setView, session }) {
             const { error: updateError } = await supabase.from('profiles').update({ avatar_url: filePath }).eq('id', user.id);
             if (updateError) throw updateError;
             
-            // Refresh profile data to show new avatar
             setProfile(prev => ({...prev, avatar_url: filePath}));
 
         } catch (error) {
@@ -198,10 +197,9 @@ function ProfileView({ setView, session }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
                         <img 
-                            src={profile?.avatar_url ? `https://bisjnzssegpfhkxaayuz.supabase.co/storage/v1/object/public/avatars/${profile.avatar_url}` : '/default-avatar.png'} 
+                            src={profile?.avatar_url ? `https://bisjnzssegpfhkxaayuz.supabase.co/storage/v1/object/public/avatars/${profile.avatar_url}` : 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??'} 
                             alt="Avatar" 
                             className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"
-                            onError={(e) => { e.currentTarget.src = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??' }} // Fallback
                         />
                         <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
                         <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">
@@ -214,22 +212,10 @@ function ProfileView({ setView, session }) {
                         <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
                             <h3 className="text-2xl font-serif font-bold text-ink mb-4">Player Stats</h3>
                             <div className="grid grid-cols-2 gap-4 text-center">
-                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
-                                    <p className="text-3xl font-bold text-gold-rush">{totalScore.toLocaleString()}</p>
-                                    <p className="text-sm text-sepia">Total Score</p>
-                                </div>
-                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
-                                    <p className="text-3xl font-bold text-gold-rush">{averageScore.toLocaleString()}</p>
-                                    <p className="text-sm text-sepia">Average Score</p>
-                                </div>
-                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
-                                    <p className="text-3xl font-bold text-gold-rush">{scores.length}</p>
-                                    <p className="text-sm text-sepia">Games Played</p>
-                                </div>
-                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20">
-                                    <p className="text-3xl font-bold text-gold-rush">???</p>
-                                    <p className="text-sm text-sepia">Highest Score</p>
-                                </div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20"><p className="text-3xl font-bold text-gold-rush">{totalScore.toLocaleString()}</p><p className="text-sm text-sepia">Total Score</p></div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20"><p className="text-3xl font-bold text-gold-rush">{averageScore.toLocaleString()}</p><p className="text-sm text-sepia">Average Score</p></div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20"><p className="text-3xl font-bold text-gold-rush">{scores.length}</p><p className="text-sm text-sepia">Games Played</p></div>
+                                <div className="p-4 bg-parchment rounded-lg border border-sepia/20"><p className="text-3xl font-bold text-gold-rush">???</p><p className="text-sm text-sepia">Highest Score</p></div>
                             </div>
                         </div>
 
@@ -244,8 +230,69 @@ function ProfileView({ setView, session }) {
     );
 }
 
+// --- CHALLENGE VIEW COMPONENT ---
+function ChallengeView({ setView, session }) {
+    const [profiles, setProfiles] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchProfiles() {
+            setLoading(true);
+            // Fetch all profiles except the current user's
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .not('id', 'eq', session.user.id);
+            
+            if (error) console.error("Error fetching profiles:", error);
+            else setProfiles(data);
+            setLoading(false);
+        }
+        fetchProfiles();
+    }, [session.user.id]);
+
+    const sendChallenge = (opponentId) => {
+        // This is where the logic to create a challenge will go in the next step.
+        // For now, it just shows an alert.
+        alert(`Challenge sent to user ID: ${opponentId}! (Functionality coming soon)`);
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
+             <header className="mb-8 text-center relative">
+                <button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">
+                    &larr; Menu
+                </button>
+                <h1 className="text-5xl font-serif font-bold text-gold-rush">Challenge a Friend</h1>
+            </header>
+            
+            {loading ? (
+                 <div className="text-center text-sepia">Loading players...</div>
+            ) : (
+                <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20 space-y-4">
+                    {profiles.map(profile => (
+                        <div key={profile.id} className="flex items-center justify-between p-4 bg-parchment rounded-lg border border-sepia/20">
+                            <div className="flex items-center gap-4">
+                                <img 
+                                    src={profile.avatar_url ? `https://bisjnzssegpfhkxaayuz.supabase.co/storage/v1/object/public/avatars/${profile.avatar_url}` : 'https://placehold.co/48x48/fcf8f0/5a4b41?text=??'}
+                                    alt={`${profile.username}'s avatar`}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-gold-rush"
+                                />
+                                <span className="text-lg font-bold text-ink">{profile.username}</span>
+                            </div>
+                            <button onClick={() => sendChallenge(profile.id)} className="px-4 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-sm">
+                                Challenge
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+
 // --- ENDLESS MODE (GAME) COMPONENT ---
-// This component remains the same as before, no changes needed.
 function GameView({ setView }) {
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
@@ -405,7 +452,7 @@ function GameView({ setView }) {
 // --- MAIN PAGE CONTROLLER ---
 export default function Page() {
     const [session, setSession] = useState(null);
-    const [view, setView] = useState('menu'); // 'menu', 'endless', 'auth', 'profile'
+    const [view, setView] = useState('menu'); // 'menu', 'endless', 'auth', 'profile', 'challenge'
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -434,6 +481,11 @@ export default function Page() {
     if (view === 'profile') {
         if (!session) return <Auth setView={setView} />;
         return <ProfileView setView={setView} session={session} />;
+    }
+
+    if (view === 'challenge') {
+        if (!session) return <Auth setView={setView} />;
+        return <ChallengeView setView={setView} session={session} />;
     }
 
     return <MainMenu setView={setView} session={session} onSignOut={handleSignOut} />;
