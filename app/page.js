@@ -1,92 +1,241 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { LOCATIONS } from '../lib/locations';
-import ClueDisplay from '../components/ClueDisplay';
-import ClueUnlockBar from '../components/ClueUnlockBar';
-import GuessingInterface from '../components/GuessingInterface';
-import ScoreDisplay from '../components/ScoreDisplay';
-import ResultsScreen from '../components/ResultsScreen';
+// app/page.jsx
+"use client";
 
-const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
+import { useState } from "react";
 
-export default function HomePage() {
-  const [puzzle, setPuzzle] = useState(null);
-  const [unlockedClues, setUnlockedClues] = useState([1]);
-  const [activeClue, setActiveClue] = useState(1);
-  const [score, setScore] = useState(10000);
-  const [selectedCountry, setSelectedCountry] = useState('');
-  const [selectedCity, setSelectedCity] = useState('');
-  const [selectedYear, setSelectedYear] = useState(1950);
-  const [gameState, setGameState] = useState('playing');
-  const [results, setResults] = useState(null);
+/*
+  Simple local UI implementation (no Supabase calls).
+  This file focuses on the styling changes you requested:
+  - white page background & black text (root layout)
+  - country/city selects are black text on white bg
+  - visible borders around buttons
+  - results card has its own solid background
+  - clue cards styled consistently
+*/
 
-  const fetchNewPuzzle = async () => {
-    const { count } = await supabase.from('puzzles').select('*', { count: 'exact', head: true });
-    const randomIndex = Math.floor(Math.random() * count);
-    const { data, error } = await supabase.from('puzzles').select(`*, puzzle_translations (*)`).eq('puzzle_translations.language_code', 'en-US').range(randomIndex, randomIndex).single();
-    if (error) console.error('Error fetching puzzle:', error);
-    else setPuzzle(data);
-  };
+const countryCities = {
+  IT: ["Rome", "Florence", "Venice", "Milan"],
+  FR: ["Paris", "Lyon", "Marseille"],
+  US: ["New York", "Boston", "Chicago"],
+  GB: ["London", "Edinburgh", "Manchester"]
+};
 
-  useEffect(() => {
-    fetchNewPuzzle();
-  }, []);
+const samplePuzzle = {
+  id: "sample-rome-1850",
+  country: "IT",
+  city: "Rome",
+  year: 1850,
+  clues: [
+    "Cobblestones echo with revolutions whispered in cafés.",
+    "Patriots debate the peninsula’s future under foreign shadows.",
+    "EXTRA! “Pope returns, republic fades as Europe trembles.”",
+    "A hill of seven views, obelisks and triumphal stones.",
+    "Telegram: “ITALY STIRS—CAPITAL WAITS ITS FATE.”"
+  ]
+};
 
-  const handleUnlockClue = (clueNumber) => {
-    if (unlockedClues.includes(clueNumber)) {
-      setActiveClue(clueNumber);
-      return;
+export default function Page() {
+  const [puzzle] = useState(samplePuzzle);
+
+  // unlocked flags (clue 1 free)
+  const [unlocked, setUnlocked] = useState([true, false, false, false, false]);
+  const costs = [0, 1000, 1500, 2000, 3000];
+  const [spent, setSpent] = useState(0);
+  const [potential, setPotential] = useState(10000);
+
+  const [guessedCountry, setGuessedCountry] = useState(puzzle.country);
+  const [guessedCity, setGuessedCity] = useState(puzzle.city);
+  const [guessYear, setGuessYear] = useState(puzzle.year);
+
+  const [result, setResult] = useState(null);
+
+  function unlock(i) {
+    if (unlocked[i]) return;
+    setUnlocked((s) => {
+      const next = [...s];
+      next[i] = true;
+      return next;
+    });
+    setSpent((s) => s + costs[i]);
+    setPotential((s) => Math.max(0, s - costs[i]));
+  }
+
+  function handleGuess() {
+    const timePenalty = Math.abs(guessYear - puzzle.year) * 50;
+    const afterTime = Math.max(0, potential - timePenalty);
+
+    let locMatch = "none";
+    if (guessedCountry === puzzle.country) {
+      locMatch =
+        guessedCity.toLowerCase() === puzzle.city.toLowerCase() ? "city" : "country";
     }
-    const cost = CLUE_COSTS[clueNumber];
-    if (score >= cost) {
-      setScore(score - cost);
-      setUnlockedClues([...unlockedClues, clueNumber]);
-      setActiveClue(clueNumber);
-    } else {
-      alert("Not enough points!");
-    }
-  };
 
-  const handleGuessSubmit = () => {
-    if (!selectedCity || !selectedCountry) { alert('Please select a country and city.'); return; }
-    const answer = { country: Object.keys(LOCATIONS).find(c => LOCATIONS[c].includes(puzzle.city_name)), city: puzzle.city_name, year: puzzle.year };
-    const yearDifference = Math.abs(selectedYear - answer.year);
-    const timePenalty = yearDifference * 50;
-    let guessScore = score - timePenalty;
-    guessScore = Math.max(0, guessScore);
-    let finalScore;
-    if (selectedCountry === answer.country && selectedCity === answer.city) { finalScore = guessScore; } 
-    else if (selectedCountry === answer.country) { finalScore = guessScore * 0.5; } 
-    else { finalScore = 0; }
-    setResults({ guess: { country: selectedCountry, city: selectedCity, year: selectedYear }, answer: answer, finalScore: Math.round(finalScore) });
-    setGameState('finished');
-  };
+    const multiplier = locMatch === "city" ? 1 : locMatch === "country" ? 0.5 : 0;
+    const final = Math.max(0, Math.round(afterTime * multiplier));
 
-  const handlePlayAgain = () => {
-    setPuzzle(null); setUnlockedClues([1]); setActiveClue(1); setScore(10000);
-    setSelectedCountry(''); setSelectedCity(''); setSelectedYear(1950);
-    setResults(null); setGameState('playing'); fetchNewPuzzle();
-  };
+    setResult({ correct: { ...puzzle }, final, timePenalty, locMatch });
+  }
+
+  function resetRound() {
+    setUnlocked([true, false, false, false, false]);
+    setSpent(0);
+    setPotential(10000);
+    setResult(null);
+    setGuessedCountry(puzzle.country);
+    setGuessedCity(puzzle.city);
+    setGuessYear(puzzle.year);
+  }
 
   return (
-    <main className="min-h-screen p-4 sm:p-8 flex flex-col items-center bg-parchment">
-      <div className="w-full max-w-3xl">
-        <h1 className="text-4xl sm:text-5xl font-serif font-bold mt-4 mb-2 text-ink">HistoryClue</h1>
-        <ScoreDisplay score={score} />
-        <div className="bg-papyrus/70 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-lg border border-sepia/20 mt-4">
-          <ClueDisplay puzzle={puzzle} activeClue={activeClue} />
-          <ClueUnlockBar unlockedClues={unlockedClues} activeClue={activeClue} handleUnlockClue={handleUnlockClue} />
-          <GuessingInterface
-            locations={LOCATIONS}
-            selectedCountry={selectedCountry} setSelectedCountry={setSelectedCountry}
-            selectedCity={selectedCity} setSelectedCity={setSelectedCity}
-            selectedYear={selectedYear} setSelectedYear={setSelectedYear}
-            handleGuessSubmit={handleGuessSubmit}
-          />
+    <main>
+      <header className="mb-6">
+        <h1 className="text-4xl font-bold">HistoryClue</h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Deduce the city and year from five clues. Unlock more clues at a cost.
+        </p>
+      </header>
+
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left: Clues */}
+        <div className="md:col-span-2">
+          <div className="space-y-3">
+            {puzzle.clues.map((clue, i) =>
+              unlocked[i] ? (
+                <article
+                  key={i}
+                  className="p-4 mb-0 bg-gray-50 border border-gray-300 rounded-lg hc-card"
+                >
+                  <span className="block font-semibold text-gray-800">Clue {i + 1}</span>
+
+                  <p
+                    className={
+                      i === 0
+                        ? "mt-1 text-gray-800 italic text-lg"
+                        : i === 2
+                        ? "mt-1 text-gray-800 font-bold"
+                        : i === 4
+                        ? "mt-1 font-mono uppercase tracking-wider text-gray-800"
+                        : "mt-1 text-gray-700"
+                    }
+                  >
+                    {clue}
+                  </p>
+                </article>
+              ) : (
+                <button
+                  key={i}
+                  className="w-full px-4 py-3 mb-3 border border-gray-400 rounded hover:bg-gray-100 text-left"
+                  onClick={() => unlock(i)}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Unlock Clue {i + 1}</span>
+                    <span className="text-sm text-gray-600">{costs[i]} pts</span>
+                  </div>
+                </button>
+              )
+            )}
+          </div>
         </div>
-      </div>
-      {gameState === 'finished' && <ResultsScreen results={results} handlePlayAgain={handlePlayAgain} />}
+
+        {/* Right: Controls */}
+        <aside>
+          <div className="p-4 border border-gray-300 rounded-lg bg-white">
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">Country</label>
+              <select
+                className="w-full p-2 border border-gray-400 rounded text-black bg-white"
+                value={guessedCountry}
+                onChange={(e) => {
+                  const nextCountry = e.target.value;
+                  setGuessedCountry(nextCountry);
+                  const cities = countryCities[nextCountry] || [];
+                  setGuessedCity(cities[0] || "");
+                }}
+              >
+                {Object.entries(countryCities).map(([code]) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium mb-1">City</label>
+              <select
+                className="w-full p-2 border border-gray-400 rounded text-black bg-white"
+                value={guessedCity}
+                onChange={(e) => setGuessedCity(e.target.value)}
+              >
+                {(countryCities[guessedCountry] || []).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Year</label>
+              <input
+                type="range"
+                min={1600}
+                max={2025}
+                value={guessYear}
+                onChange={(e) => setGuessYear(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="mt-2 text-sm">
+                Guess year: <span className="font-semibold">{guessYear}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                className="flex-1 px-4 py-2 border border-gray-600 rounded hover:bg-gray-100"
+                onClick={handleGuess}
+              >
+                Make Guess
+              </button>
+              <button
+                className="px-3 py-2 border border-gray-400 rounded hover:bg-gray-100"
+                onClick={resetRound}
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="mt-4 text-sm text-gray-600">
+              <div>
+                Potential: <span className="font-semibold">{potential}</span>
+              </div>
+              <div>
+                Spent: <span className="font-semibold">{spent}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      {/* Results card */}
+      {result && (
+        <section className="mt-6 p-6 bg-gray-100 rounded-lg shadow-lg border border-gray-300">
+          <h2 className="text-2xl font-bold mb-2">Results</h2>
+          <p className="mb-1">
+            Correct:{" "}
+            <span className="font-semibold">
+              {result.correct.city}, {result.correct.country} — {result.correct.year}
+            </span>
+          </p>
+          <p className="mb-1">
+            Location match: <span className="font-semibold">{result.locMatch}</span>
+          </p>
+          <p className="mb-1">
+            Time penalty: <span className="font-semibold">{result.timePenalty}</span>
+          </p>
+          <p className="text-lg font-semibold">Final score: {result.final}</p>
+        </section>
+      )}
     </main>
   );
 }

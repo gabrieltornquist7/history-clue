@@ -1,11 +1,24 @@
+/* app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* optional: your base tokens */
-:root {
-  --hc-bg: #0f0e0d;
-  --hc-paper: #1a1816;
-  --hc-ink: #ead8b1;
+/* small sensible defaults */
+:root{
+  --hc-card: #f8fafc; /* very light card */
+  --hc-border: #d1d5db; /* gray-300 */
 }
-body { background: var(--hc-bg); color: var(--hc-ink); }
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optional quick utility in case you need a custom small shadow */
+.hc-card {
+  box-shadow: 0 6px 18px rgba(15,15,15,0.04);
+}
