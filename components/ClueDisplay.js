@@ -1,18 +1,23 @@
+"use client";
 import React from "react";
 
-export default function ClueCard({ clue }) {
+export default function ClueDisplay({ clue }) {
   return (
     <div
-      className="max-w-3xl mx-auto rounded-2xl p-6 shadow-lg border relative overflow-hidden
+      className="max-w-2xl mx-auto rounded-2xl p-6 shadow-lg border relative overflow-hidden
                  transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl"
-      style={{ background: "linear-gradient(180deg,#F6E6CF 0%, #ffffff 70%)" }}
+      style={{
+        background: "linear-gradient(180deg,#F6E6CF 0%, #fff 70%)",
+        borderColor: "rgba(27,24,17,0.06)",
+      }}
     >
       {/* subtle paper texture */}
-      <div className="absolute inset-0 pointer-events-none opacity-30"
-           style={{
-             backgroundImage:
-               "radial-gradient(circle at 10% 10%, rgba(255,255,255,0.05), transparent 8%)",
-           }}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-30"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 10% 10%, rgba(255,255,255,0.05), transparent 8%)",
+        }}
       />
 
       {/* Clue Title */}
@@ -26,12 +31,12 @@ export default function ClueCard({ clue }) {
         The Clue
       </div>
 
-      {/* Clue Body */}
-      <div className="relative mt-4 p-4 rounded-lg bg-white/90 ring-1 ring-inset ring-[rgba(27,24,17,0.05)]">
+      {/* Clue text */}
+      <div className="relative mt-4 p-4 rounded-lg bg-white/90 ring-1 ring-inset ring-black/5">
         <p className="text-slate-800 leading-relaxed">{clue}</p>
       </div>
 
-      {/* Actions */}
+      {/* Action buttons */}
       <div className="relative mt-4 flex gap-3">
         <button
           className="px-4 py-2 rounded-full font-semibold shadow-sm
@@ -40,6 +45,7 @@ export default function ClueCard({ clue }) {
         >
           Inspect
         </button>
+
         <button
           className="px-4 py-2 rounded-full font-semibold border transition-transform
                      active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#D4A373]"
