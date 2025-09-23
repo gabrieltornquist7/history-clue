@@ -20,7 +20,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
     const fetchData = async () => {
       setLoading(true);
       
-      // Get current user's profile
       const { data: selfProfile } = await supabase
         .from('profiles')
         .select('username')
@@ -28,7 +27,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         .single();
       setCurrentUserProfile(selfProfile);
 
-      // Get all friends
       const { data: friendshipsData } = await supabase
         .from('friendships')
         .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
@@ -43,7 +41,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
     };
     fetchData();
 
-    // Subscribe to online presence
     const channel = supabase.channel('live-lobby-presence');
     channel
       .on('presence', { event: 'sync' }, () => {
@@ -57,7 +54,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         }
       });
 
-    // Listen for incoming invites
     const inviteChannel = supabase.channel(`invites:${currentUserId}`);
     inviteChannel
       .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
@@ -78,7 +74,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
     setWaitingForOpponent(true);
     
     try {
-      // Create the match
       const { data: matchId, error } = await supabase.rpc('create_live_match', { 
         opponent_id: opponentId 
       });
@@ -88,7 +83,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         return alert('Error creating match: ' + error.message);
       }
 
-      // Send invite to opponent
       const inviteChannel = supabase.channel(`invites:${opponentId}`);
       inviteChannel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -100,8 +94,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
               from_username: currentUserProfile?.username || 'A player' 
             },
           });
-          
-          // Give opponent 3 seconds to see the notification, then start the game
           setTimeout(() => {
             supabase.removeChannel(inviteChannel);
             setActiveLiveMatch(matchId);
@@ -159,7 +151,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       </header>
 
       <div className="space-y-8">
-        {/* Online Friends Section */}
         <div>
           <h3 className="text-2xl font-serif font-bold text-ink mb-4 flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
@@ -192,7 +183,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           </div>
         </div>
 
-        {/* Offline Friends Section */}
         <div>
           <h3 className="text-2xl font-serif font-bold text-ink mb-4 flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-gray-400"></span>
@@ -221,13 +211,12 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           </div>
         </div>
 
-        {/* Instructions */}
         <div className="bg-papyrus p-6 rounded-lg shadow-inner border border-sepia/20">
           <h3 className="font-serif font-bold text-ink mb-2">How Live Battles Work:</h3>
           <ul className="space-y-2 text-sepia">
             <li>• Both players solve the same puzzle simultaneously</li>
             <li>• 3-minute timer - drops to 30 seconds when opponent submits</li>
-            <li>• See your opponent's pin placement in real-time</li>
+            <li>• See your opponent&apos;s pin placement in real-time</li>
             <li>• Unlock clues independently with your own points</li>
             <li>• Highest score wins the round!</li>
           </ul>
