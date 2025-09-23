@@ -3,9 +3,9 @@
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-// Fix for default icon issue with webpack
+// Fix for default icon issue
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -19,18 +19,15 @@ function MapEvents({ onMapClick, position }) {
       onMapClick(e.latlng);
     },
   });
-
   return position ? <Marker position={position} /> : null;
 }
 
 export default function Map({ onGuess }) {
   const [position, setPosition] = useState(null);
-
   const handleMapClick = (latlng) => {
     setPosition(latlng);
-    onGuess(latlng); // Pass the coordinates up to the parent
+    onGuess(latlng);
   };
-
   return (
     <div className="h-64 md:h-80 w-full rounded-lg overflow-hidden border-2 border-sepia-dark shadow-lg">
       <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
