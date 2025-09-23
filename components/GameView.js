@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('./Map'), { ssr: false });
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
+    const R = 6371; // Radius of the Earth in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a =
@@ -63,7 +63,7 @@ export default function GameView({
           const { data, error } = await supabase.from('puzzles').select('*, puzzle_translations(*)').eq('id', puzzleId).single();
           if (error) throw error;
           puzzleData = data;
-        } else if (!challenge && !dailyPuzzleInfo) {
+        } else if (!challenge && !dailyPuzzleInfo) { // Endless Mode
           const { data: puzzles, error } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
           if (error) throw error;
           if (!puzzles || puzzles.length === 0) throw new Error("No puzzles returned from database.");
@@ -100,8 +100,6 @@ export default function GameView({
     if (!puzzle) return;
     if (!guessCoords) return alert('Please place a pin on the map to make a guess.');
 
-    // *** THIS IS THE FIX ***
-    // Check for coordinates BEFORE calculating and handle if they are missing.
     if (!puzzle.latitude || !puzzle.longitude) {
         alert("Error: This puzzle is missing location data. Cannot calculate score.");
         return;
@@ -127,7 +125,38 @@ export default function GameView({
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
     if (challenge) {
-        // Challenge logic here...
+        const isChallenger = session.user.id === challenge.challenger_id;
+        const currentScores = isChallenger ? challenge.challenger_scores || [] : challenge.opponent_scores || [];
+        const challengerScores = challenge.challenger_scores || [];
+        const opponentScores = challenge.opponent_scores || [];
+        const updatedScores = [...currentScores, finalScoreRounded];
+        const scoreColumn = isChallenger ? 'challenger_scores' : 'opponent_scores';
+        
+        const isOpponentTurn = !isChallenger;
+        const bothPlayedThisRound = isOpponentTurn && (challengerScores.length === challenge.current_round);
+        const nextRound = bothPlayedThisRound ? challenge.current_round + 1 : challenge.current_round;
+        const isMatchOver = isOpponentTurn && (challenge.current_round === 3) && (challengerScores.length === 3);
+
+        const updateData = {
+            [scoreColumn]: updatedScores,
+            current_round: nextRound,
+            next_player_id: isChallenger ? challenge.opponent_id : challenge.challenger_id,
+            status: isMatchOver ? 'completed' : 'pending'
+        };
+
+        if(isMatchOver) {
+            const finalChallengerScores = isChallenger ? updatedScores : challengerScores;
+            const finalOpponentScores = isOpponentTurn ? updatedScores : opponentScores;
+            let challengerWins = 0;
+            let opponentWins = 0;
+            for(let i=0; i<3; i++){
+                if(finalChallengerScores[i] > finalOpponentScores[i]) challengerWins++;
+                else if(finalOpponentScores[i] > finalChallengerScores[i]) opponentWins++;
+            }
+            if (challengerWins > opponentWins) updateData.winner_id = challenge.challenger_id;
+            else if (opponentWins > challengerWins) updateData.winner_id = challenge.opponent_id;
+        }
+        await supabase.from('challenges').update(updateData).eq('id', challenge.id);
     }
     
     setResults({
