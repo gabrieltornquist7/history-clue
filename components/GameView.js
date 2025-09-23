@@ -102,7 +102,15 @@ export default function GameView({
     if (!puzzle) return;
     if (!guessCoords) return alert('Please place a pin on the map to make a guess.');
 
-    const distance = getDistance(guessCoords.lat, guessCoords.lng, puzzle.latitude, puzzle.longitude);
+    // *** THIS IS THE FIX ***
+    // Convert the puzzle coordinates from text to numbers before calculating.
+    const distance = getDistance(
+      guessCoords.lat, 
+      guessCoords.lng, 
+      parseFloat(puzzle.latitude), 
+      parseFloat(puzzle.longitude)
+    );
+    
     const maxDistance = 20000;
     const distancePenalty = (distance / maxDistance) * 5000;
 
