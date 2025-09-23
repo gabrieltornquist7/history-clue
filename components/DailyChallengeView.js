@@ -17,15 +17,21 @@ export default function DailyChallengeView({
   useEffect(() => {
     async function fetchDailyData() {
       setLoading(true);
-      const today = new Date().toISOString().slice(0, 10);
+      
+      // First, ensure today's puzzle set exists by calling the function
+      await supabase.rpc('create_daily_puzzle_set');
 
+      // Now, fetch the puzzle set for today
+      const today = new Date().toISOString().slice(0, 10);
       const { data: dailyData } = await supabase
         .from('daily_puzzles')
         .select('*')
         .eq('puzzle_date', today)
         .single();
+      
       setDailyPuzzleSet(dailyData);
 
+      // If a puzzle set for today exists, check for a user attempt
       if (dailyData) {
         const { data: attemptData } = await supabase
           .from('daily_attempts')
