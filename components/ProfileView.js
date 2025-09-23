@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import Image from 'next/image';
 
 export default function ProfileView({ setView, session }) {
   const [loading, setLoading] = useState(true);
@@ -83,9 +84,11 @@ export default function ProfileView({ setView, session }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
-            <img
+            <Image
               src={avatarSrc}
               alt="Avatar"
+              width={128}
+              height={128}
               className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"
             />
             <h2 className="text-2xl font-bold font-serif text-ink">
