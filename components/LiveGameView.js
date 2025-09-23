@@ -159,7 +159,7 @@ export default function LiveGameView({ session, matchId, setView }) {
                     <h2 className="text-2xl font-serif font-bold text-ink mb-4">{opponentUsername}&apos;s Actions</h2>
                     <div className="p-4 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4 opacity-70">
                         <Map opponentPosition={opponentState.guessCoords} />
-                         <div className="mt-2 text-center text-sm text-ink">Opponent's Year Guess:{' '}<span className="font-bold text-lg">{displayYear(opponentState.selectedYear)}</span></div>
+                         <div className="mt-2 text-center text-sm text-ink">Opponent&apos;s Year Guess:{' '}<span className="font-bold text-lg">{displayYear(opponentState.selectedYear)}</span></div>
                         <div className="flex justify-around">
                             {[1,2,3,4,5].map(num => (
                                 <div key={num} className={`p-2 text-sm rounded ${opponentState.unlockedClues.includes(num) ? 'bg-gold-rush text-ink' : 'bg-sepia/20'}`}>
