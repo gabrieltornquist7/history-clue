@@ -10,7 +10,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dataVersion, setDataVersion] = useState(0);
-  const [onlineFriends, setOnlineFriends] = useState([]);
+  const [onlineFriends, setOnlineFriends] = useState([]); // <-- NEW: Track online friends
   const currentUserId = session.user.id;
   const refetchData = () => setDataVersion((v) => v + 1);
 
@@ -27,28 +27,33 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     };
     fetchData();
 
+    // --- NEW: Presence Tracking ---
     const channel = supabase.channel('online-users');
     channel.on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState();
-        const onlineUserIds = Object.keys(presenceState);
+        // The key for presence is the user ID we tracked
+        const onlineUserIds = Object.keys(presenceState); 
         setOnlineFriends(onlineUserIds);
     }).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({ key: session.user.id });
+        // Track the current user's presence
+        await channel.track({ user_id: session.user.id });
       }
     });
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // --- END of Presence Tracking ---
   }, [currentUserId, dataVersion, session.user.id]);
-
+  
   const startLiveMatch = async (opponentId) => {
     const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });
     if (error) {
         return alert('Error creating match: ' + error.message);
     }
     
+    // Send invite to opponent via their unique channel
     const inviteChannel = supabase.channel(`invites:${opponentId}`);
     inviteChannel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -57,6 +62,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                 event: 'live_invite',
                 payload: { matchId, from_username: session.user.user_metadata.username },
             });
+            // Unsubscribe after sending to avoid lingering channels
             supabase.removeChannel(inviteChannel);
         }
     });
@@ -110,7 +116,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
-      <header className="mb-8 text-center relative">
+       <header className="mb-8 text-center relative">
         <button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm"> &larr; Menu </button>
         <h1 className="text-5xl font-serif font-bold text-gold-rush"> Challenge a Friend </h1>
       </header>
@@ -125,7 +131,28 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
         <div>
           {tab === 'challenges' && (
              <div className="space-y-6">
-               {/* Sections for Active and Completed Challenges remain the same */}
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Active Challenges</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                  {incomingChallenges.length === 0 && outgoingChallenges.length === 0 && <p className="text-sepia">No active challenges. Challenge a friend to get started!</p>}
+                  {incomingChallenges.map(c => {
+                    const status = getChallengeStatus(c);
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger?.username || 'A friend'} challenged you!</span>{status.button}</div>)
+                  })}
+                  {outgoingChallenges.map(c => {
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent?.username || 'your friend'}...</span></div>)
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Completed Challenges</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                    {completedChallenges.length > 0 ? completedChallenges.map(c => {
+                        const status = getChallengeStatus(c);
+                        return (<div key={c.id} className={`flex items-center justify-between p-2 bg-parchment rounded-lg`}><div><p className="font-bold text-ink">{c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}</p></div><span className={`font-bold ${status.color}`}>{status.text}</span></div>)
+                    }) : <p className="text-sepia">No completed challenges yet.</p>}
+                </div>
+              </div>
                <div>
                 <h3 className="text-2xl font-serif font-bold text-ink mb-4">Challenge a Friend</h3>
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
