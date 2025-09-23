@@ -3,39 +3,75 @@
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-// Fix for default icon issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+// Main player icon (default blue)
+const playerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+// Opponent icon (custom red color via CSS filter)
+const opponentIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+  // This is a special class we can target with CSS
+  className: 'leaflet-marker-opponent'
 });
 
 function MapEvents({ onMapClick, position }) {
   useMapEvents({
     click(e) {
-      onMapClick(e.latlng);
+      if (onMapClick) { // onMapClick is optional now
+        onMapClick(e.latlng);
+      }
     },
   });
-  return position ? <Marker position={position} /> : null;
+  // Only render the player's marker here
+  return position ? <Marker position={position} icon={playerIcon} /> : null;
 }
 
-export default function Map({ onGuess }) {
-  const [position, setPosition] = useState(null);
+export default function Map({ onGuess, opponentPosition = null, initialPosition = null }) {
+  const [position, setPosition] = useState(initialPosition);
+
+  useEffect(() => {
+    setPosition(initialPosition);
+  }, [initialPosition]);
+
   const handleMapClick = (latlng) => {
     setPosition(latlng);
-    onGuess(latlng);
+    if (onGuess) {
+      onGuess(latlng);
+    }
   };
+  
   return (
     <div className="h-64 md:h-80 w-full rounded-lg overflow-hidden border-2 border-sepia-dark shadow-lg">
+      <style>
+        {`
+          .leaflet-marker-opponent {
+            filter: hue-rotate(180deg) brightness(0.8);
+          }
+        `}
+      </style>
       <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
-        <MapEvents onMapClick={handleMapClick} position={position} />
+        <MapEvents onMapClick={onGuess ? handleMapClick : null} position={position} />
+        {/* Render the opponent's marker if their position is provided */}
+        {opponentPosition && <Marker position={opponentPosition} icon={opponentIcon} />}
       </MapContainer>
     </div>
   );

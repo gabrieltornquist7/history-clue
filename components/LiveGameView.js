@@ -23,7 +23,6 @@ export default function LiveGameView({ session, matchId, setView }) {
     const [channel, setChannel] = useState(null);
     const [timer, setTimer] = useState(180);
 
-    // Player states
     const [myState, setMyState] = useState({ unlockedClues: [1], score: 10000, guessCoords: null, selectedYear: 1950, submitted: false });
     const [opponentState, setOpponentState] = useState({ unlockedClues: [1], guessCoords: null, selectedYear: 1950, submitted: false });
     
@@ -47,10 +46,7 @@ export default function LiveGameView({ session, matchId, setView }) {
                 .eq('id', matchId)
                 .single();
 
-            if (matchError) {
-                setError('Could not load match data.');
-                return;
-            }
+            if (matchError) { setError('Could not load match data.'); return; }
             setMatch(matchData);
 
             const puzzleId = matchData.puzzle_ids[matchData.current_round - 1];
@@ -60,11 +56,7 @@ export default function LiveGameView({ session, matchId, setView }) {
                 .eq('id', puzzleId)
                 .single();
             
-            if (puzzleError) {
-                setError('Could not load puzzle data.');
-            } else {
-                setPuzzle(puzzleData);
-            }
+            if (puzzleError) { setError('Could not load puzzle data.'); } else { setPuzzle(puzzleData); }
             setLoading(false);
         };
         fetchMatchData();
@@ -75,19 +67,13 @@ export default function LiveGameView({ session, matchId, setView }) {
         const newChannel = supabase.channel(`match:${matchId}`);
         newChannel
             .on('broadcast', { event: 'clue:unlock' }, ({ payload }) => {
-                if (payload.sender !== session.user.id) {
-                    setOpponentState(prev => ({ ...prev, unlockedClues: [...prev.unlockedClues, payload.clue] }));
-                }
+                if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, unlockedClues: [...new Set([...prev.unlockedClues, payload.clue])] }));
             })
             .on('broadcast', { event: 'guess:location' }, ({ payload }) => {
-                 if (payload.sender !== session.user.id) {
-                    setOpponentState(prev => ({ ...prev, guessCoords: payload.coords }));
-                }
+                 if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, guessCoords: payload.coords }));
             })
              .on('broadcast', { event: 'guess:year' }, ({ payload }) => {
-                 if (payload.sender !== session.user.id) {
-                    setOpponentState(prev => ({ ...prev, selectedYear: payload.year }));
-                }
+                 if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, selectedYear: payload.year }));
             })
             .on('broadcast', { event: 'guess:submit' }, ({ payload }) => {
                 if (payload.sender !== session.user.id) {
@@ -96,19 +82,13 @@ export default function LiveGameView({ session, matchId, setView }) {
                 }
             })
             .subscribe();
-
         setChannel(newChannel);
-
-        return () => {
-            supabase.removeChannel(newChannel);
-        };
+        return () => supabase.removeChannel(newChannel);
     }, [matchId, session.user.id]);
 
     useEffect(() => {
         if (!loading && timer > 0 && !(myState.submitted && opponentState.submitted)) {
-            const interval = setInterval(() => {
-                setTimer(t => t - 1);
-            }, 1000);
+            const interval = setInterval(() => setTimer(t => t - 1), 1000);
             return () => clearInterval(interval);
         }
     }, [loading, timer, myState.submitted, opponentState.submitted]);
@@ -116,11 +96,7 @@ export default function LiveGameView({ session, matchId, setView }) {
     const handleUnlockClue = (clueNumber) => {
         const cost = CLUE_COSTS[clueNumber];
         if (myState.score >= cost && !myState.unlockedClues.includes(clueNumber)) {
-            setMyState(prev => ({
-                ...prev,
-                score: prev.score - cost,
-                unlockedClues: [...prev.unlockedClues, clueNumber].sort()
-            }));
+            setMyState(prev => ({ ...prev, score: prev.score - cost, unlockedClues: [...prev.unlockedClues, clueNumber].sort() }));
             broadcast('clue:unlock', { clue: clueNumber });
         }
     };
@@ -131,7 +107,8 @@ export default function LiveGameView({ session, matchId, setView }) {
         broadcast('guess:location', { coords: latlng });
     };
 
-    const handleYearChange = (year) => {
+    const handleYearChange = (e) => {
+        const year = e.target.value;
         if(myState.submitted) return;
         setMyState(prev => ({...prev, selectedYear: year}));
         broadcast('guess:year', { year });
@@ -142,6 +119,8 @@ export default function LiveGameView({ session, matchId, setView }) {
         setMyState(prev => ({...prev, submitted: true}));
         broadcast('guess:submit', {});
     };
+
+    const displayYear = (year) => { const yearNum = Number(year); if (yearNum < 0) return `${Math.abs(yearNum)} BC`; return yearNum; };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Match...</div>;
     if (error) return <div className="min-h-screen flex items-center justify-center">Error: {error} <button onClick={() => setView('menu')}>Home</button></div>;
@@ -165,8 +144,13 @@ export default function LiveGameView({ session, matchId, setView }) {
                 <div>
                     <h2 className="text-2xl font-serif font-bold text-ink mb-4">Your Guess</h2>
                     <div className="p-4 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4">
-                        <Map onGuess={handleMapGuess} />
-                        <button onClick={handleGuessSubmit} disabled={myState.submitted} className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink">
+                        <Map onGuess={handleMapGuess} opponentPosition={opponentState.guessCoords} initialPosition={myState.guessCoords} />
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-ink">Year</label>
+                            <input type="range" min={-4000} max={2025} value={myState.selectedYear} onChange={handleYearChange} className="w-full accent-sepia-dark" disabled={myState.submitted}/>
+                            <div className="mt-2 text-center text-sm text-ink">Guess year:{' '}<span className="font-bold text-lg">{displayYear(myState.selectedYear)}</span></div>
+                        </div>
+                        <button onClick={handleGuessSubmit} disabled={myState.submitted} className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink disabled:bg-sepia/50">
                             {myState.submitted ? 'Waiting for opponent...' : 'Lock In Guess'}
                         </button>
                     </div>
@@ -174,9 +158,8 @@ export default function LiveGameView({ session, matchId, setView }) {
                 <div>
                     <h2 className="text-2xl font-serif font-bold text-ink mb-4">{opponentUsername}&apos;s Actions</h2>
                     <div className="p-4 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4 opacity-70">
-                        <div className="h-64 md:h-[19.5rem] w-full rounded-lg overflow-hidden border-2 border-sepia-dark shadow-lg relative">
-                            <Map onGuess={() => {}} />
-                        </div>
+                        <Map opponentPosition={opponentState.guessCoords} />
+                         <div className="mt-2 text-center text-sm text-ink">Opponent's Year Guess:{' '}<span className="font-bold text-lg">{displayYear(opponentState.selectedYear)}</span></div>
                         <div className="flex justify-around">
                             {[1,2,3,4,5].map(num => (
                                 <div key={num} className={`p-2 text-sm rounded ${opponentState.unlockedClues.includes(num) ? 'bg-gold-rush text-ink' : 'bg-sepia/20'}`}>
