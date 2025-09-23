@@ -12,7 +12,7 @@ import DailyChallengeView from '../components/DailyChallengeView';
 export default function Page() {
   const [session, setSession] = useState(null);
   const [view, setView] = useState('menu');
-  const [activeChallengeId, setActiveChallengeId] = useState(null);
+  const [activeChallenge, setActiveChallenge] = useState(null); // Changed from activeChallengeId
   const [activeDailyPuzzle, setActiveDailyPuzzle] = useState(null);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function Page() {
   };
 
   const onChallengeComplete = () => {
-    setActiveChallengeId(null);
+    setActiveChallenge(null);
     setView('challenge');
   };
 
@@ -55,7 +55,6 @@ export default function Page() {
         scoreTarget: SCORE_TARGETS[nextStep - 1],
         totalScore: newTotalScore,
       });
-      // The view remains 'game' to show the next puzzle
     } else {
       const puzzlesCompleted =
         score >= SCORE_TARGETS[currentStep - 1] ? currentStep : currentStep - 1;
@@ -87,7 +86,7 @@ export default function Page() {
     return (
       <GameView
         setView={setView}
-        challengeId={activeChallengeId}
+        challenge={activeChallenge} // Pass the full object
         session={session}
         onChallengeComplete={onChallengeComplete}
         dailyPuzzleInfo={activeDailyPuzzle}
@@ -111,7 +110,7 @@ export default function Page() {
       <ChallengeView
         setView={setView}
         session={session}
-        setActiveChallengeId={setActiveChallengeId}
+        setActiveChallenge={setActiveChallenge} // Pass the setter function
       />
     );
 
