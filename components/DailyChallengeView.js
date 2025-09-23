@@ -78,7 +78,7 @@ export default function DailyChallengeView({
 
       {loading ? (
         <div className="text-center text-sepia">
-          Loading today's challenge...
+          Loading today&apos;s challenge...
         </div>
       ) : (
         <div className="text-center p-8 bg-papyrus rounded-lg shadow-lg border border-sepia/20">
