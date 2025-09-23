@@ -47,7 +47,7 @@ export default function LiveGameView({ session, matchId, setView }) {
         setMyState(prev => ({ ...prev, submitted: true }));
         broadcast('guess:submit', {});
         setTimer(prev => Math.min(prev, 30));
-    }, [myState, broadcast]);
+    }, [myState.submitted, myState.guessCoords, broadcast]);
 
     useEffect(() => {
         const fetchMatchData = async () => {
@@ -128,8 +128,7 @@ export default function LiveGameView({ session, matchId, setView }) {
                     const distancePenalty = (distance / maxDistance) * 5000;
                     const yearDifference = Math.abs(state.selectedYear - puzzle.year);
                     const timePenalty = yearDifference * 25;
-                    const clueScore = state.score;
-                    let finalScore = Math.max(0, clueScore - distancePenalty - timePenalty);
+                    let finalScore = Math.max(0, state.score - distancePenalty - timePenalty);
                     if (distance < 50) finalScore += 2000;
                     else if (distance < 200) finalScore += 1000;
                     return Math.min(15000, Math.round(finalScore));
@@ -198,7 +197,7 @@ export default function LiveGameView({ session, matchId, setView }) {
             </header>
 
             <div className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm mb-8 space-y-2">
-                {[1, 2, 3, 4, 5].map(num => {
+                {[1,2,3,4,5].map(num => {
                     const isUnlocked = myState.unlockedClues.includes(num);
                     return (
                         <div key={num}>
