@@ -6,7 +6,6 @@ import dynamic from 'next/dynamic';
 
 const Map = dynamic(() => import('./Map'), { ssr: false });
 
-// (getDistance function remains the same)
 const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -16,7 +15,6 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
     return R * c;
 };
 
-
 export default function LiveGameView({ session, matchId, setView }) {
     const [match, setMatch] = useState(null);
     const [puzzle, setPuzzle] = useState(null);
@@ -24,7 +22,7 @@ export default function LiveGameView({ session, matchId, setView }) {
     const [error, setError] = useState(null);
     const [channel, setChannel] = useState(null);
     const [timer, setTimer] = useState(180);
-    const [results, setResults] = useState(null); // <-- NEW: To show results screen
+    const [results, setResults] = useState(null);
 
     const [myState, setMyState] = useState({ unlockedClues: [1], score: 10000, guessCoords: null, selectedYear: 1950, submitted: false });
     const [opponentState, setOpponentState] = useState({ unlockedClues: [1], guessCoords: null, selectedYear: 1950, submitted: false });
@@ -43,7 +41,24 @@ export default function LiveGameView({ session, matchId, setView }) {
 
     useEffect(() => {
         const fetchMatchData = async () => {
-            // ... (rest of the function is the same)
+            const { data: matchData, error: matchError } = await supabase
+                .from('live_matches')
+                .select('*, player1:player1_id(username), player2:player2_id(username)')
+                .eq('id', matchId)
+                .single();
+
+            if (matchError) { setError('Could not load match data.'); return; }
+            setMatch(matchData);
+
+            const puzzleId = matchData.puzzle_ids[matchData.current_round - 1];
+            const { data: puzzleData, error: puzzleError } = await supabase
+                .from('puzzles')
+                .select('*, puzzle_translations(*)')
+                .eq('id', puzzleId)
+                .single();
+            
+            if (puzzleError) { setError('Could not load puzzle data.'); } else { setPuzzle(puzzleData); }
+            setLoading(false);
         };
         fetchMatchData();
     }, [matchId]);
@@ -52,32 +67,36 @@ export default function LiveGameView({ session, matchId, setView }) {
         if (!matchId) return;
         const newChannel = supabase.channel(`match:${matchId}`);
         newChannel
-            // ... (rest of the channel subscriptions are the same)
-            .subscribe((status, err) => { // <-- NEW: Add error handling
-                if (status === 'SUBSCRIBE_FAILED') {
-                    setError('Failed to connect for the live match. Please try again.');
+            .on('broadcast', { event: 'clue:unlock' }, ({ payload }) => {
+                if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, unlockedClues: [...new Set([...prev.unlockedClues, payload.clue])] }));
+            })
+            .on('broadcast', { event: 'guess:location' }, ({ payload }) => {
+                 if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, guessCoords: payload.coords }));
+            })
+             .on('broadcast', { event: 'guess:year' }, ({ payload }) => {
+                 if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, selectedYear: payload.year }));
+            })
+            .on('broadcast', { event: 'guess:submit' }, ({ payload }) => {
+                if (payload.sender !== session.user.id) {
+                    setOpponentState(prev => ({...prev, submitted: true}));
+                    setTimer(prev => Math.min(prev, 30));
                 }
-                if (err) {
-                    console.error("Channel subscription error:", err);
-                    setError('An error occurred during the match. Please try again.');
-                }
-            });
+            })
+            .subscribe();
         setChannel(newChannel);
         return () => supabase.removeChannel(newChannel);
     }, [matchId, session.user.id]);
 
     useEffect(() => {
-        if (!loading && timer > 0 && !results) { // <-- MODIFIED: Stop timer if results are shown
+        if (!loading && timer > 0 && !(myState.submitted && opponentState.submitted)) {
             const interval = setInterval(() => setTimer(t => t - 1), 1000);
             return () => clearInterval(interval);
         }
-    }, [loading, timer, results]);
+    }, [loading, timer, myState.submitted, opponentState.submitted]);
 
-    // --- NEW: This entire useEffect block handles the game conclusion ---
     useEffect(() => {
         const concludeRound = async () => {
             if (myState.submitted && opponentState.submitted && !results) {
-                // Both players have submitted, now calculate results
                 const mePlayer1 = match.player1_id === session.user.id;
                 
                 const calculateScore = (state) => {
@@ -111,35 +130,85 @@ export default function LiveGameView({ session, matchId, setView }) {
         concludeRound();
     }, [myState.submitted, opponentState.submitted, match, puzzle, results, session.user.id]);
 
-
     const handleUnlockClue = (clueNumber) => {
-        // ... (function is the same)
+        const cost = CLUE_COSTS[clueNumber];
+        if (myState.score >= cost && !myState.unlockedClues.includes(clueNumber)) {
+            setMyState(prev => ({ ...prev, score: prev.score - cost, unlockedClues: [...prev.unlockedClues, clueNumber].sort() }));
+            broadcast('clue:unlock', { clue: clueNumber });
+        }
     };
     
     const handleMapGuess = (latlng) => {
-       // ... (function is the same)
+        if(myState.submitted) return;
+        setMyState(prev => ({...prev, guessCoords: latlng}));
+        broadcast('guess:location', { coords: latlng });
     };
 
     const handleYearChange = (e) => {
-       // ... (function is the same)
+        const year = e.target.value;
+        if(myState.submitted) return;
+        setMyState(prev => ({...prev, selectedYear: year}));
+        broadcast('guess:year', { year });
     };
 
     const handleGuessSubmit = async () => {
         if (!myState.guessCoords) return alert('Please place a pin on the map.');
         setMyState(prev => ({...prev, submitted: true}));
         broadcast('guess:submit', {});
-        // --- MODIFIED ---
-        // Improve timer logic: only drop to 30s if current time is higher
-        setTimer(prev => Math.min(prev, 30)); 
     };
-    
-    // ... (rest of the component is mostly the same, but add the results screen)
-    
+
+    const displayYear = (year) => { const yearNum = Number(year); if (yearNum < 0) return `${Math.abs(yearNum)} BC`; return yearNum; };
+
+    if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Match...</div>;
+    if (error) return <div className="min-h-screen flex items-center justify-center">Error: {error} <button onClick={() => setView('menu')}>Home</button></div>;
+
+    const opponentUsername = match?.player1_id === session.user.id ? match?.player2.username : match?.player1.username;
+
     return (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-            {/* ... (header and main game grid) ... */}
+            <header className="mb-8 text-center">
+                <h1 className="text-3xl font-serif font-bold text-gold-rush">Live Match vs. {opponentUsername}</h1>
+                <div className="text-4xl font-bold text-red-600">{Math.floor(timer/60)}:{('0' + timer % 60).slice(-2)}</div>
+            </header>
+            
+            <div className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm mb-8">
+                {myState.unlockedClues.map(num => (
+                    <p key={num} className="text-sepia-dark">{puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`]}</p>
+                ))}
+            </div>
 
-            {/* --- NEW: Results Screen --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <h2 className="text-2xl font-serif font-bold text-ink mb-4">Your Guess</h2>
+                    <div className="p-4 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4">
+                        <Map onGuess={handleMapGuess} opponentPosition={opponentState.guessCoords} initialPosition={myState.guessCoords} />
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-ink">Year</label>
+                            <input type="range" min={-4000} max={2025} value={myState.selectedYear} onChange={handleYearChange} className="w-full accent-sepia-dark" disabled={myState.submitted}/>
+                            <div className="mt-2 text-center text-sm text-ink">Guess year:{' '}<span className="font-bold text-lg">{displayYear(myState.selectedYear)}</span></div>
+                        </div>
+                        <button onClick={handleGuessSubmit} disabled={myState.submitted} className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink disabled:bg-sepia/50">
+                            {myState.submitted ? 'Waiting for opponent...' : 'Lock In Guess'}
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <h2 className="text-2xl font-serif font-bold text-ink mb-4">{opponentUsername}&apos;s Actions</h2>
+                    <div className="p-4 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4 opacity-70">
+                        <Map opponentPosition={opponentState.guessCoords} />
+                         <div className="mt-2 text-center text-sm text-ink">Opponent&apos;s Year Guess:{' '}<span className="font-bold text-lg">{displayYear(opponentState.selectedYear)}</span></div>
+                        <div className="flex justify-around">
+                            {[1,2,3,4,5].map(num => (
+                                <div key={num} className={`p-2 text-sm rounded ${opponentState.unlockedClues.includes(num) ? 'bg-gold-rush text-ink' : 'bg-sepia/20'}`}>
+                                    Clue {num}
+                                </div>
+                            ))}
+                        </div>
+                         {opponentState.submitted && <p className="text-center font-bold text-green-600 animate-pulse">Opponent has submitted!</p>}
+                    </div>
+                </div>
+            </div>
+
             {results && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
                     <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush">
