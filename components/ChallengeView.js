@@ -26,11 +26,18 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
         .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
       setFriendships(friendshipsData || []);
+      
+      // Updated query to explicitly define the join
       const { data: challengesData } = await supabase
         .from('challenges')
-        .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
+        .select(
+          `*, 
+          challenger:profiles!challenges_challenger_id_fkey(username), 
+          opponent:profiles!challenges_opponent_id_fkey(username)`
+        )
         .or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
+        
       setChallenges(challengesData || []);
       setLoading(false);
     };
@@ -96,8 +103,8 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
     
     const puzzleIds = puzzles.map(p => p.id);
 
-    // Step 1: Insert the new challenge and get its ID
-    const { data: newChallenge, error: insertError } = await supabase
+    // Updated query to explicitly define the join
+    const { data: challenge, error } = await supabase
       .from('challenges')
       .insert({
         puzzle_ids: puzzleIds,
@@ -107,27 +114,21 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
         challenger_scores: [],
         opponent_scores: [],
       })
-      .select('id') // Only select the ID of the new challenge
+      .select(
+        `*, 
+        challenger:profiles!challenges_challenger_id_fkey(username), 
+        opponent:profiles!challenges_opponent_id_fkey(username)`
+      )
       .single();
 
-    if (insertError) {
-      return alert('Could not create challenge: ' + insertError.message);
-    }
-    
-    // Step 2: Fetch the full challenge data, including the related profiles
-    const { data: challenge, error: selectError } = await supabase
-      .from('challenges')
-      .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
-      .eq('id', newChallenge.id)
-      .single();
-
-    if (selectError) {
-      return alert('Could not fetch challenge details: ' + selectError.message);
+    if (error) {
+      return alert('Could not create challenge: ' + error.message);
     }
     
     setActiveChallenge(challenge);
     setView('game');
-  };  
+  };
+  
   const playChallenge = (challenge) => {
     setActiveChallenge(challenge);
     setView('game');
