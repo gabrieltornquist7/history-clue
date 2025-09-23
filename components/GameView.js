@@ -25,14 +25,14 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [gameKey, setGameKey] = useState(0);
-  const [xpResults, setXpResults] = useState(null); // <-- NEW: State for XP results
+  const [xpResults, setXpResults] = useState(null);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
 
   useEffect(() => {
     const fetchPuzzleData = async () => {
       setResults(null);
-      setXpResults(null); // <-- NEW: Reset XP results
+      setXpResults(null);
       setUnlockedClues([1]);
       setScore(10000);
       setSelectedYear(1950);
@@ -89,7 +89,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
     if (distance < 50) finalScore += 2000; else if (distance < 200) finalScore += 1000;
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
-    // --- UPDATED: Capture returned XP data ---
     if (session?.user) {
       const { data: xpData, error: xpError } = await supabase.rpc('grant_xp', {
         p_user_id: session.user.id,
@@ -99,7 +98,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
       if (xpError) {
         console.error('Error granting XP:', xpError);
       } else {
-        setXpResults(xpData); // <-- NEW: Store the XP results
+        setXpResults(xpData);
       }
     }
 
@@ -174,7 +173,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
       </section>
       {results && (
         <section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush">
+          {/* --- THIS IS THE ONLY LINE THAT CHANGED --- */}
+          <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush md:mr-64">
             <h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2>
             <div className="space-y-4 my-6">
                 <div><h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4><p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.historical_entity}</p><p className="text-green-700 font-semibold">{displayYear(results.answer.year)}</p></div>
@@ -182,7 +182,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
             </div>
             <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>
             
-            {/* --- NEW: VISUAL XP DISPLAY --- */}
             {xpResults && (
               <div className="mb-6 p-4 bg-papyrus rounded-lg border border-sepia/20">
                 <p className="font-bold text-lg text-gold-rush">+{xpResults.xp_gained.toLocaleString()} XP</p>
@@ -200,7 +199,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 </p>
               </div>
             )}
-            {/* --- END OF XP DISPLAY --- */}
             
             <button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">{challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}</button>
           </div>
