@@ -28,7 +28,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
       setFriendships(friendshipsData || []);
       const { data: challengesData } = await supabase
         .from('challenges')
-        .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
+        .select(`*, challenger:challenger_id(id, username), opponent:opponent_id(id, username)`)
         .or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
       setChallenges(challengesData || []);
@@ -87,6 +87,12 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
   };
 
   const sendChallenge = async (opponentId) => {
+    // --- DEBUGGING LOGS ---
+    console.log("--- Creating Challenge ---");
+    console.log("Challenger ID (current user):", currentUserId);
+    console.log("Opponent ID (friend.id):", opponentId);
+    // --- END DEBUGGING ---
+
     const { data: puzzles, error: puzzleError } = await supabase.rpc('get_random_puzzles', { limit_count: 3 });
 
     if (puzzleError || !puzzles || puzzles.length < 3) {
@@ -95,6 +101,10 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
     }
     
     const puzzleIds = puzzles.map(p => p.id);
+    
+    // --- DEBUGGING LOGS ---
+    console.log("Puzzle IDs:", puzzleIds);
+    // --- END DEBUGGING ---
 
     const { data: challenge, error } = await supabase
       .from('challenges')
@@ -102,7 +112,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
         puzzle_ids: puzzleIds,
         challenger_id: currentUserId,
         opponent_id: opponentId,
-        next_player_id: currentUserId, // Challenger plays first
+        next_player_id: currentUserId,
         challenger_scores: [],
         opponent_scores: [],
       })
@@ -110,6 +120,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
       .single();
 
     if (error) {
+      console.error("Supabase Error:", error);
       return alert('Could not create challenge: ' + error.message);
     }
     
@@ -127,15 +138,15 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
     const opponentWins = (c.opponent_scores || []).filter((s, i) => s > (c.challenger_scores || [])[i]).length;
     
     if (c.status === 'completed') {
-        if (challengerWins > opponentWins) return { text: `You Won ${challengerWins}-${opponentWins}`, color: 'text-green-600' };
-        if (opponentWins > challengerWins) return { text: `You Lost ${opponentWins}-${challengerWins}`, color: 'text-red-600' };
+        if (c.winner_id === currentUserId) return { text: `You Won ${challengerWins}-${opponentWins}`, color: 'text-green-600' };
+        if (c.winner_id) return { text: `You Lost ${opponentWins}-${challengerWins}`, color: 'text-red-600' };
         return { text: `Draw ${challengerWins}-${opponentWins}`, color: 'text-sepia' };
     }
 
     if (c.next_player_id === currentUserId) {
         return { text: 'Your Turn!', button: <button onClick={() => playChallenge(c)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Play</button> };
     } else {
-        return { text: `Waiting for ${c.opponent.id === currentUserId ? c.challenger.username : c.opponent.username}...` };
+        return { text: `Waiting for ${c.opponent?.username || 'Opponent'}...` };
     }
   };
 
@@ -179,7 +190,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
                     const status = getChallengeStatus(c);
                     return (
                       <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
-                        <span className="font-bold text-ink">{c.challenger.id === currentUserId ? c.opponent.username : c.challenger.username} challenged you!</span>
+                        <span className="font-bold text-ink">{c.challenger?.username || 'A friend'} challenged you!</span>
                         {status.button}
                       </div>
                     )
@@ -189,7 +200,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
                      const status = getChallengeStatus(c);
                     return (
                       <div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
-                        <span className="font-bold text-ink">Waiting for {c.opponent.id === currentUserId ? c.challenger.username : c.opponent.username}...</span>
+                        <span className="font-bold text-ink">Waiting for {c.opponent?.username || 'your friend'}...</span>
                       </div>
                     )
                   })}
@@ -204,7 +215,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
                         return (
                           <div key={c.id} className={`flex items-center justify-between p-2 bg-parchment rounded-lg`}>
                               <div>
-                                  <p className="font-bold text-ink">{c.challenger.username} vs {c.opponent.username}</p>
+                                  <p className="font-bold text-ink">{c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}</p>
                               </div>
                               <span className={`font-bold ${status.color}`}>{status.text}</span>
                           </div>
