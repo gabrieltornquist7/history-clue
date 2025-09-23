@@ -10,13 +10,25 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dataVersion, setDataVersion] = useState(0);
-  const [onlineFriends, setOnlineFriends] = useState([]); // <-- Tracks online friends
-  const currentUserId = session.user.id;
+  const [onlineFriends, setOnlineFriends] = useState([]);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+
+  // Safely access the user ID with optional chaining.
+  const currentUserId = session?.user?.id;
   const refetchData = () => setDataVersion((v) => v + 1);
 
   useEffect(() => {
+    // If there's no user, don't bother fetching data.
+    if (!currentUserId) {
+        setLoading(false);
+        return;
+    }
+      
     const fetchData = async () => {
       setLoading(true);
+      const { data: selfProfile } = await supabase.from('profiles').select('username').eq('id', currentUserId).single();
+      setCurrentUserProfile(selfProfile);
+      
       const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
       setProfiles(profilesData || []);
       const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
@@ -27,11 +39,10 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     };
     fetchData();
 
-    // --- Presence Tracking for Online Friends ---
     const channel = supabase.channel('online-users');
     channel.on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState();
-        const onlineUserIds = Object.keys(presenceState);
+        const onlineUserIds = Object.keys(presenceState); 
         setOnlineFriends(onlineUserIds);
     }).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
@@ -42,23 +53,21 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, dataVersion, session.user.id]);
+  }, [currentUserId, dataVersion, session?.user?.id]);
 
-  // --- NEW: Function to start a live match and send an invite ---
   const startLiveMatch = async (opponentId) => {
     const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });
     if (error) {
         return alert('Error creating match: ' + error.message);
     }
     
-    // Send invite to opponent via their unique channel
     const inviteChannel = supabase.channel(`invites:${opponentId}`);
     inviteChannel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
             await inviteChannel.send({
                 type: 'broadcast',
                 event: 'live_invite',
-                payload: { matchId, from_username: session.user.user_metadata.username },
+                payload: { matchId, from_username: currentUserProfile?.username || 'A player' },
             });
             supabase.removeChannel(inviteChannel);
         }
@@ -128,7 +137,28 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
         <div>
           {tab === 'challenges' && (
              <div className="space-y-6">
-              {/* ... (Active and Completed Challenges sections remain the same) ... */}
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Active Challenges</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                  {incomingChallenges.length === 0 && outgoingChallenges.length === 0 && <p className="text-sepia">No active challenges. Challenge a friend to get started!</p>}
+                  {incomingChallenges.map(c => {
+                    const status = getChallengeStatus(c);
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger?.username || 'A friend'} challenged you!</span>{status.button}</div>)
+                  })}
+                  {outgoingChallenges.map(c => {
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent?.username || 'your friend'}...</span></div>)
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Completed Challenges</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                    {completedChallenges.length > 0 ? completedChallenges.map(c => {
+                        const status = getChallengeStatus(c);
+                        return (<div key={c.id} className={`flex items-center justify-between p-2 bg-parchment rounded-lg`}><div><p className="font-bold text-ink">{c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}</p></div><span className={`font-bold ${status.color}`}>{status.text}</span></div>)
+                    }) : <p className="text-sepia">No completed challenges yet.</p>}
+                </div>
+              </div>
                <div>
                 <h3 className="text-2xl font-serif font-bold text-ink mb-4">Challenge a Friend</h3>
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
@@ -142,7 +172,6 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-xs font-bold rounded-lg hover:bg-ink">Challenge (Turn-based)</button>
-                            {/* --- THIS IS THE NEW BUTTON --- */}
                             {isOnline && <button onClick={() => startLiveMatch(friend.id)} className="px-3 py-1 bg-red-700 text-white text-xs font-bold rounded-lg hover:bg-red-800">Challenge (Live)</button>}
                           </div>
                         </div>
@@ -152,7 +181,28 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
               </div>
             </div>
           )}
-          {/* ... (Find Players and Friend Requests tabs remain the same) ... */}
+          {tab === 'find' && (
+            <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                {nonFriendProfiles.map(profile => (
+                    <div key={profile.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                        <span className="font-bold text-ink">{profile.username}</span>
+                        <button onClick={() => handleAddFriend(profile.id)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Add Friend</button>
+                    </div>
+                ))}
+            </div>
+          )}
+          {tab === 'requests' && (
+             <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                {pendingRequests.length > 0 ? pendingRequests.map(req => (
+                    <div key={req.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                        <span className="font-bold text-ink">{req.user1.username} sent you a request.</span>
+                        <div className="flex gap-2">
+                            <button onClick={() => handleAcceptRequest(req)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Accept</button>
+                        </div>
+                    </div>
+                )) : <p className="text-sepia">You have no pending friend requests.</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
