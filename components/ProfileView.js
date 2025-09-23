@@ -16,7 +16,8 @@ export default function ProfileView({ setView, session }) {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profileData } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
+        // --- CHANGE 1: FETCH XP AND LEVEL ---
+        const { data: profileData } = await supabase.from('profiles').select('username, avatar_url, xp, level').eq('id', user.id).single();
         setProfile(profileData);
 
         const { data: statsData, error: statsError } = await supabase.rpc('get_player_stats', { p_user_id: user.id }).single();
@@ -26,7 +27,7 @@ export default function ProfileView({ setView, session }) {
       setLoading(false);
     }
     getProfileData();
-  }, [session.user.id]);
+  }, [session.user.id, avatarKey]); // Add avatarKey to dependencies to refetch profile on change
 
   const uploadAvatar = async (event) => {
     try {
@@ -35,16 +36,12 @@ export default function ProfileView({ setView, session }) {
       const { data: { user } } = await supabase.auth.getUser();
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
-      // Use a consistent file path to ensure overwriting the old avatar
       const filePath = `${user.id}.${fileExt}`;
       
       await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-
-      // **Important:** We now ONLY store the filePath in the database.
       await supabase.from('profiles').update({ avatar_url: filePath }).eq('id', user.id);
       
-      setProfile(prev => ({...prev, avatar_url: filePath }));
-      setAvatarKey(Date.now()); // Force the Image component to re-render with a new key
+      setAvatarKey(Date.now()); // Force the component to re-render and refetch data
 
     } catch (error) { 
       alert(error.message); 
@@ -53,11 +50,14 @@ export default function ProfileView({ setView, session }) {
     }
   };
   
-  // This new logic correctly constructs the URL every time.
+  // --- CHANGE 2: ADD HELPER FUNCTION FOR XP CALCULATION ---
+  const xpForLevel = (level) => {
+    return Math.floor(1000 * Math.pow(level || 1, 1.5));
+  };
+
   let avatarSrc = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
   if (profile?.avatar_url) {
     const { data } = supabase.storage.from('avatars').getPublicUrl(profile.avatar_url);
-    // We add a timestamp to the key of the Image component to force a fresh download.
     avatarSrc = data.publicUrl;
   }
 
@@ -72,6 +72,21 @@ export default function ProfileView({ setView, session }) {
           <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
             <Image key={avatarKey} src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
             <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
+            
+            {/* --- CHANGE 3: ADD XP AND LEVEL DISPLAY --- */}
+            <div className="w-full mt-4 text-center">
+              <p className="text-lg font-bold text-ink">Level {profile?.level || 1}</p>
+              <div className="w-full bg-sepia/20 rounded-full h-4 my-2 overflow-hidden border border-sepia/30 shadow-inner">
+                <div 
+                  className="bg-gold-rush h-4 rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(((profile?.xp || 0) / xpForLevel(profile?.level)) * 100, 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-sepia">
+                {(profile?.xp || 0).toLocaleString()} / {xpForLevel(profile?.level).toLocaleString()} XP
+              </p>
+            </div>
+            
             <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
             <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
           </div>

@@ -87,6 +87,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
     if (distance < 50) finalScore += 2000; else if (distance < 200) finalScore += 1000;
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
+    // --- THIS IS THE NEW CODE BLOCK TO GRANT XP ---
+    if (session?.user) { // Only grant XP if the user is logged in
+      const { error: xpError } = await supabase.rpc('grant_xp', {
+        p_user_id: session.user.id,
+        p_score: finalScoreRounded
+      });
+
+      if (xpError) {
+        console.error('Error granting XP:', xpError);
+      }
+    }
+    // --- END OF NEW CODE BLOCK ---
+
     if (challenge) {
         const isChallenger = session.user.id === challenge.challenger_id;
         const challengerScores = challenge.challenger_scores || [];
