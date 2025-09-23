@@ -42,7 +42,6 @@ export default function GameView({
 
   useEffect(() => {
     const fetchPuzzleData = async () => {
-      // Reset state for the new round
       setResults(null);
       setUnlockedClues([1]);
       setScore(10000);
@@ -88,30 +87,70 @@ export default function GameView({
     setGuessCoords(latlng);
   };
 
+  const handleUnlockClue = (clueNumber) => {
+    if (results || unlockedClues.includes(clueNumber)) return;
+    const cost = CLUE_COSTS[clueNumber];
+    if (score >= cost) {
+      setScore(score - cost);
+      setUnlockedClues([...unlockedClues, clueNumber].sort());
+    } else {
+      alert('Not enough points!');
+    }
+  };
+
   const handleGuessSubmit = async () => {
     if (!puzzle) return;
     if (!guessCoords) return alert('Please place a pin on the map to make a guess.');
 
     const distance = getDistance(guessCoords.lat, guessCoords.lng, puzzle.latitude, puzzle.longitude);
-    const maxDistance = 20000; // Furthest possible distance on Earth
-    const distancePenalty = (distance / maxDistance) * 5000; // Penalty scales with distance
+    const maxDistance = 20000;
+    const distancePenalty = (distance / maxDistance) * 5000;
 
     const yearDifference = Math.abs(selectedYear - puzzle.year);
-    const timePenalty = yearDifference * 25; // Adjusted penalty for the new system
+    const timePenalty = yearDifference * 25;
 
-    const initialScore = 10000 - (score < 10000 ? (10000 - score) : 0); // Score after clue unlocks
+    const initialScore = 10000 - (10000 - score);
     let finalScore = Math.max(0, initialScore - distancePenalty - timePenalty);
 
-    // Give a bonus for being very close
-    if (distance < 50) { // within 50km
-        finalScore += 2000;
-    } else if (distance < 200) { // within 200km
-        finalScore += 1000;
-    }
+    if (distance < 50) finalScore += 2000;
+    else if (distance < 200) finalScore += 1000;
     
-    const finalScoreRounded = Math.min(15000, Math.round(finalScore)); // Cap score
+    const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
-    // ... [Database update logic for challenges remains the same as your current file] ...
+    if (challenge) {
+        const isChallenger = session.user.id === challenge.challenger_id;
+        const currentScores = isChallenger ? challenge.challenger_scores || [] : challenge.opponent_scores || [];
+        const challengerScores = challenge.challenger_scores || [];
+        const opponentScores = challenge.opponent_scores || [];
+        const updatedScores = [...currentScores, finalScoreRounded];
+        const scoreColumn = isChallenger ? 'challenger_scores' : 'opponent_scores';
+        
+        const isOpponentTurn = !isChallenger;
+        const bothPlayedThisRound = isOpponentTurn && (challengerScores.length === challenge.current_round);
+        const nextRound = bothPlayedThisRound ? challenge.current_round + 1 : challenge.current_round;
+        const isMatchOver = isOpponentTurn && (challenge.current_round === 3) && (challengerScores.length === 3);
+
+        const updateData = {
+            [scoreColumn]: updatedScores,
+            current_round: nextRound,
+            next_player_id: isChallenger ? challenge.opponent_id : challenge.challenger_id,
+            status: isMatchOver ? 'completed' : 'pending'
+        };
+
+        if(isMatchOver) {
+            const finalChallengerScores = isChallenger ? updatedScores : challengerScores;
+            const finalOpponentScores = isOpponentTurn ? updatedScores : opponentScores;
+            let challengerWins = 0;
+            let opponentWins = 0;
+            for(let i=0; i<3; i++){
+                if(finalChallengerScores[i] > finalOpponentScores[i]) challengerWins++;
+                else if(finalOpponentScores[i] > finalChallengerScores[i]) opponentWins++;
+            }
+            if (challengerWins > opponentWins) updateData.winner_id = challenge.challenger_id;
+            else if (opponentWins > challengerWins) updateData.winner_id = challenge.opponent_id;
+        }
+        await supabase.from('challenges').update(updateData).eq('id', challenge.id);
+    }
     
     setResults({
       finalScore: finalScoreRounded,
@@ -127,34 +166,73 @@ export default function GameView({
     });
   };
 
-  // Other handler functions (handleUnlockClue, handlePlayAgain, displayYear) remain the same.
+  const handlePlayAgain = () => {
+    if (challenge) onChallengeComplete();
+    else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore);
+    else {
+      setGameKey((prevKey) => prevKey + 1);
+    }
+  };
+
+  const displayYear = (year) => {
+    const yearNum = Number(year);
+    if (yearNum < 0) return `${Math.abs(yearNum)} BC`;
+    return yearNum;
+  }
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-ink text-2xl font-serif">Loading puzzle...</div>;
-  if (error || !puzzle) return <div className="min-h-screen flex flex-col items-center justify-center text-ink text-2xl font-serif text-center p-4">...</div>;
+  if (error || !puzzle) return <div className="min-h-screen flex flex-col items-center justify-center text-ink text-2xl font-serif text-center p-4">
+            <p className="text-red-600 font-bold mb-4">An Error Occurred</p>
+            <p>{error || "Could not load the puzzle."}</p>
+            <button onClick={() => setView('menu')} className="mt-8 px-6 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">Back to Menu</button>
+        </div>;
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <header>
-        {/* Header remains the same */}
+      <header className="mb-8 text-center relative">
+        <button onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">
+          &larr; Back
+        </button>
+        <div>
+          <h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1>
+          <p className="text-lg text-sepia mt-2">
+            {dailyPuzzleInfo ? `Daily Challenge - Puzzle ${dailyPuzzleInfo.step}`
+              : challenge ? `Challenge - Round ${challenge.current_round}`
+              : 'Endless Mode'}
+          </p>
+        </div>
       </header>
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-4">
-          {/* Clue display remains the same */}
+          {[1, 2, 3, 4, 5].map((num) => {
+            const isUnlocked = unlockedClues.includes(num);
+            const clueText = puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`];
+            return isUnlocked ? (
+              <article key={num} className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm">
+                <span className="block font-serif font-bold text-ink">Clue {num}</span>
+                <p className={`mt-1 text-sepia-dark ${num === 1 ? 'italic text-lg' : ''}`}>{clueText || 'Loading...'}</p>
+              </article>
+            ) : (
+              <button key={num} className="w-full p-4 border border-sepia/30 rounded-lg hover:bg-sepia/10 text-left transition-colors" onClick={() => handleUnlockClue(num)}>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-lg text-ink">Unlock Clue {num}</span>
+                  <span className="text-sm font-semibold text-sepia-dark">{CLUE_COSTS[num].toLocaleString()} pts</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
         <aside>
           <div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4">
-            
             <div>
                 <label className="block text-sm font-bold mb-2 text-ink text-center">Guess Location</label>
                 <Map onGuess={handleMapGuess} />
             </div>
-            
             <div>
               <label className="block text-sm font-bold mb-1 text-ink">Year</label>
-              <input type="range" min={-4000} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark" />
+              <input type="range" min={-4000} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark"/>
               <div className="mt-2 text-center text-sm text-ink">Guess year:{' '}<span className="font-bold text-lg">{displayYear(selectedYear)}</span></div>
             </div>
-
             <div className="flex justify-center">
               <button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>Make Guess</button>
             </div>
@@ -176,7 +254,7 @@ export default function GameView({
                     <p className="text-green-700 font-semibold">{displayYear(results.answer.year)}</p>
                 </div>
                 <div>
-                    <h4 className="text-lg font-serif font-bold text-sepia">Your Guess was {results.distance} km away!</h4>
+                    <h4 className="text-lg font-serif font-bold text-sepia">Your guess was {results.distance} km away!</h4>
                 </div>
             </div>
             <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>
