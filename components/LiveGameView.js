@@ -7,10 +7,10 @@ import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('./Map'), { ssr: false });
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the earth in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 };
@@ -41,130 +41,143 @@ export default function LiveGameView({ session, matchId, setView }) {
 
     useEffect(() => {
         const fetchMatchData = async () => {
-            const { data: matchData, error: matchError } = await supabase
-                .from('live_matches')
-                .select('*, player1:player1_id(username), player2:player2_id(username)')
-                .eq('id', matchId)
-                .single();
+            try {
+                const { data: matchData, error: matchError } = await supabase
+                    .from('live_matches')
+                    .select('*, player1:player1_id(username), player2:player2_id(username)')
+                    .eq('id', matchId)
+                    .single();
 
-            if (matchError) { setError('Could not load match data.'); return; }
-            setMatch(matchData);
+                if (matchError) throw matchError;
+                setMatch(matchData);
 
-            const puzzleId = matchData.puzzle_ids[matchData.current_round - 1];
-            const { data: puzzleData, error: puzzleError } = await supabase
-                .from('puzzles')
-                .select('*, puzzle_translations(*)')
-                .eq('id', puzzleId)
-                .single();
-            
-            if (puzzleError) { setError('Could not load puzzle data.'); } else { setPuzzle(puzzleData); }
-            setLoading(false);
+                const puzzleId = matchData.puzzle_ids[matchData.current_round - 1];
+                const { data: puzzleData, error: puzzleError } = await supabase
+                    .from('puzzles')
+                    .select('*, puzzle_translations(*)')
+                    .eq('id', puzzleId)
+                    .single();
+                
+                if (puzzleError) throw puzzleError;
+                setPuzzle(puzzleData);
+                setLoading(false);
+            } catch (err) {
+                setError('Failed to load match or puzzle data.');
+                console.error(err);
+                setLoading(false);
+            }
         };
         fetchMatchData();
     }, [matchId]);
 
+    // Real-time updates
     useEffect(() => {
         if (!matchId) return;
+
         const newChannel = supabase.channel(`match:${matchId}`);
         newChannel
             .on('broadcast', { event: 'clue:unlock' }, ({ payload }) => {
-                if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, unlockedClues: [...new Set([...prev.unlockedClues, payload.clue])].sort() }));
+                if (payload.sender !== session.user.id) {
+                    setOpponentState(prev => ({
+                        ...prev,
+                        unlockedClues: [...new Set([...prev.unlockedClues, payload.clue])].sort()
+                    }));
+                }
             })
             .on('broadcast', { event: 'guess:location' }, ({ payload }) => {
-                 if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, guessCoords: payload.coords }));
+                if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, guessCoords: payload.coords }));
             })
-             .on('broadcast', { event: 'guess:year' }, ({ payload }) => {
-                 if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, selectedYear: payload.year }));
+            .on('broadcast', { event: 'guess:year' }, ({ payload }) => {
+                if (payload.sender !== session.user.id) setOpponentState(prev => ({ ...prev, selectedYear: payload.year }));
             })
             .on('broadcast', { event: 'guess:submit' }, ({ payload }) => {
                 if (payload.sender !== session.user.id) {
-                    setOpponentState(prev => ({...prev, submitted: true}));
-                    setTimer(prev => Math.min(prev, 30)); // Dynamic timer!
+                    setOpponentState(prev => ({ ...prev, submitted: true }));
+                    setTimer(prev => Math.min(prev, 30));
                 }
             })
             .subscribe();
+
         setChannel(newChannel);
         return () => supabase.removeChannel(newChannel);
     }, [matchId, session.user.id]);
 
+    // Timer
     useEffect(() => {
         if (!loading && timer > 0 && !results) {
-            const interval = setInterval(() => {
-                setTimer(t => t - 1);
-            }, 1000);
+            const interval = setInterval(() => setTimer(t => t - 1), 1000);
             return () => clearInterval(interval);
         } else if (timer === 0 && !results) {
-            // If timer runs out, submit for both players automatically
-            handleGuessSubmit(true); // `true` indicates a timeout
+            handleGuessSubmit(true);
         }
     }, [loading, timer, results]);
 
+    // End of round
     useEffect(() => {
         const concludeRound = async () => {
             if (myState.submitted && opponentState.submitted && !results) {
                 const mePlayer1 = match.player1_id === session.user.id;
-                
                 const calculateScore = (state) => {
-                    if (!state.guessCoords) return 0; // No guess = 0 points
+                    if (!state.guessCoords) return 0;
                     const distance = getDistance(state.guessCoords.lat, state.guessCoords.lng, parseFloat(puzzle.latitude), parseFloat(puzzle.longitude));
                     const maxDistance = 20000;
                     const distancePenalty = (distance / maxDistance) * 5000;
                     const yearDifference = Math.abs(state.selectedYear - puzzle.year);
                     const timePenalty = yearDifference * 25;
-                    const initialScore = 10000 - (10000 - state.score);
-                    let finalScore = Math.max(0, initialScore - distancePenalty - timePenalty);
-                    if (distance < 50) finalScore += 2000; else if (distance < 200) finalScore += 1000;
+                    let finalScore = Math.max(0, state.score - distancePenalty - timePenalty);
+                    if (distance < 50) finalScore += 2000;
+                    else if (distance < 200) finalScore += 1000;
                     return Math.min(15000, Math.round(finalScore));
                 };
 
                 const myFinalScore = calculateScore(myState);
                 const opponentFinalScore = calculateScore(opponentState);
 
-                const updatePayload = {
+                await supabase.from('live_matches').update({
                     status: 'completed',
                     winner_id: myFinalScore > opponentFinalScore ? session.user.id : (opponentFinalScore > myFinalScore ? (mePlayer1 ? match.player2_id : match.player1_id) : null),
                     p1_score: mePlayer1 ? myFinalScore : opponentFinalScore,
-                    p2_score: mePlayer1 ? opponentFinalScore : myFinalScore,
-                };
-                
-                await supabase.from('live_matches').update(updatePayload).eq('id', match.id);
+                    p2_score: mePlayer1 ? opponentFinalScore : myFinalScore
+                }).eq('id', match.id);
+
                 setResults({ myFinalScore, opponentFinalScore, puzzle });
             }
         };
         concludeRound();
     }, [myState.submitted, opponentState.submitted, match, puzzle, results, session.user.id]);
 
+    // Handlers
     const handleUnlockClue = (clueNumber) => {
         if (myState.submitted || myState.unlockedClues.includes(clueNumber)) return;
         const cost = CLUE_COSTS[clueNumber];
         if (myState.score >= cost) {
             setMyState(prev => ({ ...prev, score: prev.score - cost, unlockedClues: [...prev.unlockedClues, clueNumber].sort() }));
             broadcast('clue:unlock', { clue: clueNumber });
-        }
+        } else alert('Not enough points!');
     };
-    
+
     const handleMapGuess = (latlng) => {
         if (myState.submitted) return;
-        setMyState(prev => ({...prev, guessCoords: latlng}));
+        setMyState(prev => ({ ...prev, guessCoords: latlng }));
         broadcast('guess:location', { coords: latlng });
     };
 
     const handleYearChange = (e) => {
         if (myState.submitted) return;
-        const year = e.target.value;
-        setMyState(prev => ({...prev, selectedYear: year}));
+        const year = Number(e.target.value);
+        setMyState(prev => ({ ...prev, selectedYear: year }));
         broadcast('guess:year', { year });
     };
 
-    const handleGuessSubmit = async (isTimeout = false) => {
+    const handleGuessSubmit = (isTimeout = false) => {
         if (myState.submitted) return;
-        if (!myState.guessCoords && !isTimeout) return alert('Please place a pin on the map.');
-        setMyState(prev => ({...prev, submitted: true}));
+        if (!myState.guessCoords && !isTimeout) return alert('Place a pin on the map!');
+        setMyState(prev => ({ ...prev, submitted: true }));
         broadcast('guess:submit', {});
         setTimer(prev => Math.min(prev, 30));
     };
 
-    const displayYear = (year) => { const yearNum = Number(year); if (yearNum < 0) return `${Math.abs(yearNum)} BC`; return yearNum; };
+    const displayYear = (year) => (year < 0 ? `${Math.abs(year)} BC` : year);
 
     if (loading) return <div className="min-h-screen flex items-center justify-center">Loading Match...</div>;
     if (error) return <div className="min-h-screen flex items-center justify-center">Error: {error} <button onClick={() => setView('menu')}>Home</button></div>;
@@ -181,14 +194,10 @@ export default function LiveGameView({ session, matchId, setView }) {
             <div className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm mb-8 space-y-2">
                 {[1, 2, 3, 4, 5].map(num => {
                     const isUnlocked = myState.unlockedClues.includes(num);
-                    return (
-                        <div key={num}>
-                            {isUnlocked ? (
-                                <p className="text-sepia-dark"><span className="font-bold">Clue {num}:</span> {puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`]}</p>
-                            ) : (
-                                <button onClick={() => handleUnlockClue(num)} className="text-left text-gold-rush hover:underline">Unlock Clue {num} ({CLUE_COSTS[num]} pts)</button>
-                            )}
-                        </div>
+                    return isUnlocked ? (
+                        <p key={num} className="text-sepia-dark"><span className="font-bold">Clue {num}:</span> {puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`]}</p>
+                    ) : (
+                        <button key={num} onClick={() => handleUnlockClue(num)} className="text-left text-gold-rush hover:underline">Unlock Clue {num} ({CLUE_COSTS[num]} pts)</button>
                     );
                 })}
             </div>
@@ -220,8 +229,8 @@ export default function LiveGameView({ session, matchId, setView }) {
                             ))}
                         </div>
                         <Map opponentPosition={opponentState.guessCoords} />
-                         <div className="mt-2 text-center text-sm text-ink">Opponent&apos;s Year Guess:{' '}<span className="font-bold text-lg">{displayYear(opponentState.selectedYear)}</span></div>
-                         {opponentState.submitted && <p className="text-center font-bold text-lg text-green-600 animate-pulse">Opponent has submitted!</p>}
+                        <div className="mt-2 text-center text-sm text-ink">Opponent&apos;s Year Guess:{' '}<span className="font-bold text-lg">{displayYear(opponentState.selectedYear)}</span></div>
+                        {opponentState.submitted && <p className="text-center font-bold text-lg text-green-600 animate-pulse">Opponent has submitted!</p>}
                     </div>
                 </div>
             </div>

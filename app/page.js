@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from '../lib/supabaseClient';
 import Auth from '../components/Auth';
+import LiveBattleView from '../components/LiveBattleView';
 import MainMenu from '../components/MainMenu';
 import ProfileView from '../components/ProfileView';
 import ChallengeView from '../components/ChallengeView';
