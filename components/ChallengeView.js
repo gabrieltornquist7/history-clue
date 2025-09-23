@@ -125,8 +125,29 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
         <div>
           {tab === 'challenges' && (
              <div className="space-y-6">
-               {/* Sections for Active and Completed Challenges remain the same */}
               <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Active Challenges</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                  {incomingChallenges.length === 0 && outgoingChallenges.length === 0 && <p className="text-sepia">No active challenges. Challenge a friend to get started!</p>}
+                  {incomingChallenges.map(c => {
+                    const status = getChallengeStatus(c);
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger?.username || 'A friend'} challenged you!</span>{status.button}</div>)
+                  })}
+                  {outgoingChallenges.map(c => {
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent?.username || 'your friend'}...</span></div>)
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Completed Challenges</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                    {completedChallenges.length > 0 ? completedChallenges.map(c => {
+                        const status = getChallengeStatus(c);
+                        return (<div key={c.id} className={`flex items-center justify-between p-2 bg-parchment rounded-lg`}><div><p className="font-bold text-ink">{c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}</p></div><span className={`font-bold ${status.color}`}>{status.text}</span></div>)
+                    }) : <p className="text-sepia">No completed challenges yet.</p>}
+                </div>
+              </div>
+               <div>
                 <h3 className="text-2xl font-serif font-bold text-ink mb-4">Challenge a Friend</h3>
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                   {friendProfiles.length > 0 ? friendProfiles.map(friend => {
@@ -143,12 +164,33 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                           </div>
                         </div>
                     )
-                  }) : <p className="text-sepia">You haven't added any friends yet. Go to the "Find Players" tab.</p>}
+                  }) : <p className="text-sepia">You haven&apos;t added any friends yet. Go to the &quot;Find Players&quot; tab.</p>}
                 </div>
               </div>
             </div>
           )}
-          {/* Find Players and Friend Requests tabs remain the same */}
+          {tab === 'find' && (
+            <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                {nonFriendProfiles.map(profile => (
+                    <div key={profile.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                        <span className="font-bold text-ink">{profile.username}</span>
+                        <button onClick={() => handleAddFriend(profile.id)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Add Friend</button>
+                    </div>
+                ))}
+            </div>
+          )}
+          {tab === 'requests' && (
+             <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                {pendingRequests.length > 0 ? pendingRequests.map(req => (
+                    <div key={req.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                        <span className="font-bold text-ink">{req.user1.username} sent you a request.</span>
+                        <div className="flex gap-2">
+                            <button onClick={() => handleAcceptRequest(req)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Accept</button>
+                        </div>
+                    </div>
+                )) : <p className="text-sepia">You have no pending friend requests.</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
