@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 const Map = dynamic(() => import('./Map'), { ssr: false });
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
+    const R = 6371; // Radius of the Earth in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -53,7 +53,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
           const { data, error } = await supabase.from('puzzles').select('*, puzzle_translations(*)').eq('id', puzzleId).single();
           if (error) throw error;
           puzzleData = data;
-        } else if (!challenge && !dailyPuzzleInfo) {
+        } else if (!challenge && !dailyPuzzleInfo) { // Endless Mode
           const { data: puzzles, error } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
           if (error) throw error;
           if (!puzzles || puzzles.length === 0) throw new Error("No puzzles returned from database.");
@@ -90,15 +90,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
     if (challenge) {
         const isChallenger = session.user.id === challenge.challenger_id;
-        const currentScores = isChallenger ? challenge.challenger_scores || [] : challenge.opponent_scores || [];
         const challengerScores = challenge.challenger_scores || [];
         const opponentScores = challenge.opponent_scores || [];
-        const updatedScores = [...currentScores, finalScoreRounded];
+
+        const updatedScores = isChallenger 
+            ? [...challengerScores, finalScoreRounded] 
+            : [...opponentScores, finalScoreRounded];
+
         const scoreColumn = isChallenger ? 'challenger_scores' : 'opponent_scores';
+        
         const isOpponentTurn = !isChallenger;
-        const bothPlayedThisRound = isOpponentTurn && (challengerScores.length === challenge.current_round);
-        const nextRound = bothPlayedThisRound ? challenge.current_round + 1 : challenge.current_round;
-        const isMatchOver = isOpponentTurn && (challenge.current_round === 3) && (challengerScores.length === 3);
+        const roundJustFinished = isOpponentTurn && (challengerScores.length === challenge.current_round);
+        const nextRound = roundJustFinished ? challenge.current_round + 1 : challenge.current_round;
+        const isMatchOver = nextRound > 3;
 
         const updateData = {
             [scoreColumn]: updatedScores,
@@ -111,9 +115,10 @@ export default function GameView({ setView, challenge = null, session, onChallen
             const finalChallengerScores = isChallenger ? updatedScores : challengerScores;
             const finalOpponentScores = isOpponentTurn ? updatedScores : opponentScores;
             let challengerWins = 0, opponentWins = 0;
+
             for(let i=0; i<3; i++){
-                if(finalChallengerScores[i] > finalOpponentScores[i]) challengerWins++;
-                else if(finalOpponentScores[i] > finalChallengerScores[i]) opponentWins++;
+                if((finalChallengerScores[i] || 0) > (finalOpponentScores[i] || 0)) challengerWins++;
+                else if((finalOpponentScores[i] || 0) > (finalChallengerScores[i] || 0)) opponentWins++;
             }
             if (challengerWins > opponentWins) updateData.winner_id = challenge.challenger_id;
             else if (opponentWins > challengerWins) updateData.winner_id = challenge.opponent_id;
