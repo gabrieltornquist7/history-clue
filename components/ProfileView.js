@@ -32,18 +32,41 @@ export default function ProfileView({ setView, session }) {
       setUploading(true);
       if (!event.target.files || event.target.files.length === 0) throw new Error('You must select an image to upload.');
       const { data: { user } } = await supabase.auth.getUser();
-      const file = event.target.files[0], fileExt = file.name.split('.').pop(), filePath = `${user.id}-${Math.random()}.${fileExt}`;
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      // Use a consistent file path for the user's avatar to overwrite the old one
+      const filePath = `${user.id}.${fileExt}`;
       
+      // Upload the file, overwriting any existing file with the same name
       await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
 
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      // *** THIS IS THE FIX ***
+      // We will only store the filePath in the database, not the full URL.
+      await supabase.from('profiles').update({ avatar_url: filePath }).eq('id', user.id);
+      
+      // Update the local state to show the new picture immediately.
+      setProfile(prev => ({...prev, avatar_url: filePath }));
 
-      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
-      setProfile(prev => ({...prev, avatar_url: publicUrl + `?t=${new Date().getTime()}`}));
-    } catch (error) { alert(error.message); } finally { setUploading(false); }
+    } catch (error) { 
+      alert(error.message); 
+    } finally { 
+      setUploading(false); 
+    }
   };
   
-  const avatarSrc = profile?.avatar_url || 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
+  // *** THIS IS ALSO THE FIX ***
+  // This logic now correctly constructs the URL from the file path stored in the database.
+  let avatarSrc = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
+  if (profile?.avatar_url) {
+    // If the URL is already a full public URL (from a previous bad save), use it directly.
+    if (profile.avatar_url.startsWith('http')) {
+        avatarSrc = profile.avatar_url;
+    } else {
+        // Otherwise, construct the public URL from the file path.
+        const { data } = supabase.storage.from('avatars').getPublicUrl(profile.avatar_url);
+        avatarSrc = data.publicUrl;
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
@@ -54,7 +77,7 @@ export default function ProfileView({ setView, session }) {
       {loading ? <div className="text-center text-sepia">Loading profile...</div> : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
-            <Image src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
+            <Image key={avatarSrc} src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
             <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
             <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
             <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
