@@ -29,6 +29,14 @@ export default function MainMenu({ setView, session, onSignOut }) {
         >
           Challenge a Friend
         </button>
+        
+        {/* --- NEW BUTTON --- */}
+        <button
+          onClick={() => setView('challenge')}
+          className="w-full px-6 py-3 bg-red-700 text-white font-bold text-lg rounded-lg hover:bg-red-800 transition-colors shadow-md"
+        >
+          Live Battle ⚔️
+        </button>
       </div>
       <div className="mt-8 text-center">
         {session ? (
