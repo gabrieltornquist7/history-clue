@@ -25,19 +25,17 @@ const opponentIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
-  // This is a special class we can target with CSS
-  className: 'leaflet-marker-opponent'
+  className: 'leaflet-marker-opponent' // Class for CSS targeting
 });
 
 function MapEvents({ onMapClick, position }) {
   useMapEvents({
     click(e) {
-      if (onMapClick) { // onMapClick is optional now
+      if (onMapClick) {
         onMapClick(e.latlng);
       }
     },
   });
-  // Only render the player's marker here
   return position ? <Marker position={position} icon={playerIcon} /> : null;
 }
 
@@ -70,7 +68,7 @@ export default function Map({ onGuess, opponentPosition = null, initialPosition 
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
         <MapEvents onMapClick={onGuess ? handleMapClick : null} position={position} />
-        {/* Render the opponent's marker if their position is provided */}
+        {/* This will now render the opponent's marker with the red icon */}
         {opponentPosition && <Marker position={opponentPosition} icon={opponentIcon} />}
       </MapContainer>
     </div>
