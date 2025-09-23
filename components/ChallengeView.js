@@ -26,18 +26,11 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
         .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
       setFriendships(friendshipsData || []);
-      
-      // Updated query to explicitly define the join
       const { data: challengesData } = await supabase
         .from('challenges')
-        .select(
-          `*, 
-          challenger:profiles!challenges_challenger_id_fkey(username), 
-          opponent:profiles!challenges_opponent_id_fkey(username)`
-        )
+        .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
         .or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
-        
       setChallenges(challengesData || []);
       setLoading(false);
     };
@@ -103,7 +96,6 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
     
     const puzzleIds = puzzles.map(p => p.id);
 
-    // Updated query to explicitly define the join
     const { data: challenge, error } = await supabase
       .from('challenges')
       .insert({
@@ -114,11 +106,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
         challenger_scores: [],
         opponent_scores: [],
       })
-      .select(
-        `*, 
-        challenger:profiles!challenges_challenger_id_fkey(username), 
-        opponent:profiles!challenges_opponent_id_fkey(username)`
-      )
+      .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
       .single();
 
     if (error) {
