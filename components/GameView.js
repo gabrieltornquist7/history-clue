@@ -88,7 +88,6 @@ export default function GameView({
       return alert('Please select a country and city.');
     if (!puzzle) return;
     
-    // The modern country name for answer checking
     const modernCountry = Object.keys(LOCATIONS).find((c) =>
       LOCATIONS[c].includes(puzzle.city_name)
     );
@@ -97,7 +96,7 @@ export default function GameView({
       country: modernCountry,
       city: puzzle.city_name,
       year: puzzle.year,
-      historical_entity: puzzle.historical_entity || modernCountry, // Fallback to modern country if entity is null
+      historical_entity: puzzle.historical_entity || modernCountry,
     };
 
     const yearDifference = Math.abs(selectedYear - answer.year);
@@ -114,12 +113,29 @@ export default function GameView({
     const finalScoreRounded = Math.round(finalScore);
 
     if (challengeId) {
-      // ... (challenge logic remains the same)
-    } else if (!dailyPuzzleInfo) {
+      const { data: challenge } = await supabase
+        .from('challenges')
+        .select('challenger_id, opponent_id, challenger_score')
+        .eq('id', challengeId)
+        .single();
+      const isChallenger = session.user.id === challenge.challenger_id;
+      const scoreColumn = isChallenger
+        ? 'challenger_score'
+        : 'opponent_score';
+      let updateData = { [scoreColumn]: finalScoreRounded };
+      if (!isChallenger) {
+        updateData.status = 'completed';
+        if (finalScoreRounded > challenge.challenger_score)
+          updateData.winner_id = challenge.opponent_id;
+        else if (finalScoreRounded < challenge.challenger_score)
+          updateData.winner_id = challenge.challenger_id;
+      }
       await supabase
-        .from('scores')
-        .insert({ user_id: session.user.id, score: finalScoreRounded });
+        .from('challenges')
+        .update(updateData)
+        .eq('id', challengeId);
     }
+    // *** BUG FIX: The code that tried to save to the 'scores' table has been removed. ***
 
     setResults({
       guess: { country: selectedCountry, city: selectedCity, year: selectedYear },
@@ -150,7 +166,6 @@ export default function GameView({
 
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header and Clue display remain the same */}
       <header className="mb-8 text-center relative">
         <button
           onClick={() =>
