@@ -12,13 +12,10 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const [dataVersion, setDataVersion] = useState(0);
   const [onlineFriends, setOnlineFriends] = useState([]);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
-
-  // Safely access the user ID with optional chaining.
   const currentUserId = session?.user?.id;
   const refetchData = () => setDataVersion((v) => v + 1);
 
   useEffect(() => {
-    // If there's no user, don't bother fetching data.
     if (!currentUserId) {
         setLoading(false);
         return;
@@ -78,7 +75,10 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
 
   const friends = friendships.filter((f) => f.status === 'accepted');
   const friendProfiles = friends.map((f) => (f.user1.id === currentUserId ? f.user2 : f.user1));
-  const friendIds = friendProfiles.map((p) => p.id);
+  
+  const onlineFriendProfiles = friendProfiles.filter(p => onlineFriends.includes(p.id));
+  const offlineFriendProfiles = friendProfiles.filter(p => !onlineFriends.includes(p.id));
+
   const pendingRequests = friendships.filter((f) => f.status === 'pending' && f.user_id_2 === currentUserId && f.action_user_id !== currentUserId);
   const sentRequests = friendships.filter((f) => f.status === 'pending' && f.action_user_id === currentUserId);
   const sentRequestIds = sentRequests.map((f) => f.user_id_2);
@@ -124,11 +124,11 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
        <header className="mb-8 text-center relative">
         <button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm"> &larr; Menu </button>
-        <h1 className="text-5xl font-serif font-bold text-gold-rush"> Challenge a Friend </h1>
+        <h1 className="text-5xl font-serif font-bold text-gold-rush"> Friend Matches </h1>
       </header>
       <div className="border-b border-sepia/20 mb-6">
         <nav className="flex space-x-6">
-          <button onClick={() => setTab('challenges')} className={`py-3 px-1 font-semibold ${tab === 'challenges' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>My Challenges</button>
+          <button onClick={() => setTab('challenges')} className={`py-3 px-1 font-semibold ${tab === 'challenges' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>My Matches</button>
           <button onClick={() => setTab('find')} className={`py-3 px-1 font-semibold ${tab === 'find' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>Find Players</button>
           <button onClick={() => setTab('requests')} className={`py-3 px-1 font-semibold relative ${tab === 'requests' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>Friend Requests {pendingRequests.length > 0 && <span className="absolute top-2 -right-3 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">{pendingRequests.length}</span>}</button>
         </nav>
@@ -136,11 +136,47 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
       {loading ? <div className="text-center text-sepia">Loading...</div> : (
         <div>
           {tab === 'challenges' && (
-             <div className="space-y-6">
+             <div className="space-y-8">
+              
               <div>
-                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Active Challenges</h3>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Online Friends</h3>
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
-                  {incomingChallenges.length === 0 && outgoingChallenges.length === 0 && <p className="text-sepia">No active challenges. Challenge a friend to get started!</p>}
+                  {onlineFriendProfiles.length > 0 ? onlineFriendProfiles.map(friend => (
+                      <div key={friend.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                          <span className="font-bold text-ink">{friend.username}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => startLiveMatch(friend.id)} className="px-3 py-1 bg-red-700 text-white text-xs font-bold rounded-lg hover:bg-red-800">Challenge (Live)</button>
+                          <button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-xs font-bold rounded-lg hover:bg-ink">Challenge (Turn-based)</button>
+                        </div>
+                      </div>
+                  )) : <p className="text-sepia">No friends are currently online.</p>}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Offline Friends</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                  {offlineFriendProfiles.length > 0 ? offlineFriendProfiles.map(friend => (
+                      <div key={friend.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-sepia/40"></span>
+                          <span className="font-bold text-ink">{friend.username}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-xs font-bold rounded-lg hover:bg-ink">Challenge (Turn-based)</button>
+                        </div>
+                      </div>
+                  )) : <p className="text-sepia">No offline friends to challenge.</p>}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Active Turn-Based Matches</h3>
+                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
+                  {incomingChallenges.length === 0 && outgoingChallenges.length === 0 && <p className="text-sepia">No active turn-based matches.</p>}
                   {incomingChallenges.map(c => {
                     const status = getChallengeStatus(c);
                     return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger?.username || 'A friend'} challenged you!</span>{status.button}</div>)
@@ -150,35 +186,17 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                   })}
                 </div>
               </div>
+
               <div>
-                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Completed Challenges</h3>
+                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Completed Matches</h3>
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                     {completedChallenges.length > 0 ? completedChallenges.map(c => {
                         const status = getChallengeStatus(c);
                         return (<div key={c.id} className={`flex items-center justify-between p-2 bg-parchment rounded-lg`}><div><p className="font-bold text-ink">{c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}</p></div><span className={`font-bold ${status.color}`}>{status.text}</span></div>)
-                    }) : <p className="text-sepia">No completed challenges yet.</p>}
+                    }) : <p className="text-sepia">No completed matches yet.</p>}
                 </div>
               </div>
-               <div>
-                <h3 className="text-2xl font-serif font-bold text-ink mb-4">Challenge a Friend</h3>
-                <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
-                  {friendProfiles.length > 0 ? friendProfiles.map(friend => {
-                    const isOnline = onlineFriends.includes(friend.id);
-                    return (
-                        <div key={friend.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500' : 'bg-sepia/40'}`}></span>
-                            <span className="font-bold text-ink">{friend.username}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={() => sendChallenge(friend.id)} className="px-3 py-1 bg-sepia-dark text-white text-xs font-bold rounded-lg hover:bg-ink">Challenge (Turn-based)</button>
-                            {isOnline && <button onClick={() => startLiveMatch(friend.id)} className="px-3 py-1 bg-red-700 text-white text-xs font-bold rounded-lg hover:bg-red-800">Challenge (Live)</button>}
-                          </div>
-                        </div>
-                    )
-                  }) : <p className="text-sepia">You haven&apos;t added any friends yet. Go to the &quot;Find Players&quot; tab.</p>}
-                </div>
-              </div>
+
             </div>
           )}
           {tab === 'find' && (
