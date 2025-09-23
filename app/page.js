@@ -23,6 +23,7 @@ export default function Page() {
 
   const handleSignOut = async () => { await supabase.auth.signOut(); setView('menu'); };
   const onChallengeComplete = () => { setActiveChallenge(null); setView('challenge'); };
+
   const handleDailyStepComplete = async (score) => {
     const SCORE_TARGETS = [3000, 3500, 5000, 7500, 10000];
     const currentStep = activeDailyPuzzle.step;
@@ -40,11 +41,12 @@ export default function Page() {
     }
   };
 
-  if ((view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily') && !session) {
+  if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily') && !session) {
     return <Auth setView={setView} />;
   }
 
   if (view === 'game') return <GameView setView={setView} challenge={activeChallenge} session={session} onChallengeComplete={onChallengeComplete} dailyPuzzleInfo={activeDailyPuzzle} onDailyStepComplete={handleDailyStepComplete} />;
+  if (view === 'endless') return <GameView setView={setView} session={session} />;
   if (view === 'daily') return <DailyChallengeView setView={setView} session={session} setActiveDailyPuzzle={setActiveDailyPuzzle} />;
   if (view === 'auth') return <Auth setView={setView} />;
   if (view === 'profile') return <ProfileView setView={setView} session={session} />;
