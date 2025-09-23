@@ -96,7 +96,8 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
     
     const puzzleIds = puzzles.map(p => p.id);
 
-    const { data: challenge, error } = await supabase
+    // Step 1: Insert the new challenge and get its ID
+    const { data: newChallenge, error: insertError } = await supabase
       .from('challenges')
       .insert({
         puzzle_ids: puzzleIds,
@@ -106,17 +107,27 @@ export default function ChallengeView({ setView, session, setActiveChallenge }) 
         challenger_scores: [],
         opponent_scores: [],
       })
-      .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
+      .select('id') // Only select the ID of the new challenge
       .single();
 
-    if (error) {
-      return alert('Could not create challenge: ' + error.message);
+    if (insertError) {
+      return alert('Could not create challenge: ' + insertError.message);
+    }
+    
+    // Step 2: Fetch the full challenge data, including the related profiles
+    const { data: challenge, error: selectError } = await supabase
+      .from('challenges')
+      .select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`)
+      .eq('id', newChallenge.id)
+      .single();
+
+    if (selectError) {
+      return alert('Could not fetch challenge details: ' + selectError.message);
     }
     
     setActiveChallenge(challenge);
     setView('game');
-  };
-  
+  };  
   const playChallenge = (challenge) => {
     setActiveChallenge(challenge);
     setView('game');
