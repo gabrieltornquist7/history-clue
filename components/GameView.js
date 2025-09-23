@@ -26,6 +26,15 @@ export default function GameView({
 
   useEffect(() => {
     const fetchPuzzleData = async () => {
+      // *** THIS IS THE FIX ***
+      // Clear previous results and reset state before fetching the next puzzle.
+      setResults(null);
+      setUnlockedClues([1]);
+      setScore(10000);
+      setSelectedCountry('');
+      setSelectedCity('');
+      setSelectedYear(1950);
+
       setIsLoading(true);
       let puzzleData;
       if (dailyPuzzleInfo) {
@@ -138,13 +147,6 @@ export default function GameView({
     if (challengeId) onChallengeComplete();
     else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore);
     else {
-      setPuzzle(null);
-      setUnlockedClues([1]);
-      setScore(10000);
-      setSelectedCountry('');
-      setSelectedCity('');
-      setSelectedYear(1950);
-      setResults(null);
       setGameKey((prevKey) => prevKey + 1);
     }
   };
