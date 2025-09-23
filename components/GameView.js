@@ -25,12 +25,14 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [gameKey, setGameKey] = useState(0);
+  const [xpResults, setXpResults] = useState(null); // <-- NEW: State for XP results
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
 
   useEffect(() => {
     const fetchPuzzleData = async () => {
       setResults(null);
+      setXpResults(null); // <-- NEW: Reset XP results
       setUnlockedClues([1]);
       setScore(10000);
       setSelectedYear(1950);
@@ -87,18 +89,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
     if (distance < 50) finalScore += 2000; else if (distance < 200) finalScore += 1000;
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
-    // --- THIS IS THE NEW CODE BLOCK TO GRANT XP ---
-    if (session?.user) { // Only grant XP if the user is logged in
-      const { error: xpError } = await supabase.rpc('grant_xp', {
+    // --- UPDATED: Capture returned XP data ---
+    if (session?.user) {
+      const { data: xpData, error: xpError } = await supabase.rpc('grant_xp', {
         p_user_id: session.user.id,
         p_score: finalScoreRounded
       });
 
       if (xpError) {
         console.error('Error granting XP:', xpError);
+      } else {
+        setXpResults(xpData); // <-- NEW: Store the XP results
       }
     }
-    // --- END OF NEW CODE BLOCK ---
 
     if (challenge) {
         const isChallenger = session.user.id === challenge.challenger_id;
@@ -178,6 +181,27 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 <div><h4 className="text-lg font-serif font-bold text-sepia">Your guess was {results.distance} km away!</h4></div>
             </div>
             <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>
+            
+            {/* --- NEW: VISUAL XP DISPLAY --- */}
+            {xpResults && (
+              <div className="mb-6 p-4 bg-papyrus rounded-lg border border-sepia/20">
+                <p className="font-bold text-lg text-gold-rush">+{xpResults.xp_gained.toLocaleString()} XP</p>
+                {xpResults.new_level > xpResults.old_level && (
+                  <p className="font-bold text-2xl text-green-600 animate-pulse">LEVEL UP! You are now Level {xpResults.new_level}!</p>
+                )}
+                <div className="w-full bg-sepia/20 rounded-full h-3 my-2 overflow-hidden border border-sepia/30 shadow-inner">
+                  <div 
+                    className="bg-gold-rush h-3 rounded-full" 
+                    style={{ width: `${(xpResults.new_xp / xpResults.xp_for_new_level) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-sepia">
+                  {xpResults.new_xp.toLocaleString()} / {xpResults.xp_for_new_level.toLocaleString()} XP
+                </p>
+              </div>
+            )}
+            {/* --- END OF XP DISPLAY --- */}
+            
             <button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">{challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}</button>
           </div>
         </section>
