@@ -72,6 +72,7 @@ export default function ProfileView({ setView, session }) {
           <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
             <Image key={avatarKey} src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
             <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
+            <p className="text-sm text-sepia mt-1">Founder and Dev</p>
             
             {/* --- CHANGE 3: ADD XP AND LEVEL DISPLAY --- */}
             <div className="w-full mt-4 text-center">
@@ -89,6 +90,9 @@ export default function ProfileView({ setView, session }) {
             
             <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
             <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
+            <div className="mt-4 text-center text-sm text-sepia">
+                <p>Contact: <a href="mailto:your-email@example.com" className="text-gold-rush hover:underline">your-email@example.com</a></p>
+            </div>
           </div>
           <div className="md:col-span-2 space-y-6">
             <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">

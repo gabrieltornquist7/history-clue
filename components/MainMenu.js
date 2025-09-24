@@ -9,7 +9,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
         <h1 className="text-6xl font-serif font-bold text-gold-rush mb-4">
           HistoryClue
         </h1>
-        <p className="text-xl text-sepia mt-2 mb-8">The Historical Detective Game</p>
+        <p className="text-xl text-sepia mt-2 mb-8">Where in history are you?</p>
         
         <div className="p-8 bg-papyrus border border-sepia/20 rounded-2xl shadow-lg w-full flex flex-col gap-4">
           <button
@@ -34,7 +34,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
             onClick={() => setView('liveLobby')}
             className="w-full px-6 py-3 bg-red-700 text-white font-bold text-lg rounded-lg hover:bg-red-800 transition-colors shadow-md animate-pulse"
           >
-            Live Battle
+            Live Battle (Beta)
           </button>
         </div>
         

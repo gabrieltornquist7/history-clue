@@ -220,7 +220,7 @@ export default function LiveGameView({ session, matchId, setView }) {
                         <Map onGuess={handleMapGuess} opponentPosition={opponentState.guessCoords} initialPosition={myState.guessCoords} />
                         <div>
                             <label className="block text-sm font-bold mb-1 text-ink">Year</label>
-                            <input type="range" min={-4000} max={2025} value={myState.selectedYear} onChange={handleYearChange} className="w-full accent-sepia-dark" disabled={myState.submitted} />
+                            <input type="range" min={-1000} max={2025} value={myState.selectedYear} onChange={handleYearChange} className="w-full accent-sepia-dark" disabled={myState.submitted} />
                             <div className="mt-2 text-center text-sm text-ink">Guess year: <span className="font-bold text-lg">{displayYear(myState.selectedYear)}</span></div>
                         </div>
                         <button onClick={() => handleGuessSubmit(false)} disabled={myState.submitted} className="w-full px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink disabled:bg-gray-500 transition-colors">

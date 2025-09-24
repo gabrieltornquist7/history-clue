@@ -193,7 +193,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
         <aside>
           <div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4">
             <div><label className="block text-sm font-bold mb-2 text-ink text-center">Guess Location</label><Map onGuess={handleMapGuess} /></div>
-            <div><label className="block text-sm font-bold mb-1 text-ink">Year</label><input type="range" min={-4000} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark"/><div className="mt-2 text-center text-sm text-ink">Guess year:{' '}<span className="font-bold text-lg">{displayYear(selectedYear)}</span></div></div>
+            <div><label className="block text-sm font-bold mb-1 text-ink">Year</label><input type="range" min={-1000} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark"/><div className="mt-2 text-center text-sm text-ink">Guess year:{' '}<span className="font-bold text-lg">{displayYear(selectedYear)}</span></div></div>
             <div className="flex justify-center"><button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>Make Guess</button></div>
             <div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1"><p className="text-lg text-sepia">Potential Score:{' '}<span className="font-bold text-ink">{score.toLocaleString()}</span></p></div>
           </div>
