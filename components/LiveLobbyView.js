@@ -32,9 +32,10 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
         .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
         .eq('status', 'accepted');
-
+        
+      // FIX: Correctly map friendships to friend profiles
       const friends = (friendshipsData || []).map(f => 
-        f.user1.id === currentUserId ? f.user2 : f.user1
+        f.user_id_1 === currentUserId ? f.user2 : f.user1
       );
       setFriendProfiles(friends);
       setLoading(false);
@@ -107,7 +108,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
     }
   };
 
-  const onlineFriends = friendProfiles.filter(f => onlineUsers.includes(f.id));
+  const onlineFriendProfiles = friendProfiles.filter(p => onlineUsers.includes(p.id));
   const offlineFriends = friendProfiles.filter(f => !onlineUsers.includes(f.id));
 
   if (loading) {
@@ -145,20 +146,20 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           &larr; Menu
         </button>
         <h1 className="text-5xl font-serif font-bold text-gold-rush">
-           Live Battle Arena
+          Live Battle Arena
         </h1>
-        <p className="text-lg text-sepia mt-2">Challenge friends to 1v1 battles!</p>
+        <p className="text-lg text-sepia mt-2">Challenge friends to real-time battles!</p>
       </header>
 
       <div className="space-y-8">
         <div>
           <h3 className="text-2xl font-serif font-bold text-ink mb-4 flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-            Online Friends ({onlineFriends.length})
+            Online Friends ({onlineFriendProfiles.length})
           </h3>
           <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
-            {onlineFriends.length > 0 ? (
-              onlineFriends.map(friend => (
+            {onlineFriendProfiles.length > 0 ? (
+              onlineFriendProfiles.map(friend => (
                 <div key={friend.id} className="flex items-center justify-between p-3 bg-parchment rounded-lg hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full bg-green-500"></span>
@@ -166,10 +167,10 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
                     <span className="text-xs text-green-600 font-semibold">ONLINE</span>
                   </div>
                   <button 
-                    onClick={() => startLiveMatch(friend.id)} // This should now correctly pass the UUID
+                    onClick={() => startLiveMatch(friend.id)}
                     className="px-4 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-colors shadow-md animate-pulse"
                   >
-                     Battle Now!
+                    Battle Now!
                   </button>
                 </div>
               ))
@@ -177,7 +178,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
               <p className="text-sepia text-center py-8">
                 No friends are currently online for Live Battle.
                 <br />
-                <span className="text-sm">Invite friends to join!</span>
+                <span className="text-sm">Invite friends to join the arena!</span>
               </p>
             )}
           </div>
