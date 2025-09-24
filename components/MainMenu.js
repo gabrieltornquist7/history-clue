@@ -1,7 +1,6 @@
-// components/MainMenu.js
 "use client";
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function MainMenu({ setView, session, onSignOut }) {
   const [streak, setStreak] = useState(0);
@@ -9,12 +8,12 @@ export default function MainMenu({ setView, session, onSignOut }) {
   useEffect(() => {
     const fetchStreak = async () => {
       if (session) {
-        const { data, error } = await supabase
-          .from('streaks')
-          .select('streak_count')
-          .eq('user_id', session.user.id)
+        const { data } = await supabase
+          .from("streaks")
+          .select("streak_count")
+          .eq("user_id", session.user.id)
           .single();
-        
+
         if (data) {
           setStreak(data.streak_count);
         }
@@ -24,7 +23,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
   }, [session]);
 
   const handleContactClick = () => {
-    setView('profile', 'e4d8259a-2559-44ba-b242-632ce6a89f1d'); 
+    setView("contact"); // new static contact view
   };
 
   return (
@@ -39,40 +38,40 @@ export default function MainMenu({ setView, session, onSignOut }) {
           HistoryClue
         </h1>
         <p className="text-xl text-sepia mt-2 mb-8">Where in history are you?</p>
-        
+
         <div className="p-8 bg-papyrus border border-sepia/20 rounded-2xl shadow-lg w-full flex flex-col gap-4">
           <button
-            onClick={() => setView('endless')}
+            onClick={() => setView("endless")}
             className="w-full px-6 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md"
           >
             Endless Mode
           </button>
           <button
-            onClick={() => setView('daily')}
+            onClick={() => setView("daily")}
             className="w-full px-6 py-3 bg-gold-rush text-ink font-bold text-lg rounded-lg hover:bg-amber-600 transition-colors shadow-md"
           >
             Daily Challenge
           </button>
           <button
-            onClick={() => setView('challenge')}
+            onClick={() => setView("challenge")}
             className="w-full px-6 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md"
           >
             Challenge a Friend
           </button>
           <button
-            onClick={() => setView('liveLobby')}
+            onClick={() => setView("liveLobby")}
             className="w-full px-6 py-3 bg-red-700 text-white font-bold text-lg rounded-lg hover:bg-red-800 transition-colors shadow-md animate-pulse"
           >
             Live Battle (Beta)
           </button>
           <button
-            onClick={() => setView('leaderboard')}
+            onClick={() => setView("leaderboard")}
             className="w-full px-6 py-3 bg-gold-rush text-ink font-bold text-lg rounded-lg hover:bg-amber-600 transition-colors shadow-md"
           >
             Leaderboard
           </button>
         </div>
-        
+
         <div className="mt-8 text-center">
           {session ? (
             <div className="flex items-center justify-center gap-6">
@@ -83,7 +82,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                 Sign Out
               </button>
               <button
-                onClick={() => setView('profile')}
+                onClick={() => setView("profile")}
                 className="px-6 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md"
               >
                 Profile
@@ -91,13 +90,14 @@ export default function MainMenu({ setView, session, onSignOut }) {
             </div>
           ) : (
             <button
-              onClick={() => setView('auth')}
+              onClick={() => setView("auth")}
               className="px-6 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md"
             >
               Login or Sign Up
             </button>
           )}
         </div>
+
         <div className="mt-4">
           <button
             onClick={handleContactClick}

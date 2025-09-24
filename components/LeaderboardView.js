@@ -27,6 +27,9 @@ export default function LeaderboardView({ setView }) {
         .order('score', { ascending: false })
         .limit(10);
 
+        console.log('endlessScores', endlessScores, error);
+
+
       if (error) {
         console.error("Error fetching endless leaderboard:", error);
       } else {
