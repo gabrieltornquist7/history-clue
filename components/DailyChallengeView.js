@@ -71,7 +71,7 @@ export default function DailyChallengeView({
             setUserAttempt(attemptData);
           }
 
-          // Fetch leaderboard
+          // Fetch leaderboard - show all attempts, including incomplete ones
           const { data: leaderboardData, error: leaderboardError } = await supabase
             .from('daily_attempts')
             .select(`
@@ -83,8 +83,8 @@ export default function DailyChallengeView({
               )
             `)
             .eq('daily_puzzle_id', todaysPuzzle.id)
-            .gt('final_score', 0)
             .order('final_score', { ascending: false })
+            .order('puzzles_completed', { ascending: false })
             .limit(10);
 
           if (leaderboardError) {
