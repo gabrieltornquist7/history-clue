@@ -78,16 +78,76 @@ export default function GameView({ setView, challenge = null, session, onChallen
           if (error) throw error;
           puzzleData = data;
         } else { // Endless Mode
-          const { data: puzzles, error } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
-          if (error) throw error;
-          if (!puzzles || puzzles.length === 0) throw new Error("No puzzles returned from database.");
-          puzzleData = puzzles[0];
+          // Try multiple approaches to get a puzzle
+          let attempts = 0;
+          const maxAttempts = 3;
+          
+          while (!puzzleData && attempts < maxAttempts) {
+            attempts++;
+            
+            try {
+              // First try the RPC function
+              const { data: puzzles, error: rpcError } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
+              
+              if (!rpcError && puzzles && puzzles.length > 0) {
+                puzzleData = puzzles[0];
+                break;
+              }
+              
+              // If RPC fails, try direct query with random offset
+              console.log(`RPC attempt ${attempts} failed:`, rpcError);
+              
+              // Get total count first
+              const { count } = await supabase
+                .from('puzzles')
+                .select('*', { count: 'exact', head: true });
+              
+              if (count && count > 0) {
+                const randomOffset = Math.floor(Math.random() * count);
+                
+                const { data: directPuzzles, error: directError } = await supabase
+                  .from('puzzles')
+                  .select('*, puzzle_translations(*)')
+                  .range(randomOffset, randomOffset)
+                  .limit(1);
+                
+                if (!directError && directPuzzles && directPuzzles.length > 0) {
+                  puzzleData = directPuzzles[0];
+                  break;
+                }
+                
+                console.log(`Direct query attempt ${attempts} failed:`, directError);
+              }
+              
+            } catch (attemptError) {
+              console.error(`Attempt ${attempts} failed:`, attemptError);
+            }
+          }
+          
+          if (!puzzleData) {
+            throw new Error("Unable to load puzzle after multiple attempts. Please try again later.");
+          }
         }
         
+        // Validate puzzle data
+        if (!puzzleData) {
+          throw new Error("No puzzle data received.");
+        }
+        
+        if (!puzzleData.latitude || !puzzleData.longitude) {
+          throw new Error("Puzzle is missing location coordinates.");
+        }
+        
+        if (!puzzleData.puzzle_translations || puzzleData.puzzle_translations.length === 0) {
+          throw new Error("Puzzle is missing translation data.");
+        }
+        
+        console.log("Successfully loaded puzzle:", puzzleData.id);
         setPuzzle(puzzleData);
+        
       } catch (err) {
         console.error("Failed to fetch puzzle data:", err);
-        setError("Could not load a puzzle. Please try again later.");
+        setError(err.message || "Could not load a puzzle. Please try again later.");
       } finally {
         setIsLoading(false);
       }

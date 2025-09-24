@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 
 export default function MainMenu({ setView, session, onSignOut }) {
   const [streak, setStreak] = useState(0);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
   useEffect(() => {
     const fetchStreak = async () => {
@@ -19,11 +20,33 @@ export default function MainMenu({ setView, session, onSignOut }) {
         }
       }
     };
+    
+    const fetchUserProfile = async () => {
+      if (session) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, username, is_founder")
+          .eq("id", session.user.id)
+          .single();
+
+        if (data) {
+          setCurrentUserProfile(data);
+        }
+      }
+    };
+    
     fetchStreak();
+    fetchUserProfile();
   }, [session]);
 
   const handleContactClick = () => {
-    setView("contact"); // new static contact view
+    // If user is logged in and is the founder, show their profile
+    if (session && currentUserProfile?.is_founder) {
+      setView("profile");
+    } else {
+      // Otherwise, show the contact page
+      setView("contact");
+    }
   };
 
   return (

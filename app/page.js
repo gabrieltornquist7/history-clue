@@ -200,10 +200,10 @@ export default function Page() {
                 You can always reach me at:
               </p>
               <a
-                href="mailto:your.email@example.com"
+                href="mailto:GABRIEL@HISTORYCLUE.COM"
                 className="text-xl font-semibold text-blue-700 underline"
               >
-                your.email@example.com
+                GABRIEL@HISTORYCLUE.COM
               </a>
               <div className="mt-6">
                 <button

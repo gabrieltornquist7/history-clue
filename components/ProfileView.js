@@ -106,7 +106,7 @@ export default function ProfileView({ setView, session, userId = null }) {
 
             {profile?.is_founder && (
               <div className="mt-4 text-center text-sm text-sepia">
-                  <p>Contact: <a href="mailto:your-email@example.com" className="text-gold-rush hover:underline">your-email@example.com</a></p>
+                  <p>Contact: <a href="mailto:GABRIEL.TORNQUIST@HISTORYCLUE.COM" className="text-gold-rush hover:underline">GABRIEL.TORNQUIST@HISTORYCLUE.COM</a></p>
               </div>
             )}
              {isOwnProfile && (
