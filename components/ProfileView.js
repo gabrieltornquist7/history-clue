@@ -9,15 +9,18 @@ export default function ProfileView({ setView, session }) {
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [avatarKey, setAvatarKey] = useState(Date.now()); // Used to force image refresh
+  const [avatarKey, setAvatarKey] = useState(Date.now());
 
   useEffect(() => {
     async function getProfileData() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // --- CHANGE 1: FETCH XP AND LEVEL ---
-        const { data: profileData } = await supabase.from('profiles').select('username, avatar_url, xp, level').eq('id', user.id).single();
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('username, avatar_url, xp, level, is_founder, titles, selected_title')
+          .eq('id', user.id)
+          .single();
         setProfile(profileData);
 
         const { data: statsData, error: statsError } = await supabase.rpc('get_player_stats', { p_user_id: user.id }).single();
@@ -27,7 +30,7 @@ export default function ProfileView({ setView, session }) {
       setLoading(false);
     }
     getProfileData();
-  }, [session.user.id, avatarKey]); // Add avatarKey to dependencies to refetch profile on change
+  }, [session.user.id, avatarKey]);
 
   const uploadAvatar = async (event) => {
     try {
@@ -41,7 +44,7 @@ export default function ProfileView({ setView, session }) {
       await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
       await supabase.from('profiles').update({ avatar_url: filePath }).eq('id', user.id);
       
-      setAvatarKey(Date.now()); // Force the component to re-render and refetch data
+      setAvatarKey(Date.now());
 
     } catch (error) { 
       alert(error.message); 
@@ -50,9 +53,28 @@ export default function ProfileView({ setView, session }) {
     }
   };
   
-  // --- CHANGE 2: ADD HELPER FUNCTION FOR XP CALCULATION ---
   const xpForLevel = (level) => {
     return Math.floor(1000 * Math.pow(level || 1, 1.5));
+  };
+
+  const handleTitleChange = async (event) => {
+    const newTitle = event.target.value;
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ selected_title: newTitle })
+        .eq('id', user.id)
+        .select()
+        .single();
+      
+      if (error) {
+        alert('Error updating title: ' + error.message);
+      } else {
+        setProfile(data);
+      }
+    }
   };
 
   let avatarSrc = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
@@ -72,9 +94,25 @@ export default function ProfileView({ setView, session }) {
           <div className="md:col-span-1 flex flex-col items-center bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
             <Image key={avatarKey} src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
             <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
-            <p className="text-sm text-sepia mt-1">Founder and Dev</p>
             
-            {/* --- CHANGE 3: ADD XP AND LEVEL DISPLAY --- */}
+            {profile?.is_founder ? (
+              <p className="text-sm text-sepia mt-1">{profile.selected_title || 'Founder and Dev'}</p>
+            ) : (
+              profile?.titles && profile.titles.length > 0 && (
+                <div className="mt-2">
+                  <select 
+                    value={profile.selected_title || ''} 
+                    onChange={handleTitleChange}
+                    className="bg-parchment border border-sepia/30 rounded-md text-sm text-sepia focus:ring-gold-rush focus:border-gold-rush"
+                  >
+                    {profile.titles.map(title => (
+                      <option key={title} value={title}>{title}</option>
+                    ))}
+                  </select>
+                </div>
+              )
+            )}
+            
             <div className="w-full mt-4 text-center">
               <p className="text-lg font-bold text-ink">Level {profile?.level || 1}</p>
               <div className="w-full bg-sepia/20 rounded-full h-4 my-2 overflow-hidden border border-sepia/30 shadow-inner">
@@ -90,9 +128,12 @@ export default function ProfileView({ setView, session }) {
             
             <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
             <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
-            <div className="mt-4 text-center text-sm text-sepia">
-                <p>Contact: <a href="mailto:your-email@example.com" className="text-gold-rush hover:underline">your-email@example.com</a></p>
-            </div>
+
+            {profile?.is_founder && (
+              <div className="mt-4 text-center text-sm text-sepia">
+                  <p>Contact: <a href="mailto:your-email@example.com" className="text-gold-rush hover:underline">your-email@example.com</a></p>
+              </div>
+            )}
           </div>
           <div className="md:col-span-2 space-y-6">
             <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
