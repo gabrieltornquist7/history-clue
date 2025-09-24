@@ -189,7 +189,8 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                 <h3 className="text-2xl font-serif font-bold text-ink mb-4">Waiting for Opponent</h3>
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                   {outgoingChallenges.length > 0 ? outgoingChallenges.map(c => {
-                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {c.opponent?.username || 'your friend'}... Round {c.current_round}</span></div>)
+                    const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {opponentName || 'your friend'}... Round {c.current_round}</span></div>)
                   }) : <p className="text-sepia">No active matches waiting for an opponent.</p>}
                 </div>
               </div>

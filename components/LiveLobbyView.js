@@ -41,7 +41,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       setLoading(true);
       
       try {
-        // Get current user profile
         const { data: selfProfile } = await supabase
           .from('profiles')
           .select('username')
@@ -49,14 +48,12 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           .single();
         setCurrentUserProfile(selfProfile);
 
-        // Get friendships with proper filtering
         const { data: friendshipsData } = await supabase
           .from('friendships')
           .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
           .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
           .eq('status', 'accepted');
           
-        // Correctly map friendships to friend profiles
         const friends = (friendshipsData || []).map(f => 
           f.user_id_1 === currentUserId ? f.user2 : f.user1
         );
@@ -67,14 +64,9 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         setLoading(false);
       }
     };
-    
-    // --- START OF FIX ---
-    // The fetchData function now returns a promise. We need to await it
-    // before we can be sure that currentUserProfile is set.
+
     fetchData().then(() => {
-      // Set up presence channel with better error handling
       const setupPresenceChannel = () => {
-        // Use a global channel that all users join
         const presenceChannel = supabase.channel('global-presence', {
           config: { 
             presence: { 
@@ -82,13 +74,10 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             },
           },
         });
-        
+
         presenceChannel
           .on('presence', { event: 'sync' }, () => {
             const presenceState = presenceChannel.presenceState();
-            console.log('Presence state:', presenceState);
-            
-            // Extract all online user IDs from presence state
             const onlineUserIds = [];
             Object.keys(presenceState).forEach(key => {
               presenceState[key].forEach(presence => {
@@ -97,9 +86,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
                 }
               });
             });
-            
-            console.log('Online users updated:', onlineUserIds);
-            console.log('My friends:', friendProfiles.map(f => ({ id: f.id, username: f.username })));
             setOnlineUsers(onlineUserIds);
           })
           .on('presence', { event: 'join' }, ({ key, newPresences }) => {
@@ -112,22 +98,13 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             console.log('Presence channel status:', status);
             if (status === 'SUBSCRIBED') {
               console.log('Presence channel subscribed, tracking user');
-              const trackResult = await presenceChannel.track({ 
+              await presenceChannel.track({ 
                 user_id: currentUserId,
                 username: currentUserProfile?.username,
                 online_at: new Date().toISOString(),
               });
-              console.log('Track result:', trackResult);
-              
-              // Force a sync after tracking
-              setTimeout(() => {
-                const state = presenceChannel.presenceState();
-                console.log('Force sync - current state:', state);
-              }, 1000);
-              
             } else if (status === 'CHANNEL_ERROR') {
               console.error('Presence channel error, retrying...');
-              // Retry connection after a delay
               setTimeout(() => {
                 if (presenceChannelRef.current === presenceChannel) {
                   setupPresenceChannel();
@@ -135,11 +112,10 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
               }, 3000);
             }
           });
-        
+
         presenceChannelRef.current = presenceChannel;
       };
-      
-      // Set up invite channel
+
       const setupInviteChannel = () => {
         const inviteChannel = supabase.channel(`invites:${currentUserId}`, {
           config: { broadcast: { self: false } }
@@ -147,7 +123,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         
         inviteChannel
           .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
-            console.log('Received invite in lobby:', payload);
             if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
               setActiveLiveMatch(payload.matchId);
               setView('liveGame');
@@ -164,14 +139,13 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
               }, 3000);
             }
           });
-        
+
         inviteChannelRef.current = inviteChannel;
       };
-      
+
       setupPresenceChannel();
       setupInviteChannel();
-      
-      // Add a periodic refresh to help with connection issues
+
       const presenceInterval = setInterval(() => {
         if (presenceChannelRef.current) {
           presenceChannelRef.current.track({
@@ -180,29 +154,21 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             online_at: new Date().toISOString(),
           });
         }
-      }, 30000); // Refresh every 30 seconds
-      
+      }, 30000);
+
       return () => {
         clearInterval(presenceInterval);
         cleanup();
       };
-    }); // Add .then to chain the logic
-    // --- END OF FIX ---
+    });
   }, [currentUserId, setActiveLiveMatch, setView, cleanup, currentUserProfile]);
 
   const startLiveMatch = async (opponentId) => {
     if (waitingForOpponent) return;
-    
     setWaitingForOpponent(true);
     
     try {
-      console.log('Creating live match with opponent:', opponentId);
-      
-      // Create the match
-      const { data: matchId, error } = await supabase.rpc('create_live_match', { 
-        opponent_id: opponentId 
-      });
-      
+      const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });
       if (error) {
         console.error('Error creating match:', error);
         alert('Error creating match: ' + error.message);
@@ -210,31 +176,21 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         return;
       }
 
-      console.log('Match created with ID:', matchId);
-
-      // Send invitation using a temporary channel
-      const tempChannelId = `temp-invite-${Date.now()}-${Math.random()}`;
-      const inviteChannel = supabase.channel(tempChannelId);
+      const opponentChannel = supabase.channel(`invites:${opponentId}`);
       
       const timeout = setTimeout(() => {
         console.log('Invite timeout, proceeding to game anyway');
-        supabase.removeChannel(inviteChannel);
+        supabase.removeChannel(opponentChannel);
         setActiveLiveMatch(matchId);
         setView('liveGame');
         setWaitingForOpponent(false);
-      }, 3000); // Reduced timeout
+      }, 3000);
 
       setInviteTimeout(timeout);
 
-      inviteChannel.subscribe(async (status) => {
+      opponentChannel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('Sending invite broadcast to channel:', `invites:${opponentId}`);
-          
-          // Send to the opponent's invite channel
-          const opponentChannel = supabase.channel(`invites:${opponentId}`);
-          await opponentChannel.subscribe();
-          
-          const broadcastResult = await opponentChannel.send({
+          await opponentChannel.send({
             type: 'broadcast',
             event: 'live_invite',
             payload: { 
@@ -244,12 +200,8 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             },
           });
           
-          console.log('Broadcast result:', broadcastResult);
-          
-          // Clean up and proceed
           setTimeout(() => {
             clearTimeout(timeout);
-            supabase.removeChannel(inviteChannel);
             supabase.removeChannel(opponentChannel);
             setActiveLiveMatch(matchId);
             setView('liveGame');
@@ -264,14 +216,8 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
     }
   };
 
-  // Add manual refresh function
   const refreshPresence = async () => {
     if (presenceChannelRef.current) {
-      console.log('Manually refreshing presence...');
-      const state = presenceChannelRef.current.presenceState();
-      console.log('Current presence state:', state);
-      
-      // Re-track ourselves
       await presenceChannelRef.current.track({
         user_id: currentUserId,
         username: currentUserProfile?.username,
@@ -336,7 +282,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       </header>
 
       <div className="space-y-8">
-        {/* Debug Info */}
         <div className="text-xs text-sepia bg-papyrus p-3 rounded mb-6">
           <div>Online Users: {onlineUsers.length} ({onlineUsers.join(', ')})</div>
           <div>Friends: {friendProfiles.length} ({friendProfiles.map(f => f.username).join(', ')})</div>
@@ -413,7 +358,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           </div>
         </div>
 
-        {/* Add Friends Help */}
         {friendProfiles.length === 0 && (
           <div className="text-center py-8 bg-papyrus rounded-lg border border-sepia/20">
             <h4 className="text-xl font-serif font-bold text-ink mb-2">
