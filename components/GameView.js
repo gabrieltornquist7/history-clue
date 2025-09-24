@@ -29,6 +29,29 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
 
+  // New useEffect hook to play sound effects on results
+  useEffect(() => {
+    if (results) {
+      const isLevelUp = xpResults?.new_level > xpResults?.old_level;
+      let soundFile;
+
+      if (isLevelUp) {
+        soundFile = '/sounds/levelup.mp3';
+      } else if (results.finalScore >= 5000) {
+        soundFile = '/sounds/high_score.mp3';
+      } else {
+        soundFile = '/sounds/low_score.mp3';
+      }
+      
+      try {
+        const audio = new Audio(soundFile);
+        audio.play().catch(e => console.error("Audio playback failed:", e));
+      } catch (e) {
+        console.error("Failed to create audio object:", e);
+      }
+    }
+  }, [results, xpResults]);
+
   useEffect(() => {
     const fetchPuzzleData = async () => {
       setResults(null);
@@ -152,7 +175,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
         <div>
           <h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1>
           <p className="text-lg text-sepia mt-2">{dailyPuzzleInfo ? `Daily Challenge - Puzzle ${dailyPuzzleInfo.step}` : challenge ? `Challenge - Round ${challenge.current_round}` : 'Endless Mode'}</p>
-          {/* FIX: Add the score target display here for daily challenges */}
           {dailyPuzzleInfo && (
             <p className="text-xl font-bold text-gold-rush mt-2">
               Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
@@ -179,7 +201,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
       </section>
       {results && (
         <section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          {/* --- THIS IS THE ONLY LINE THAT CHANGED --- */}
           <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush md:mr-64">
             <h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2>
             <div className="space-y-4 my-6">
