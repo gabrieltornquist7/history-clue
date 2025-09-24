@@ -20,7 +20,10 @@ export default function DailyChallengeView({
   // Helper function to get public URL for avatars
   const getAvatarUrl = (avatar_url) => {
     if (!avatar_url) return 'https://placehold.co/40x40/fcf8f0/5a4b41?text=?';
-    const { data } = supabase.storage.from('avatars').getPublicUrl(avatar_url);
+    const { data, error } = supabase.storage.from('avatars').getPublicUrl(avatar_url);
+    if (error || !data?.publicUrl) {
+      return 'https://placehold.co/40x40/fcf8f0/5a4b41?text=?';
+    }
     return data.publicUrl;
   };
 
@@ -28,7 +31,7 @@ export default function DailyChallengeView({
     async function fetchData() {
       setLoading(true);
       setLoadingLeaderboard(true);
-      
+
       try {
         // Fetch daily puzzle data
         await supabase.rpc('create_daily_puzzle_set');
@@ -38,7 +41,7 @@ export default function DailyChallengeView({
           .select('*')
           .eq('puzzle_date', today)
           .single();
-        
+
         setDailyPuzzleSet(dailyData);
 
         if (dailyData) {
@@ -53,8 +56,9 @@ export default function DailyChallengeView({
           // Fetch leaderboard
           const { data: leaderboardData, error } = await supabase
             .from('daily_attempts')
-            .select(`final_score, profiles(username, avatar_url)`)
+            .select('final_score, profiles!inner(username, avatar_url)')
             .eq('daily_puzzle_id', dailyData.id)
+            .gt('final_score', 0)
             .order('final_score', { ascending: false })
             .limit(10);
 
@@ -62,7 +66,7 @@ export default function DailyChallengeView({
             console.error("Error fetching leaderboard:", error);
             setLeaderboard([]);
           } else {
-            setLeaderboard((leaderboardData || []).filter(item => item.final_score > 0));
+            setLeaderboard(leaderboardData || []);
           }
         }
       } catch (error) {
@@ -73,7 +77,7 @@ export default function DailyChallengeView({
         setLoadingLeaderboard(false);
       }
     }
-    
+
     if (session?.user?.id) {
       fetchData();
     }
@@ -161,7 +165,7 @@ export default function DailyChallengeView({
                     You will face 5 puzzles in a row. To advance, you must meet
                     the score target. You only get one attempt per day.
                   </p>
-                  
+
                   {/* Score Targets Display */}
                   <div className="mt-6 p-4 bg-parchment rounded-lg border border-sepia/20">
                     <h3 className="text-lg font-serif font-bold text-ink mb-3">Score Targets</h3>
@@ -203,13 +207,13 @@ export default function DailyChallengeView({
                       <div className="flex items-center gap-3">
                         <span className="font-bold text-ink w-6 text-center">{index + 1}.</span>
                         <Image
-                          src={getAvatarUrl(entry.profiles.avatar_url)}
-                          alt={`${entry.profiles.username}'s avatar`}
+                          src={getAvatarUrl(entry.profiles?.avatar_url)}
+                          alt={`${entry.profiles?.username ?? 'Traveler'}'s avatar`}
                           width={32}
                           height={32}
                           className="w-8 h-8 rounded-full object-cover border-2 border-gold-rush"
                         />
-                        <span className="font-semibold text-ink text-sm">{entry.profiles.username}</span>
+                        <span className="font-semibold text-ink text-sm">{entry.profiles?.username ?? 'Traveler'}</span>
                       </div>
                       <span className="font-bold text-gold-rush text-sm">{entry.final_score.toLocaleString()}</span>
                     </div>
