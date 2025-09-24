@@ -79,7 +79,6 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const onlineFriendProfiles = friendProfiles.filter(p => onlineFriends.includes(p.id));
   const offlineFriendProfiles = friendProfiles.filter(p => !onlineFriends.includes(p.id));
   
-  // FIX: This line was missing. It creates an array of just the friend IDs.
   const friendIds = friendProfiles.map(p => p.id);
   
   const pendingRequests = friendships.filter((f) => f.status === 'pending' && f.user_id_2 === currentUserId && f.action_user_id !== currentUserId);
