@@ -28,6 +28,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [xpResults, setXpResults] = useState(null);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
+  const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
 
   // New useEffect hook to play sound effects on results
   useEffect(() => {
@@ -67,18 +68,24 @@ export default function GameView({ setView, challenge = null, session, onChallen
       
       try {
         if (challenge) {
+          // Regular challenge mode - use existing puzzles table
           const roundIndex = challenge.current_round - 1;
           const puzzleId = challenge.puzzle_ids[roundIndex];
           const { data, error } = await supabase.from('puzzles').select('*, puzzle_translations(*)').eq('id', puzzleId).single();
           if (error) throw error;
           puzzleData = data;
         } else if (dailyPuzzleInfo) {
+          // Daily challenge mode - use daily_challenge_puzzles table
           const puzzleId = dailyPuzzleInfo.puzzleId;
-          const { data, error } = await supabase.from('puzzles').select('*, puzzle_translations(*)').eq('id', puzzleId).single();
+          const { data, error } = await supabase
+            .from('daily_challenge_puzzles')
+            .select('*')
+            .eq('id', puzzleId)
+            .single();
           if (error) throw error;
           puzzleData = data;
-        } else { // Endless Mode
-          // Try multiple approaches to get a puzzle
+        } else { 
+          // Endless Mode - use existing puzzles table with fallbacks
           let attempts = 0;
           const maxAttempts = 3;
           
@@ -138,8 +145,17 @@ export default function GameView({ setView, challenge = null, session, onChallen
           throw new Error("Puzzle is missing location coordinates.");
         }
         
-        if (!puzzleData.puzzle_translations || puzzleData.puzzle_translations.length === 0) {
-          throw new Error("Puzzle is missing translation data.");
+        // For daily challenges, clues are direct properties. For regular puzzles, they're in translations
+        if (dailyPuzzleInfo) {
+          // Validate daily challenge puzzle structure
+          if (!puzzleData.clue_1_text) {
+            throw new Error("Daily puzzle is missing clue data.");
+          }
+        } else {
+          // Validate regular puzzle structure
+          if (!puzzleData.puzzle_translations || puzzleData.puzzle_translations.length === 0) {
+            throw new Error("Puzzle is missing translation data.");
+          }
         }
         
         console.log("Successfully loaded puzzle:", puzzleData.id);
@@ -219,11 +235,36 @@ export default function GameView({ setView, challenge = null, session, onChallen
         await supabase.from('scores').insert({ user_id: session.user.id, score: finalScoreRounded });
     }
     
-    setResults({ finalScore: finalScoreRounded, distance: Math.round(distance), answer: { city: puzzle.city_name, historical_entity: puzzle.historical_entity, year: puzzle.year }, guess: { year: selectedYear } });
+    setResults({ 
+      finalScore: finalScoreRounded, 
+      distance: Math.round(distance), 
+      answer: { 
+        city: puzzle.city_name, 
+        historical_entity: puzzle.historical_entity, 
+        year: puzzle.year 
+      }, 
+      guess: { year: selectedYear },
+      passedTarget: dailyPuzzleInfo ? finalScoreRounded >= dailyPuzzleInfo.scoreTarget : true
+    });
   };
 
   const handlePlayAgain = () => { if (challenge) onChallengeComplete(); else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore); else { setGameKey(prevKey => prevKey + 1); } };
-  const displayYear = (year) => { const yearNum = Number(year); if (yearNum < 0) return `${Math.abs(yearNum)} BC`; return yearNum; };
+  
+  const displayYear = (year) => { 
+    const yearNum = Number(year); 
+    if (yearNum < 0) return `${Math.abs(yearNum)} BC`; 
+    return yearNum; 
+  };
+
+  const getClueText = (clueNumber) => {
+    if (dailyPuzzleInfo) {
+      // Daily challenge puzzles have direct clue properties
+      return puzzle[`clue_${clueNumber}_text`];
+    } else {
+      // Regular puzzles have clues in translations
+      return puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];
+    }
+  };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-ink text-2xl font-serif">Loading puzzle...</div>;
   if (error || !puzzle) return <div className="min-h-screen flex flex-col items-center justify-center text-ink text-2xl font-serif text-center p-4"><p className="text-red-600 font-bold mb-4">An Error Occurred</p><p>{error || "Could not load the puzzle."}</p><button onClick={() => setView('menu')} className="mt-8 px-6 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">Back to Menu</button></div>;
@@ -234,7 +275,20 @@ export default function GameView({ setView, challenge = null, session, onChallen
         <button onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm">&larr; Back</button>
         <div>
           <h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1>
-          <p className="text-lg text-sepia mt-2">{dailyPuzzleInfo ? `Daily Challenge - Puzzle ${dailyPuzzleInfo.step}` : challenge ? `Challenge - Round ${challenge.current_round}` : 'Endless Mode'}</p>
+          <p className="text-lg text-sepia mt-2">
+            {dailyPuzzleInfo ? (
+              <>
+                Daily Challenge - Puzzle {dailyPuzzleInfo.step} 
+                <span className="text-sm text-gold-rush block">
+                  ({DIFFICULTY_LABELS[dailyPuzzleInfo.step - 1]})
+                </span>
+              </>
+            ) : challenge ? (
+              `Challenge - Round ${challenge.current_round}`
+            ) : (
+              'Endless Mode'
+            )}
+          </p>
           {dailyPuzzleInfo && (
             <p className="text-xl font-bold text-gold-rush mt-2">
               Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
@@ -245,17 +299,68 @@ export default function GameView({ setView, challenge = null, session, onChallen
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-4">
           {[1, 2, 3, 4, 5].map((num) => {
-            const isUnlocked = unlockedClues.includes(num); const clueText = puzzle?.puzzle_translations?.[0]?.[`clue_${num}_text`];
-            return isUnlocked ? (<article key={num} className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm"><span className="block font-serif font-bold text-ink">Clue {num}</span><p className={`mt-1 text-sepia-dark ${num === 1 ? 'italic text-lg' : ''}`}>{clueText || 'Loading...'}</p></article>) 
-            : (<button key={num} className="w-full p-4 border border-sepia/30 rounded-lg hover:bg-sepia/10 text-left transition-colors" onClick={() => handleUnlockClue(num)}><div className="flex justify-between items-center"><span className="font-semibold text-lg text-ink">Unlock Clue {num}</span><span className="text-sm font-semibold text-sepia-dark">{CLUE_COSTS[num].toLocaleString()} pts</span></div></button>);
+            const isUnlocked = unlockedClues.includes(num);
+            const clueText = getClueText(num);
+            
+            return isUnlocked ? (
+              <article key={num} className="p-4 bg-papyrus border border-sepia/20 rounded-lg shadow-sm">
+                <span className="block font-serif font-bold text-ink">Clue {num}</span>
+                <p className={`mt-1 text-sepia-dark ${num === 1 ? 'italic text-lg' : ''}`}>
+                  {clueText || 'Loading...'}
+                </p>
+              </article>
+            ) : (
+              <button 
+                key={num} 
+                className="w-full p-4 border border-sepia/30 rounded-lg hover:bg-sepia/10 text-left transition-colors" 
+                onClick={() => handleUnlockClue(num)}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-lg text-ink">Unlock Clue {num}</span>
+                  <span className="text-sm font-semibold text-sepia-dark">
+                    {CLUE_COSTS[num].toLocaleString()} pts
+                  </span>
+                </div>
+              </button>
+            );
           })}
         </div>
         <aside>
           <div className="p-5 border border-sepia/20 rounded-lg bg-papyrus shadow-lg space-y-4">
-            <div><label className="block text-sm font-bold mb-2 text-ink text-center">Guess Location</label><Map onGuess={handleMapGuess} /></div>
-            <div><label className="block text-sm font-bold mb-1 text-ink">Year</label><input type="range" min={-1000} max={2025} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full accent-sepia-dark"/><div className="mt-2 text-center text-sm text-ink">Guess year:{' '}<span className="font-bold text-lg">{displayYear(selectedYear)}</span></div></div>
-            <div className="flex justify-center"><button className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" onClick={handleGuessSubmit} disabled={!!results}>Make Guess</button></div>
-            <div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1"><p className="text-lg text-sepia">Potential Score:{' '}<span className="font-bold text-ink">{score.toLocaleString()}</span></p></div>
+            <div>
+              <label className="block text-sm font-bold mb-2 text-ink text-center">Guess Location</label>
+              <Map onGuess={handleMapGuess} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-ink">Year</label>
+              <input 
+                type="range" 
+                min={-1000} 
+                max={2025} 
+                value={selectedYear} 
+                onChange={(e) => setSelectedYear(e.target.value)} 
+                className="w-full accent-sepia-dark"
+              />
+              <div className="mt-2 text-center text-sm text-ink">
+                Guess year:{' '}
+                <span className="font-bold text-lg">{displayYear(selectedYear)}</span>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <button 
+                className="px-8 py-3 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors shadow-md" 
+                onClick={handleGuessSubmit} 
+                disabled={!!results}
+              >
+                Make Guess
+              </button>
+            </div>
+            <div className="mt-6 pt-4 border-t border-sepia/20 text-center space-y-1">
+              <p className="text-lg text-sepia">
+                Potential Score:{' '}
+                <span className="font-bold text-ink">{score.toLocaleString()}</span>
+              </p>
+            </div>
           </div>
         </aside>
       </section>
@@ -263,9 +368,29 @@ export default function GameView({ setView, challenge = null, session, onChallen
         <section className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border-2 border-gold-rush md:mr-64">
             <h2 className="text-3xl font-serif font-bold text-ink mb-4">Round Over</h2>
+            
+            {/* Daily Challenge Result */}
+            {dailyPuzzleInfo && (
+              <div className="mb-4 p-4 rounded-lg border-2 border-gold-rush bg-amber-50">
+                <p className={`text-xl font-bold ${results.passedTarget ? 'text-green-600' : 'text-red-600'}`}>
+                  {results.passedTarget ? '✓ Target Reached!' : '✗ Target Missed'}
+                </p>
+                <p className="text-sm text-sepia">
+                  Target: {dailyPuzzleInfo.scoreTarget.toLocaleString()} | 
+                  Your Score: {results.finalScore.toLocaleString()}
+                </p>
+              </div>
+            )}
+            
             <div className="space-y-4 my-6">
-                <div><h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4><p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.historical_entity}</p><p className="text-green-700 font-semibold">{displayYear(results.answer.year)}</p></div>
-                <div><h4 className="text-lg font-serif font-bold text-sepia">Your guess was {results.distance} km away!</h4></div>
+                <div>
+                  <h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4>
+                  <p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.historical_entity}</p>
+                  <p className="text-green-700 font-semibold">{displayYear(results.answer.year)}</p>
+                </div>
+                <div>
+                  <h4 className="text-lg font-serif font-bold text-sepia">Your guess was {results.distance} km away!</h4>
+                </div>
             </div>
             <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>
             
@@ -287,7 +412,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
               </div>
             )}
             
-            <button onClick={handlePlayAgain} className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full">{challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}</button>
+            <button 
+              onClick={handlePlayAgain} 
+              className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full"
+            >
+              {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
+            </button>
           </div>
         </section>
       )}
