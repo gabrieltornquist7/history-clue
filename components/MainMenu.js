@@ -49,51 +49,52 @@ export default function MainMenu({ setView, session, onSignOut }) {
 
   return (
     <div 
-      className="min-h-screen relative"
+      className="min-h-screen"
       style={{
-        background: 'linear-gradient(135deg, #f8f4e6 0%, #f1e6d3 100%)',
-        backgroundImage: `
-          radial-gradient(circle at 25% 25%, rgba(139, 90, 43, 0.03) 0%, transparent 50%),
-          radial-gradient(circle at 75% 75%, rgba(139, 90, 43, 0.03) 0%, transparent 50%),
-          repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139, 90, 43, 0.01) 2px, rgba(139, 90, 43, 0.01) 4px)
-        `
+        background: 'linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 100%)'
       }}
     >
       {/* Top Navigation Bar */}
-      <nav className="flex items-center justify-between p-6 bg-white/90 backdrop-blur border-b border-amber-200/50">
+      <nav className="flex items-center justify-between p-8 border-b border-gray-800">
         <div className="flex items-center">
-          <h1 className="text-2xl font-serif font-bold text-amber-900">HistoryClue</h1>
+          <h1 className="text-3xl font-serif font-bold text-white tracking-wide">HistoryClue</h1>
         </div>
         {session && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-stone-800 text-white font-medium rounded-md border border-stone-700">
-            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-            <span className="font-mono text-sm">{streak}</span>
-            <span className="text-sm text-stone-300">day streak</span>
+          <div className="flex items-center gap-3 px-4 py-2 bg-black/40 backdrop-blur border border-gray-700 rounded-lg">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
+            <span className="font-mono text-sm text-white font-semibold">{streak}</span>
+            <span className="text-sm text-gray-300">day streak</span>
           </div>
         )}
       </nav>
 
       {/* Main Content */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-84px)] p-6">
-        <div className="w-full max-w-md">
+      <div className="flex items-center justify-center min-h-[calc(100vh-100px)] p-8">
+        <div className="w-full max-w-lg">
           {/* Hero Section */}
-          <div className="text-center mb-8">
-            <h1 className="text-5xl font-serif font-bold text-stone-900 mb-3">
+          <div className="text-center mb-12">
+            <h1 className="text-6xl font-serif font-bold text-white mb-4 tracking-wide">
               HistoryClue
             </h1>
-            <p className="text-lg italic text-stone-600 font-light">
+            <p className="text-xl italic font-light tracking-tight" style={{ color: '#d4af37' }}>
               Where in history are you?
             </p>
           </div>
 
           {/* Main Action Card */}
-          <div className="bg-white/95 backdrop-blur rounded-lg border border-stone-200/50 overflow-hidden">
+          <div 
+            className="backdrop-blur rounded-xl overflow-hidden border"
+            style={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              borderColor: '#d4af37'
+            }}
+          >
             
             {/* Play Section */}
-            <div className="p-6 pb-4">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-8 h-0.5 bg-stone-800"></div>
-                <h2 className="text-xs font-semibold text-stone-800 uppercase tracking-wider">
+            <div className="p-8 pb-6">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-px" style={{ backgroundColor: '#d4af37' }}></div>
+                <h2 className="text-xs font-semibold text-white uppercase tracking-widest">
                   Play
                 </h2>
               </div>
@@ -101,87 +102,112 @@ export default function MainMenu({ setView, session, onSignOut }) {
               {/* Hero Button - Daily Challenge */}
               <button
                 onClick={() => setView("daily")}
-                className="w-full mb-4 px-6 py-4 bg-gradient-to-r from-red-800 to-red-900 text-white font-semibold rounded-md hover:from-red-900 hover:to-red-950 transition-all duration-200 border border-red-700/30"
-                style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                className="w-full mb-6 px-8 py-6 font-bold text-white rounded-lg transition-all duration-300 relative group"
+                style={{ 
+                  background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                  fontFamily: 'system-ui, -apple-system, sans-serif'
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
-                    <div className="text-lg font-semibold">Daily Challenge</div>
-                    <div className="text-sm font-normal text-red-200 mt-1">
+                    <div className="text-xl font-bold">Daily Challenge</div>
+                    <div className="text-sm font-normal text-red-200 mt-2">
                       5 puzzles • Progressive difficulty
                     </div>
                   </div>
-                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
                 </div>
+                <div 
+                  className="absolute bottom-0 left-8 right-8 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                  style={{ backgroundColor: '#d4af37' }}
+                ></div>
               </button>
 
               {/* Secondary Play Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   onClick={() => setView("endless")}
-                  className="px-5 py-3 bg-stone-800 text-white font-medium rounded-md hover:bg-stone-900 transition-colors border border-stone-700/50"
+                  className="px-6 py-4 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-300 relative group border border-gray-700"
                   style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                 >
                   Endless Mode
+                  <div 
+                    className="absolute bottom-0 left-6 right-6 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                    style={{ backgroundColor: '#d4af37' }}
+                  ></div>
                 </button>
                 <button
                   onClick={() => setView("challenge")}
-                  className="px-5 py-3 bg-stone-800 text-white font-medium rounded-md hover:bg-stone-900 transition-colors border border-stone-700/50"
+                  className="px-6 py-4 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-300 relative group border border-gray-700"
                   style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                 >
                   Challenge Friend
+                  <div 
+                    className="absolute bottom-0 left-6 right-6 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                    style={{ backgroundColor: '#d4af37' }}
+                  ></div>
                 </button>
               </div>
             </div>
 
             {/* Divider */}
-            <div className="border-t border-stone-200/60"></div>
+            <div className="h-px" style={{ backgroundColor: '#d4af37', opacity: 0.3 }}></div>
 
             {/* Live Battle Section */}
-            <div className="p-6 py-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-0.5 bg-pink-600"></div>
-                <h2 className="text-xs font-semibold text-stone-800 uppercase tracking-wider">
+            <div className="p-8 py-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-px bg-pink-500"></div>
+                <h2 className="text-xs font-semibold text-white uppercase tracking-widest">
                   Live Action
                 </h2>
               </div>
               <button
                 onClick={() => setView("liveLobby")}
-                className="w-full px-6 py-4 bg-gradient-to-r from-pink-700 to-rose-800 text-white font-semibold rounded-md hover:from-pink-800 hover:to-rose-900 transition-all duration-200 border border-pink-600/30 relative"
-                style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                className="w-full px-8 py-6 font-bold text-white rounded-lg transition-all duration-300 relative group hover:shadow-pink-500/25"
+                style={{ 
+                  background: 'linear-gradient(135deg, #b00050 0%, #d81b60 100%)',
+                  fontFamily: 'system-ui, -apple-system, sans-serif'
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
-                    <div className="text-lg font-semibold">Live Battle</div>
-                    <div className="text-sm font-normal text-pink-200 mt-1">
+                    <div className="text-xl font-bold">Live Battle</div>
+                    <div className="text-sm font-normal text-pink-200 mt-2">
                       Real-time multiplayer
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-white/20 px-2 py-1 rounded text-xs font-medium">BETA</span>
-                    <div className="w-2 h-2 bg-pink-400 rounded-full animate-pulse"></div>
+                  <div className="flex items-center gap-3">
+                    <span className="bg-white/90 text-pink-800 px-3 py-1 rounded-full text-xs font-bold tracking-wide">
+                      BETA
+                    </span>
+                    <div className="w-2 h-2 bg-pink-300 rounded-full animate-pulse"></div>
                   </div>
                 </div>
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-lg shadow-lg shadow-pink-500/50 pointer-events-none"></div>
               </button>
             </div>
 
             {/* Divider */}
-            <div className="border-t border-stone-200/60"></div>
+            <div className="h-px" style={{ backgroundColor: '#d4af37', opacity: 0.3 }}></div>
 
             {/* Account Section */}
-            <div className="p-6 pt-5">
+            <div className="p-8 pt-6">
               {session ? (
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center gap-6">
                   <button
                     onClick={() => setView("profile")}
-                    className="px-5 py-2 bg-stone-100 text-stone-800 font-medium rounded-md hover:bg-stone-200 transition-colors border border-stone-300/50"
+                    className="px-6 py-3 text-gray-300 font-semibold rounded-lg border border-gray-600 hover:border-yellow-500 hover:text-white transition-all duration-300 relative group"
                     style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                   >
                     Profile
+                    <div 
+                      className="absolute bottom-0 left-6 right-6 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                      style={{ backgroundColor: '#d4af37' }}
+                    ></div>
                   </button>
                   <button
                     onClick={onSignOut}
-                    className="px-5 py-2 text-stone-600 hover:text-stone-800 font-medium transition-colors"
+                    className="px-6 py-3 text-gray-400 hover:text-gray-200 font-semibold transition-colors duration-300"
                     style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                   >
                     Sign Out
@@ -190,28 +216,32 @@ export default function MainMenu({ setView, session, onSignOut }) {
               ) : (
                 <button
                   onClick={() => setView("auth")}
-                  className="w-full px-6 py-3 bg-stone-800 text-white font-semibold rounded-md hover:bg-stone-900 transition-colors border border-stone-700/50"
+                  className="w-full px-8 py-4 bg-gray-800 text-white font-bold rounded-lg hover:bg-gray-700 transition-all duration-300 border border-gray-700 relative group"
                   style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                 >
                   Login or Sign Up
+                  <div 
+                    className="absolute bottom-0 left-8 right-8 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                    style={{ backgroundColor: '#d4af37' }}
+                  ></div>
                 </button>
               )}
             </div>
           </div>
 
           {/* Footer Links */}
-          <div className="flex items-center justify-center gap-6 mt-6">
+          <div className="flex items-center justify-center gap-6 mt-8">
             <button
               onClick={() => setView("leaderboard")}
-              className="text-stone-600 hover:text-stone-800 font-medium transition-colors text-sm"
+              className="text-gray-400 hover:text-yellow-500 font-medium transition-colors duration-300 text-sm"
               style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
             >
               Leaderboard
             </button>
-            <div className="w-1 h-1 bg-stone-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
             <button
               onClick={handleContactClick}
-              className="text-stone-600 hover:text-stone-800 font-medium transition-colors text-sm"
+              className="text-gray-400 hover:text-yellow-500 font-medium transition-colors duration-300 text-sm"
               style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
             >
               Contact
