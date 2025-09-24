@@ -74,7 +74,14 @@ export default function DailyChallengeView({
           // Fetch leaderboard
           const { data: leaderboardData, error: leaderboardError } = await supabase
             .from('daily_attempts')
-            .select('final_score, profiles!inner(username, avatar_url)')
+            .select(`
+              final_score,
+              puzzles_completed,
+              profiles!inner (
+                username,
+                avatar_url
+              )
+            `)
             .eq('daily_puzzle_id', todaysPuzzle.id)
             .gt('final_score', 0)
             .order('final_score', { ascending: false })
@@ -303,7 +310,7 @@ export default function DailyChallengeView({
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {leaderboard.length > 0 ? (
                   leaderboard.map((entry, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-parchment rounded-lg shadow-sm border border-sepia/10">
+                    <div key={`${entry.profiles?.username || 'unknown'}-${index}`} className="flex items-center justify-between p-3 bg-parchment rounded-lg shadow-sm border border-sepia/10">
                       <div className="flex items-center gap-3">
                         <span className="font-bold text-ink w-6 text-center">{index + 1}.</span>
                         <Image
@@ -313,7 +320,10 @@ export default function DailyChallengeView({
                           height={32}
                           className="w-8 h-8 rounded-full object-cover border-2 border-gold-rush"
                         />
-                        <span className="font-semibold text-ink text-sm">{entry.profiles?.username ?? 'Traveler'}</span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-ink text-sm">{entry.profiles?.username ?? 'Traveler'}</span>
+                          <span className="text-xs text-sepia">{entry.puzzles_completed}/5 completed</span>
+                        </div>
                       </div>
                       <span className="font-bold text-gold-rush text-sm">{entry.final_score.toLocaleString()}</span>
                     </div>
