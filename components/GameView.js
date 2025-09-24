@@ -152,6 +152,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
         <div>
           <h1 className="text-5xl font-serif font-bold text-gold-rush">HistoryClue</h1>
           <p className="text-lg text-sepia mt-2">{dailyPuzzleInfo ? `Daily Challenge - Puzzle ${dailyPuzzleInfo.step}` : challenge ? `Challenge - Round ${challenge.current_round}` : 'Endless Mode'}</p>
+          {/* FIX: Add the score target display here for daily challenges */}
+          {dailyPuzzleInfo && (
+            <p className="text-xl font-bold text-gold-rush mt-2">
+              Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
+            </p>
+          )}
         </div>
       </header>
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
