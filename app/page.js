@@ -1,4 +1,5 @@
 // app/page.js
+
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from '../lib/supabaseClient';
