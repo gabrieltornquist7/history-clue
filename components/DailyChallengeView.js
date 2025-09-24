@@ -136,7 +136,18 @@ export default function DailyChallengeView({
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10 min-h-screen relative z-10">
+    <div 
+  className="min-h-screen relative px-6 py-10"
+  style={{
+    background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)",
+    backgroundImage: `
+      radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+      radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+      radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+    `
+  }}
+>
+
       {/* Header */}
       <header className="mb-10 text-center relative">
         <button
