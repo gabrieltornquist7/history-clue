@@ -1,5 +1,4 @@
 // app/page.js
-
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from '../lib/supabaseClient';
@@ -12,6 +11,7 @@ import GameView from '../components/GameView';
 import DailyChallengeView from '../components/DailyChallengeView';
 import LiveGameView from '../components/LiveGameView';
 import LiveLobbyView from '../components/LiveLobbyView';
+import ProfileSettingsView from '../components/ProfileSettingsView'; // Import the new component
 
 export default function Page() {
   const [session, setSession] = useState(null);
@@ -29,8 +29,6 @@ export default function Page() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); });
 
     let inviteChannel;
-    // --- THIS IS THE FIX ---
-    // We must check for session AND session.user before subscribing
     if (session && session.user) {
         inviteChannel = supabase.channel(`invites:${session.user.id}`);
         inviteChannel
@@ -79,7 +77,7 @@ export default function Page() {
   };
   
   const renderView = () => {
-    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily' || view === 'liveGame' || view === 'liveLobby') && !session) {
+    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily' || view === 'liveGame' || view === 'liveLobby' || view === 'profileSettings') && !session) {
       return <Auth setView={setView} />;
     }
     
@@ -100,6 +98,8 @@ export default function Page() {
             return <ProfileView setView={setView} session={session} />;
         case 'challenge':
             return <ChallengeView setView={setView} session={session} setActiveChallenge={setActiveChallenge} setActiveLiveMatch={setActiveLiveMatch} />;
+        case 'profileSettings':
+            return <ProfileSettingsView setView={setView} session={session} />;
         default:
             return <MainMenu setView={setView} session={session} onSignOut={handleSignOut} />;
     }

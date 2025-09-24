@@ -57,26 +57,6 @@ export default function ProfileView({ setView, session }) {
     return Math.floor(1000 * Math.pow(level || 1, 1.5));
   };
 
-  const handleTitleChange = async (event) => {
-    const newTitle = event.target.value;
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ selected_title: newTitle })
-        .eq('id', user.id)
-        .select()
-        .single();
-      
-      if (error) {
-        alert('Error updating title: ' + error.message);
-      } else {
-        setProfile(data);
-      }
-    }
-  };
-
   let avatarSrc = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
   if (profile?.avatar_url) {
     const { data } = supabase.storage.from('avatars').getPublicUrl(profile.avatar_url);
@@ -95,22 +75,8 @@ export default function ProfileView({ setView, session }) {
             <Image key={avatarKey} src={avatarSrc} alt="Avatar" width={128} height={128} className="w-32 h-32 rounded-full object-cover border-4 border-gold-rush mb-4"/>
             <h2 className="text-2xl font-bold font-serif text-ink">{profile?.username || 'Anonymous'}</h2>
             
-            {profile?.is_founder ? (
-              <p className="text-sm text-sepia mt-1">{profile.selected_title || 'Founder and Dev'}</p>
-            ) : (
-              profile?.titles && profile.titles.length > 0 && (
-                <div className="mt-2">
-                  <select 
-                    value={profile.selected_title || ''} 
-                    onChange={handleTitleChange}
-                    className="bg-parchment border border-sepia/30 rounded-md text-sm text-sepia focus:ring-gold-rush focus:border-gold-rush"
-                  >
-                    {profile.titles.map(title => (
-                      <option key={title} value={title}>{title}</option>
-                    ))}
-                  </select>
-                </div>
-              )
+            {profile?.selected_title && (
+              <p className="text-sm text-sepia mt-1">{profile.selected_title}</p>
             )}
             
             <div className="w-full mt-4 text-center">
@@ -134,6 +100,12 @@ export default function ProfileView({ setView, session }) {
                   <p>Contact: <a href="mailto:your-email@example.com" className="text-gold-rush hover:underline">your-email@example.com</a></p>
               </div>
             )}
+             <button
+              onClick={() => setView('profileSettings')}
+              className="mt-4 px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300"
+            >
+              Settings
+            </button>
           </div>
           <div className="md:col-span-2 space-y-6">
             <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">
