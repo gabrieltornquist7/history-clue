@@ -1,6 +1,6 @@
 // components/LiveLobbyView.js
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) {
@@ -145,9 +145,9 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           &larr; Menu
         </button>
         <h1 className="text-5xl font-serif font-bold text-gold-rush">
-          🔴 Live Battle Arena
+           Live Battle Arena
         </h1>
-        <p className="text-lg text-sepia mt-2">Challenge friends to real-time battles!</p>
+        <p className="text-lg text-sepia mt-2">Challenge friends to 1v1 battles!</p>
       </header>
 
       <div className="space-y-8">
@@ -166,10 +166,10 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
                     <span className="text-xs text-green-600 font-semibold">ONLINE</span>
                   </div>
                   <button 
-                    onClick={() => startLiveMatch(friend.id)} 
+                    onClick={() => startLiveMatch(friend.id)} // This should now correctly pass the UUID
                     className="px-4 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-colors shadow-md animate-pulse"
                   >
-                    ⚔️ Battle Now!
+                     Battle Now!
                   </button>
                 </div>
               ))
@@ -177,7 +177,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
               <p className="text-sepia text-center py-8">
                 No friends are currently online for Live Battle.
                 <br />
-                <span className="text-sm">Invite friends to join the arena!</span>
+                <span className="text-sm">Invite friends to join!</span>
               </p>
             )}
           </div>
