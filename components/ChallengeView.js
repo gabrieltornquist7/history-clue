@@ -104,20 +104,30 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     setView('game');
   };
   const playChallenge = (challenge) => { setActiveChallenge(challenge); setView('game'); };
+  
   const getChallengeStatus = (c) => {
     const challengerWins = (c.challenger_scores || []).filter((s, i) => s > (c.opponent_scores || [])[i]).length;
     const opponentWins = (c.opponent_scores || []).filter((s, i) => s > (c.challenger_scores || [])[i]).length;
+    
     if (c.status === 'completed') {
-        if (c.winner_id === currentUserId) return { text: `You Won ${challengerWins}-${opponentWins}`, color: 'text-green-600' };
-        if (c.winner_id) return { text: `You Lost ${opponentWins}-${challengerWins}`, color: 'text-red-600' };
-        return { text: `Draw ${challengerWins}-${opponentWins}`, color: 'text-sepia' };
+        if (c.winner_id === currentUserId) {
+            return { text: `You Won ${challengerWins}-${opponentWins}`, color: 'text-green-600' };
+        } else if (c.winner_id) {
+            return { text: `You Lost ${opponentWins}-${challengerWins}`, color: 'text-red-600' };
+        } else {
+            return { text: `Draw ${challengerWins}-${opponentWins}`, color: 'text-sepia' };
+        }
     }
+    
+    const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
+
     if (c.next_player_id === currentUserId) {
-        return { text: 'Your Turn!', button: <button onClick={() => playChallenge(c)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Play</button> };
+        return { text: `Your turn against ${opponentName}! Round ${c.current_round}`, button: <button onClick={() => playChallenge(c)} className="px-3 py-1 bg-green-700 text-white text-sm font-bold rounded-lg hover:bg-green-800">Play</button> };
     } else {
-        return { text: `Waiting for ${c.opponent?.username || 'Opponent'}...` };
+        return { text: `Waiting for ${opponentName}... Round ${c.current_round}` };
     }
   };
+
   const incomingChallenges = challenges.filter(c => c.status === 'pending' && c.next_player_id === currentUserId);
   const outgoingChallenges = challenges.filter(c => c.status === 'pending' && c.next_player_id !== currentUserId);
   const completedChallenges = challenges.filter(c => c.status === 'completed');
@@ -180,7 +190,11 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                   {incomingChallenges.length > 0 ? incomingChallenges.map(c => {
                     const status = getChallengeStatus(c);
-                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">{c.challenger?.username || 'A friend'} challenged you! Round {c.current_round}</span>{status.button}</div>)
+                    const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                                <span className="font-bold text-ink">Your turn against {opponentName}! Round {c.current_round}</span>
+                                {status.button}
+                            </div>)
                   }) : <p className="text-sepia">No matches waiting for your turn.</p>}
                 </div>
               </div>
@@ -190,7 +204,9 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
                 <div className="bg-papyrus p-4 rounded-lg shadow-inner border border-sepia/20 space-y-3">
                   {outgoingChallenges.length > 0 ? outgoingChallenges.map(c => {
                     const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
-                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg"><span className="font-bold text-ink">Waiting for {opponentName || 'your friend'}... Round {c.current_round}</span></div>)
+                    return (<div key={c.id} className="flex items-center justify-between p-2 bg-parchment rounded-lg">
+                                <span className="font-bold text-ink">Waiting for {opponentName}... Round {c.current_round}</span>
+                            </div>)
                   }) : <p className="text-sepia">No active matches waiting for an opponent.</p>}
                 </div>
               </div>

@@ -9,7 +9,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
   const [loading, setLoading] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
-  const [inviteTimeout, setInviteTimeout] = useState(null);
   
   const presenceChannelRef = useRef(null);
   const inviteChannelRef = useRef(null);
@@ -25,11 +24,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       supabase.removeChannel(inviteChannelRef.current);
       inviteChannelRef.current = null;
     }
-    if (inviteTimeout) {
-      clearTimeout(inviteTimeout);
-      setInviteTimeout(null);
-    }
-  }, [inviteTimeout]);
+  }, []);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -174,13 +169,10 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         return;
       }
 
-      // --- START OF FIX ---
-      // We no longer create a temporary channel. We send directly to the opponent's
-      // listening channel.
       const opponentChannel = supabase.channel(`invites:${opponentId}`);
       await opponentChannel.subscribe();
       
-      const broadcastResult = await opponentChannel.send({
+      await opponentChannel.send({
         type: 'broadcast',
         event: 'live_invite',
         payload: { 
@@ -190,23 +182,12 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         },
       });
       
-      if (broadcastResult.error) {
-        console.error('Broadcast error:', broadcastResult.error);
-        alert('Failed to send challenge: ' + broadcastResult.error.message);
-        setWaitingForOpponent(false);
-      } else {
-        // Upon successful broadcast, navigate to the game view immediately.
-        // The opponent will receive the invite on their end.
-        setActiveLiveMatch(matchId);
-        setView('liveGame');
-        setWaitingForOpponent(false);
-      }
-      
-      // We don't need a timeout anymore since we navigate immediately.
-      // We also clean up the channel immediately after the send attempt.
       supabase.removeChannel(opponentChannel);
-      // --- END OF FIX ---
 
+      setActiveLiveMatch(matchId);
+      setView('liveGame');
+      setWaitingForOpponent(false);
+      
     } catch (error) {
       alert('Failed to start match: ' + error.message);
       setWaitingForOpponent(false);
@@ -249,10 +230,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           <button 
             onClick={() => {
               setWaitingForOpponent(false);
-              if (inviteTimeout) {
-                clearTimeout(inviteTimeout);
-                setInviteTimeout(null);
-              }
             }}
             className="px-4 py-2 bg-sepia text-white rounded-lg hover:bg-sepia-dark"
           >
