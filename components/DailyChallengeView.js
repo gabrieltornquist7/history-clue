@@ -71,27 +71,51 @@ export default function DailyChallengeView({
             setUserAttempt(attemptData);
           }
 
-          // Fetch leaderboard - show all attempts, including incomplete ones
-          const { data: leaderboardData, error: leaderboardError } = await supabase
-            .from('daily_attempts')
-            .select(`
-              final_score,
-              puzzles_completed,
-              profiles!inner (
-                username,
-                avatar_url
-              )
-            `)
-            .eq('daily_puzzle_id', todaysPuzzle.id)
-            .order('final_score', { ascending: false })
-            .order('puzzles_completed', { ascending: false })
-            .limit(10);
+          // Fetch leaderboard - use fallback approach with separate queries
+          try {
+            // First, get all daily attempts for today's puzzle
+            const { data: attempts, error: attemptsError } = await supabase
+              .from('daily_attempts')
+              .select('user_id, final_score, puzzles_completed')
+              .eq('daily_puzzle_id', todaysPuzzle.id)
+              .order('final_score', { ascending: false })
+              .order('puzzles_completed', { ascending: false })
+              .limit(10);
 
-          if (leaderboardError) {
-            console.error("Error fetching leaderboard:", leaderboardError);
+            if (attemptsError) {
+              console.error("Error fetching attempts:", attemptsError);
+              setLeaderboard([]);
+            } else if (attempts && attempts.length > 0) {
+              // Get user profiles separately
+              const userIds = attempts.map(a => a.user_id);
+              const { data: profiles, error: profilesError } = await supabase
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .in('id', userIds);
+
+              if (profilesError) {
+                console.error("Error fetching profiles:", profilesError);
+                setLeaderboard([]);
+              } else {
+                // Manually join the data
+                const combinedData = attempts.map(attempt => {
+                  const profile = profiles?.find(p => p.id === attempt.user_id);
+                  return {
+                    final_score: attempt.final_score,
+                    puzzles_completed: attempt.puzzles_completed,
+                    profiles: profile || { username: 'Unknown Player', avatar_url: null }
+                  };
+                });
+                console.log('Leaderboard data:', combinedData);
+                setLeaderboard(combinedData);
+              }
+            } else {
+              console.log('No daily attempts found for today');
+              setLeaderboard([]);
+            }
+          } catch (error) {
+            console.error("Unexpected error fetching leaderboard:", error);
             setLeaderboard([]);
-          } else {
-            setLeaderboard(leaderboardData || []);
           }
         }
       } catch (error) {
