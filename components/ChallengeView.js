@@ -39,7 +39,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     const channel = supabase.channel('online-users');
     channel.on('presence', { event: 'sync' }, () => {
         const presenceState = channel.presenceState();
-        const onlineUserIds = Object.keys(presenceState); 
+        const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
         setOnlineFriends(onlineUserIds);
     }).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
