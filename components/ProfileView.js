@@ -4,33 +4,36 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Image from 'next/image';
 
-export default function ProfileView({ setView, session }) {
+export default function ProfileView({ setView, session, userId = null }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [avatarKey, setAvatarKey] = useState(Date.now());
 
+  const profileId = userId || session.user.id;
+
   useEffect(() => {
     async function getProfileData() {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('username, avatar_url, xp, level, is_founder, titles, selected_title')
-          .eq('id', user.id)
-          .single();
-        setProfile(profileData);
+      
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('username, avatar_url, xp, level, is_founder, titles, selected_title')
+        .eq('id', profileId)
+        .single();
+      setProfile(profileData);
 
-        const { data: statsData, error: statsError } = await supabase.rpc('get_player_stats', { p_user_id: user.id }).single();
-        if(statsError) console.error("Error fetching stats:", statsError);
-        setStats(statsData);
-      }
+      const { data: statsData, error: statsError } = await supabase.rpc('get_player_stats', { p_user_id: profileId }).single();
+      if(statsError) console.error("Error fetching stats:", statsError);
+      setStats(statsData);
+      
       setLoading(false);
     }
-    getProfileData();
-  }, [session.user.id, avatarKey]);
+    if (profileId) {
+        getProfileData();
+    }
+  }, [profileId, avatarKey]);
 
   const uploadAvatar = async (event) => {
     try {
@@ -63,6 +66,8 @@ export default function ProfileView({ setView, session }) {
     avatarSrc = data.publicUrl;
   }
 
+  const isOwnProfile = session.user.id === profileId;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
       <header className="mb-8 text-center relative">
@@ -92,20 +97,26 @@ export default function ProfileView({ setView, session }) {
               </p>
             </div>
             
-            <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
-            <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
+            {isOwnProfile && (
+                <>
+                    <label htmlFor="avatar-upload" className="mt-4 px-4 py-2 bg-sepia text-white text-sm font-semibold rounded-lg hover:bg-sepia-dark cursor-pointer">{uploading ? 'Uploading...' : 'Change Picture'}</label>
+                    <input id="avatar-upload" type="file" accept="image/*" onChange={uploadAvatar} disabled={uploading} className="hidden" />
+                </>
+            )}
 
             {profile?.is_founder && (
               <div className="mt-4 text-center text-sm text-sepia">
                   <p>Contact: <a href="mailto:your-email@example.com" className="text-gold-rush hover:underline">your-email@example.com</a></p>
               </div>
             )}
-             <button
-              onClick={() => setView('profileSettings')}
-              className="mt-4 px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300"
-            >
-              Settings
-            </button>
+             {isOwnProfile && (
+                <button
+                onClick={() => setView('profileSettings')}
+                className="mt-4 px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300"
+                >
+                Settings
+                </button>
+             )}
           </div>
           <div className="md:col-span-2 space-y-6">
             <div className="bg-papyrus p-6 rounded-lg shadow-lg border border-sepia/20">

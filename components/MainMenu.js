@@ -1,11 +1,40 @@
 // components/MainMenu.js
 "use client";
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function MainMenu({ setView, session, onSignOut }) {
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    const fetchStreak = async () => {
+      if (session) {
+        const { data, error } = await supabase
+          .from('streaks')
+          .select('streak_count')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (data) {
+          setStreak(data.streak_count);
+        }
+      }
+    };
+    fetchStreak();
+  }, [session]);
+
+  const handleContactClick = () => {
+    setView('profile', 'e4d8259a-2559-44ba-b242-632ce6a89f1d'); 
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-parchment p-4">
       <div className="text-center max-w-md w-full">
+        {session && (
+          <div className="absolute top-4 right-4 bg-gold-rush text-ink font-bold py-2 px-4 rounded-full shadow-lg">
+            🔥 {streak} Day Streak
+          </div>
+        )}
         <h1 className="text-6xl font-serif font-bold text-gold-rush mb-4">
           HistoryClue
         </h1>
@@ -36,6 +65,12 @@ export default function MainMenu({ setView, session, onSignOut }) {
           >
             Live Battle (Beta)
           </button>
+          <button
+            onClick={() => setView('leaderboard')}
+            className="w-full px-6 py-3 bg-gold-rush text-ink font-bold text-lg rounded-lg hover:bg-amber-600 transition-colors shadow-md"
+          >
+            Leaderboard
+          </button>
         </div>
         
         <div className="mt-8 text-center">
@@ -62,6 +97,14 @@ export default function MainMenu({ setView, session, onSignOut }) {
               Login or Sign Up
             </button>
           )}
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={handleContactClick}
+            className="text-sm text-sepia hover:text-ink underline"
+          >
+            Contact
+          </button>
         </div>
       </div>
     </div>

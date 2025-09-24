@@ -132,18 +132,31 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const outgoingChallenges = challenges.filter(c => c.status === 'pending' && c.next_player_id !== currentUserId);
   const completedChallenges = challenges.filter(c => c.status === 'completed');
 
+  const handleInvite = () => {
+    const inviteLink = `${window.location.origin}?ref=${currentUserId}`;
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      alert('Invite link copied to clipboard!');
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
        <header className="mb-8 text-center relative">
         <button onClick={() => setView('menu')} className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm"> &larr; Menu </button>
         <h1 className="text-5xl font-serif font-bold text-gold-rush"> Friend Matches </h1>
       </header>
-      <div className="border-b border-sepia/20 mb-6">
+      <div className="border-b border-sepia/20 mb-6 flex justify-between items-center">
         <nav className="flex space-x-6">
           <button onClick={() => setTab('challenges')} className={`py-3 px-1 font-semibold ${tab === 'challenges' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>My Matches</button>
           <button onClick={() => setTab('find')} className={`py-3 px-1 font-semibold ${tab === 'find' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>Find Players</button>
           <button onClick={() => setTab('requests')} className={`py-3 px-1 font-semibold relative ${tab === 'requests' ? 'text-gold-rush border-b-2 border-gold-rush' : 'text-sepia'}`}>Friend Requests {pendingRequests.length > 0 && <span className="absolute top-2 -right-3 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">{pendingRequests.length}</span>}</button>
         </nav>
+        <button
+          onClick={handleInvite}
+          className="px-4 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md"
+        >
+          Invite a Friend
+        </button>
       </div>
       {loading ? <div className="text-center text-sepia">Loading...</div> : (
         <div>

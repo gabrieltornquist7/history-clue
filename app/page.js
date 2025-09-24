@@ -11,11 +11,13 @@ import GameView from '../components/GameView';
 import DailyChallengeView from '../components/DailyChallengeView';
 import LiveGameView from '../components/LiveGameView';
 import LiveLobbyView from '../components/LiveLobbyView';
-import ProfileSettingsView from '../components/ProfileSettingsView'; // Import the new component
+import ProfileSettingsView from '../components/ProfileSettingsView'; 
+import LeaderboardView from '../components/LeaderboardView'; // Import the new component
 
 export default function Page() {
   const [session, setSession] = useState(null);
   const [view, setView] = useState('menu');
+  const [viewPayload, setViewPayload] = useState(null);
   const [activeChallenge, setActiveChallenge] = useState(null);
   const [activeDailyPuzzle, setActiveDailyPuzzle] = useState(null);
   const [activeLiveMatch, setActiveLiveMatch] = useState(null);
@@ -23,6 +25,10 @@ export default function Page() {
   
   const inviteChannelRef = useRef(null);
 
+  const handleSetView = (newView, payload = null) => {
+    setView(newView);
+    setViewPayload(payload);
+  };
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -46,8 +52,8 @@ export default function Page() {
     };
   }, [session]);
 
-  const handleSignOut = async () => { await supabase.auth.signOut(); setView('menu'); };
-  const onChallengeComplete = () => { setActiveChallenge(null); setView('challenge'); };
+  const handleSignOut = async () => { await supabase.auth.signOut(); handleSetView('menu'); };
+  const onChallengeComplete = () => { setActiveChallenge(null); handleSetView('challenge'); };
 
   const handleDailyStepComplete = async (score) => {
     const SCORE_TARGETS = [3000, 3500, 5000, 7500, 10000];
@@ -62,14 +68,14 @@ export default function Page() {
       const puzzlesCompleted = score >= SCORE_TARGETS[currentStep - 1] ? currentStep : currentStep - 1;
       await supabase.from('daily_attempts').update({ puzzles_completed: puzzlesCompleted, final_score: newTotalScore }).eq('id', activeDailyPuzzle.attemptId);
       setActiveDailyPuzzle(null);
-      setView('daily');
+      handleSetView('daily');
     }
   };
 
   const acceptInvite = () => {
     setActiveLiveMatch(incomingInvite.matchId);
     setIncomingInvite(null);
-    setView('liveGame');
+    handleSetView('liveGame');
   };
 
   const declineInvite = () => {
@@ -77,31 +83,33 @@ export default function Page() {
   };
   
   const renderView = () => {
-    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily' || view === 'liveGame' || view === 'liveLobby' || view === 'profileSettings') && !session) {
-      return <Auth setView={setView} />;
+    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily' || view === 'liveGame' || view === 'liveLobby' || view === 'profileSettings' || view === 'leaderboard') && !session) {
+      return <Auth setView={handleSetView} />;
     }
     
     switch(view) {
         case 'liveGame':
-            return <LiveGameView session={session} matchId={activeLiveMatch} setView={setView} />;
+            return <LiveGameView session={session} matchId={activeLiveMatch} setView={handleSetView} />;
         case 'liveLobby':
-            return <LiveLobbyView session={session} setView={setView} setActiveLiveMatch={setActiveLiveMatch} />;
+            return <LiveLobbyView session={session} setView={handleSetView} setActiveLiveMatch={setActiveLiveMatch} />;
         case 'game':
-            return <GameView setView={setView} challenge={activeChallenge} session={session} onChallengeComplete={onChallengeComplete} dailyPuzzleInfo={activeDailyPuzzle} onDailyStepComplete={handleDailyStepComplete} />;
+            return <GameView setView={handleSetView} challenge={activeChallenge} session={session} onChallengeComplete={onChallengeComplete} dailyPuzzleInfo={activeDailyPuzzle} onDailyStepComplete={handleDailyStepComplete} />;
         case 'endless':
-            return <GameView setView={setView} session={session} />;
+            return <GameView setView={handleSetView} session={session} />;
         case 'daily':
-            return <DailyChallengeView setView={setView} session={session} setActiveDailyPuzzle={setActiveDailyPuzzle} />;
+            return <DailyChallengeView setView={handleSetView} session={session} setActiveDailyPuzzle={setActiveDailyPuzzle} />;
         case 'auth':
-            return <Auth setView={setView} />;
+            return <Auth setView={handleSetView} />;
         case 'profile':
-            return <ProfileView setView={setView} session={session} />;
+            return <ProfileView setView={handleSetView} session={session} userId={viewPayload} />;
         case 'challenge':
-            return <ChallengeView setView={setView} session={session} setActiveChallenge={setActiveChallenge} setActiveLiveMatch={setActiveLiveMatch} />;
+            return <ChallengeView setView={handleSetView} session={session} setActiveChallenge={setActiveChallenge} setActiveLiveMatch={setActiveLiveMatch} />;
         case 'profileSettings':
-            return <ProfileSettingsView setView={setView} session={session} />;
+            return <ProfileSettingsView setView={handleSetView} session={session} />;
+        case 'leaderboard':
+            return <LeaderboardView setView={handleSetView} />;
         default:
-            return <MainMenu setView={setView} session={session} onSignOut={handleSignOut} />;
+            return <MainMenu setView={handleSetView} session={session} onSignOut={handleSignOut} />;
     }
   }
 
