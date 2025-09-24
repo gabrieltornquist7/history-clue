@@ -67,123 +67,127 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
         setLoading(false);
       }
     };
-
-    fetchData();
-
-    // Set up presence channel with better error handling
-    const setupPresenceChannel = () => {
-      // Use a global channel that all users join
-      const presenceChannel = supabase.channel('global-presence', {
-        config: { 
-          presence: { 
-            key: currentUserId,
+    
+    // --- START OF FIX ---
+    // The fetchData function now returns a promise. We need to await it
+    // before we can be sure that currentUserProfile is set.
+    fetchData().then(() => {
+      // Set up presence channel with better error handling
+      const setupPresenceChannel = () => {
+        // Use a global channel that all users join
+        const presenceChannel = supabase.channel('global-presence', {
+          config: { 
+            presence: { 
+              key: currentUserId,
+            },
           },
-        },
-      });
-
-      presenceChannel
-        .on('presence', { event: 'sync' }, () => {
-          const presenceState = presenceChannel.presenceState();
-          console.log('Presence state:', presenceState);
-          
-          // Extract all online user IDs from presence state
-          const onlineUserIds = [];
-          Object.keys(presenceState).forEach(key => {
-            presenceState[key].forEach(presence => {
-              if (presence.user_id && !onlineUserIds.includes(presence.user_id)) {
-                onlineUserIds.push(presence.user_id);
-              }
+        });
+        
+        presenceChannel
+          .on('presence', { event: 'sync' }, () => {
+            const presenceState = presenceChannel.presenceState();
+            console.log('Presence state:', presenceState);
+            
+            // Extract all online user IDs from presence state
+            const onlineUserIds = [];
+            Object.keys(presenceState).forEach(key => {
+              presenceState[key].forEach(presence => {
+                if (presence.user_id && !onlineUserIds.includes(presence.user_id)) {
+                  onlineUserIds.push(presence.user_id);
+                }
+              });
             });
+            
+            console.log('Online users updated:', onlineUserIds);
+            console.log('My friends:', friendProfiles.map(f => ({ id: f.id, username: f.username })));
+            setOnlineUsers(onlineUserIds);
+          })
+          .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+            console.log('User joined:', key, newPresences);
+          })
+          .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            console.log('User left:', key, leftPresences);
+          })
+          .subscribe(async (status) => {
+            console.log('Presence channel status:', status);
+            if (status === 'SUBSCRIBED') {
+              console.log('Presence channel subscribed, tracking user');
+              const trackResult = await presenceChannel.track({ 
+                user_id: currentUserId,
+                username: currentUserProfile?.username,
+                online_at: new Date().toISOString(),
+              });
+              console.log('Track result:', trackResult);
+              
+              // Force a sync after tracking
+              setTimeout(() => {
+                const state = presenceChannel.presenceState();
+                console.log('Force sync - current state:', state);
+              }, 1000);
+              
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Presence channel error, retrying...');
+              // Retry connection after a delay
+              setTimeout(() => {
+                if (presenceChannelRef.current === presenceChannel) {
+                  setupPresenceChannel();
+                }
+              }, 3000);
+            }
           });
-          
-          console.log('Online users updated:', onlineUserIds);
-          console.log('My friends:', friendProfiles.map(f => ({ id: f.id, username: f.username })));
-          setOnlineUsers(onlineUserIds);
-        })
-        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-          console.log('User joined:', key, newPresences);
-        })
-        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-          console.log('User left:', key, leftPresences);
-        })
-        .subscribe(async (status) => {
-          console.log('Presence channel status:', status);
-          if (status === 'SUBSCRIBED') {
-            console.log('Presence channel subscribed, tracking user');
-            const trackResult = await presenceChannel.track({ 
-              user_id: currentUserId,
-              username: currentUserProfile?.username,
-              online_at: new Date().toISOString(),
-            });
-            console.log('Track result:', trackResult);
-            
-            // Force a sync after tracking
-            setTimeout(() => {
-              const state = presenceChannel.presenceState();
-              console.log('Force sync - current state:', state);
-            }, 1000);
-            
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('Presence channel error, retrying...');
-            // Retry connection after a delay
-            setTimeout(() => {
-              if (presenceChannelRef.current === presenceChannel) {
-                setupPresenceChannel();
-              }
-            }, 3000);
-          }
-        });
-
-      presenceChannelRef.current = presenceChannel;
-    };
-
-    // Set up invite channel
-    const setupInviteChannel = () => {
-      const inviteChannel = supabase.channel(`invites:${currentUserId}`, {
-        config: { broadcast: { self: false } }
-      });
+        
+        presenceChannelRef.current = presenceChannel;
+      };
       
-      inviteChannel
-        .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
-          console.log('Received invite in lobby:', payload);
-          if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
-            setActiveLiveMatch(payload.matchId);
-            setView('liveGame');
-          }
-        })
-        .subscribe((status) => {
-          console.log('Invite channel status:', status);
-          if (status === 'CHANNEL_ERROR') {
-            console.error('Invite channel error, retrying...');
-            setTimeout(() => {
-              if (inviteChannelRef.current === inviteChannel) {
-                setupInviteChannel();
-              }
-            }, 3000);
-          }
+      // Set up invite channel
+      const setupInviteChannel = () => {
+        const inviteChannel = supabase.channel(`invites:${currentUserId}`, {
+          config: { broadcast: { self: false } }
         });
-
-      inviteChannelRef.current = inviteChannel;
-    };
-
-    setupPresenceChannel();
-    setupInviteChannel();
-
-    // Add a periodic refresh to help with connection issues
-    const presenceInterval = setInterval(() => {
-      if (presenceChannelRef.current) {
-        presenceChannelRef.current.track({
-          user_id: currentUserId,
-          username: currentUserProfile?.username,
-          online_at: new Date().toISOString(),
-        });
-      }
-    }, 30000); // Refresh every 30 seconds
-
-    return () => {
-      clearInterval(presenceInterval);
-      cleanup();
-    };
+        
+        inviteChannel
+          .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
+            console.log('Received invite in lobby:', payload);
+            if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
+              setActiveLiveMatch(payload.matchId);
+              setView('liveGame');
+            }
+          })
+          .subscribe((status) => {
+            console.log('Invite channel status:', status);
+            if (status === 'CHANNEL_ERROR') {
+              console.error('Invite channel error, retrying...');
+              setTimeout(() => {
+                if (inviteChannelRef.current === inviteChannel) {
+                  setupInviteChannel();
+                }
+              }, 3000);
+            }
+          });
+        
+        inviteChannelRef.current = inviteChannel;
+      };
+      
+      setupPresenceChannel();
+      setupInviteChannel();
+      
+      // Add a periodic refresh to help with connection issues
+      const presenceInterval = setInterval(() => {
+        if (presenceChannelRef.current) {
+          presenceChannelRef.current.track({
+            user_id: currentUserId,
+            username: currentUserProfile?.username,
+            online_at: new Date().toISOString(),
+          });
+        }
+      }, 30000); // Refresh every 30 seconds
+      
+      return () => {
+        clearInterval(presenceInterval);
+        cleanup();
+      };
+    }); // Add .then to chain the logic
+    // --- END OF FIX ---
   }, [currentUserId, setActiveLiveMatch, setView, cleanup, currentUserProfile]);
 
   const startLiveMatch = async (opponentId) => {
@@ -253,7 +257,6 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           }, 1000);
         }
       });
-
     } catch (error) {
       console.error('Error starting match:', error);
       alert('Failed to start match: ' + error.message);
