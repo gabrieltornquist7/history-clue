@@ -1,6 +1,6 @@
 // app/page.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from '../lib/supabaseClient';
 import Auth from '../components/Auth';
 import LiveBattleView from '../components/LiveBattleView';
@@ -19,8 +19,11 @@ export default function Page() {
   const [activeDailyPuzzle, setActiveDailyPuzzle] = useState(null);
   const [activeLiveMatch, setActiveLiveMatch] = useState(null);
   const [incomingInvite, setIncomingInvite] = useState(null);
+  
+  const inviteChannelRef = useRef(null);
 
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); });
 

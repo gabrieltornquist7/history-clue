@@ -1,6 +1,6 @@
 // components/LiveLobbyView.js
 "use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) {
@@ -9,85 +9,167 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
   const [loading, setLoading] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
+  const [inviteTimeout, setInviteTimeout] = useState(null);
+  
+  const presenceChannelRef = useRef(null);
+  const inviteChannelRef = useRef(null);
   const currentUserId = session?.user?.id;
+
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (presenceChannelRef.current) {
+      supabase.removeChannel(presenceChannelRef.current);
+      presenceChannelRef.current = null;
+    }
+    if (inviteChannelRef.current) {
+      supabase.removeChannel(inviteChannelRef.current);
+      inviteChannelRef.current = null;
+    }
+    if (inviteTimeout) {
+      clearTimeout(inviteTimeout);
+      setInviteTimeout(null);
+    }
+  }, [inviteTimeout]);
 
   useEffect(() => {
     if (!currentUserId) {
       setLoading(false);
-      return;
+      return cleanup;
     }
 
     const fetchData = async () => {
       setLoading(true);
       
-      const { data: selfProfile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', currentUserId)
-        .single();
-      setCurrentUserProfile(selfProfile);
+      try {
+        // Get current user profile
+        const { data: selfProfile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', currentUserId)
+          .single();
+        setCurrentUserProfile(selfProfile);
 
-      const { data: friendshipsData } = await supabase
-        .from('friendships')
-        .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
-        .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
-        .eq('status', 'accepted');
-        
-      // FIX: Correctly map friendships to friend profiles
-      const friends = (friendshipsData || []).map(f => 
-        f.user_id_1 === currentUserId ? f.user2 : f.user1
-      );
-      setFriendProfiles(friends);
-      setLoading(false);
+        // Get friendships with proper filtering
+        const { data: friendshipsData } = await supabase
+          .from('friendships')
+          .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
+          .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
+          .eq('status', 'accepted');
+          
+        // Correctly map friendships to friend profiles
+        const friends = (friendshipsData || []).map(f => 
+          f.user_id_1 === currentUserId ? f.user2 : f.user1
+        );
+        setFriendProfiles(friends);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
+
     fetchData();
 
-    const channel = supabase.channel('live-lobby-presence');
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const presenceState = channel.presenceState();
-        const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
-        setOnlineUsers([...new Set(onlineUserIds)]);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ user_id: currentUserId });
-        }
+    // Set up presence channel with better error handling
+    const setupPresenceChannel = () => {
+      const presenceChannel = supabase.channel('live-lobby-presence', {
+        config: { presence: { key: currentUserId } }
       });
 
-    const inviteChannel = supabase.channel(`invites:${currentUserId}`);
-    inviteChannel
-      .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
-        if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
-          setActiveLiveMatch(payload.matchId);
-          setView('liveGame');
-        }
-      })
-      .subscribe();
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const presenceState = presenceChannel.presenceState();
+          const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
+          console.log('Online users updated:', onlineUserIds);
+          setOnlineUsers([...new Set(onlineUserIds)]);
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+          console.log('User joined:', key, newPresences);
+        })
+        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+          console.log('User left:', key, leftPresences);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Presence channel subscribed, tracking user');
+            const trackResult = await presenceChannel.track({ 
+              user_id: currentUserId,
+              online_at: new Date().toISOString()
+            });
+            console.log('Track result:', trackResult);
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Presence channel error, retrying...');
+            // Retry connection after a delay
+            setTimeout(setupPresenceChannel, 3000);
+          }
+        });
 
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(inviteChannel);
+      presenceChannelRef.current = presenceChannel;
     };
-  }, [currentUserId, setActiveLiveMatch, setView]);
+
+    // Set up invite channel
+    const setupInviteChannel = () => {
+      const inviteChannel = supabase.channel(`invites:${currentUserId}`);
+      inviteChannel
+        .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
+          console.log('Received invite:', payload);
+          if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
+            setActiveLiveMatch(payload.matchId);
+            setView('liveGame');
+          }
+        })
+        .subscribe((status) => {
+          console.log('Invite channel status:', status);
+        });
+
+      inviteChannelRef.current = inviteChannel;
+    };
+
+    setupPresenceChannel();
+    setupInviteChannel();
+
+    return cleanup;
+  }, [currentUserId, setActiveLiveMatch, setView, cleanup]);
 
   const startLiveMatch = async (opponentId) => {
+    if (waitingForOpponent) return;
+    
     setWaitingForOpponent(true);
     
     try {
+      console.log('Creating live match with opponent:', opponentId);
+      
+      // Create the match
       const { data: matchId, error } = await supabase.rpc('create_live_match', { 
         opponent_id: opponentId 
       });
       
       if (error) {
+        console.error('Error creating match:', error);
+        alert('Error creating match: ' + error.message);
         setWaitingForOpponent(false);
-        return alert('Error creating match: ' + error.message);
+        return;
       }
 
-      const inviteChannel = supabase.channel(`invites:${opponentId}`);
+      console.log('Match created with ID:', matchId);
+
+      // Send invitation with better error handling
+      const inviteChannel = supabase.channel(`temp-invite-${Date.now()}`);
+      
+      const timeout = setTimeout(() => {
+        console.log('Invite timeout, proceeding to game');
+        supabase.removeChannel(inviteChannel);
+        setActiveLiveMatch(matchId);
+        setView('liveGame');
+        setWaitingForOpponent(false);
+      }, 5000);
+
+      setInviteTimeout(timeout);
+
       inviteChannel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await inviteChannel.send({
+          console.log('Sending invite broadcast');
+          const broadcastResult = await inviteChannel.send({
             type: 'broadcast',
             event: 'live_invite',
             payload: { 
@@ -95,15 +177,23 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
               from_username: currentUserProfile?.username || 'A player' 
             },
           });
+          
+          console.log('Broadcast result:', broadcastResult);
+          
+          // Clean up and proceed after a short delay
           setTimeout(() => {
+            clearTimeout(timeout);
             supabase.removeChannel(inviteChannel);
             setActiveLiveMatch(matchId);
             setView('liveGame');
-          }, 3000);
+            setWaitingForOpponent(false);
+          }, 2000);
         }
       });
+
     } catch (error) {
       console.error('Error starting match:', error);
+      alert('Failed to start match: ' + error.message);
       setWaitingForOpponent(false);
     }
   };
@@ -125,12 +215,24 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
   if (waitingForOpponent) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center p-8 bg-papyrus rounded-lg shadow-lg border border-sepia/20">
+        <div className="text-center p-8 bg-papyrus rounded-lg shadow-lg border border-sepia/20 max-w-md">
           <div className="text-2xl font-serif text-gold-rush mb-4">Sending Challenge...</div>
-          <div className="animate-pulse text-lg text-sepia">Waiting for opponent to accept</div>
-          <div className="mt-4">
+          <div className="animate-pulse text-lg text-sepia mb-4">Inviting opponent to battle</div>
+          <div className="mb-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-700 mx-auto"></div>
           </div>
+          <button 
+            onClick={() => {
+              setWaitingForOpponent(false);
+              if (inviteTimeout) {
+                clearTimeout(inviteTimeout);
+                setInviteTimeout(null);
+              }
+            }}
+            className="px-4 py-2 bg-sepia text-white rounded-lg hover:bg-sepia-dark"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     );
@@ -152,6 +254,11 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       </header>
 
       <div className="space-y-8">
+        {/* Debug Info (remove in production) */}
+        <div className="text-xs text-sepia bg-papyrus p-2 rounded">
+          Online Users: {onlineUsers.length} | Friends: {friendProfiles.length} | Channel: {presenceChannelRef.current ? 'Connected' : 'Disconnected'}
+        </div>
+
         <div>
           <h3 className="text-2xl font-serif font-bold text-ink mb-4 flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
@@ -168,18 +275,20 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
                   </div>
                   <button 
                     onClick={() => startLiveMatch(friend.id)}
-                    className="px-4 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-colors shadow-md animate-pulse"
+                    disabled={waitingForOpponent}
+                    className="px-4 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-colors shadow-md animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Battle Now!
                   </button>
                 </div>
               ))
             ) : (
-              <p className="text-sepia text-center py-8">
-                No friends are currently online for Live Battle.
-                <br />
-                <span className="text-sm">Invite friends to join the arena!</span>
-              </p>
+              <div className="text-center py-8">
+                <p className="text-sepia text-lg mb-2">No friends are currently online</p>
+                <p className="text-sepia/70 text-sm">
+                  Friends need to be online for live battles
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -211,6 +320,24 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             )}
           </div>
         </div>
+
+        {/* Add Friends Help */}
+        {friendProfiles.length === 0 && (
+          <div className="text-center py-8 bg-papyrus rounded-lg border border-sepia/20">
+            <h4 className="text-xl font-serif font-bold text-ink mb-2">
+              No Friends Yet?
+            </h4>
+            <p className="text-sepia mb-4">
+              Add friends to challenge them to live battles!
+            </p>
+            <button
+              onClick={() => setView('challenge')}
+              className="px-6 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors"
+            >
+              Find & Add Friends
+            </button>
+          </div>
+        )}
 
         <div className="bg-papyrus p-6 rounded-lg shadow-inner border border-sepia/20">
           <h3 className="font-serif font-bold text-ink mb-2">How Live Battles Work:</h3>
