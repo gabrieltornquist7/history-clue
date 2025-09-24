@@ -9,32 +9,82 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
   const [loading, setLoading] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
-  
+
   const presenceChannelRef = useRef(null);
   const inviteChannelRef = useRef(null);
   const currentUserId = session?.user?.id;
 
-  // Cleanup function
-  const cleanup = useCallback(() => {
-    if (presenceChannelRef.current) {
-      supabase.removeChannel(presenceChannelRef.current);
-      presenceChannelRef.current = null;
-    }
-    if (inviteChannelRef.current) {
-      supabase.removeChannel(inviteChannelRef.current);
-      inviteChannelRef.current = null;
-    }
-  }, []);
-
   useEffect(() => {
     if (!currentUserId) {
       setLoading(false);
-      return cleanup;
+      return;
     }
+
+    let presenceChannel;
+    let inviteChannel;
+    let presenceInterval;
+
+    const setupChannels = (username) => {
+      presenceChannel = supabase.channel('global-presence', {
+        config: {
+          presence: {
+            key: currentUserId,
+          },
+        },
+      });
+
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const presenceState = presenceChannel.presenceState();
+          const onlineUserIds = [];
+          Object.keys(presenceState).forEach(key => {
+            presenceState[key].forEach(presence => {
+              if (presence.user_id && !onlineUserIds.includes(presence.user_id)) {
+                onlineUserIds.push(presence.user_id);
+              }
+            });
+          });
+          setOnlineUsers(onlineUserIds);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await presenceChannel.track({
+              user_id: currentUserId,
+              username: username,
+              online_at: new Date().toISOString(),
+            });
+          }
+        });
+        presenceChannelRef.current = presenceChannel;
+
+
+      inviteChannel = supabase.channel(`invites:${currentUserId}`, {
+        config: { broadcast: { self: false } }
+      });
+
+      inviteChannel
+        .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
+          if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
+            setActiveLiveMatch(payload.matchId);
+            setView('liveGame');
+          }
+        })
+        .subscribe();
+        inviteChannelRef.current = inviteChannel;
+
+      presenceInterval = setInterval(() => {
+        if (presenceChannel) {
+          presenceChannel.track({
+            user_id: currentUserId,
+            username: username,
+            online_at: new Date().toISOString(),
+          });
+        }
+      }, 30000);
+    };
 
     const fetchData = async () => {
       setLoading(true);
-      
       try {
         const { data: selfProfile } = await supabase
           .from('profiles')
@@ -48,11 +98,16 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           .select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`)
           .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`)
           .eq('status', 'accepted');
-          
-        const friends = (friendshipsData || []).map(f => 
+
+        const friends = (friendshipsData || []).map(f =>
           f.user_id_1 === currentUserId ? f.user2 : f.user1
         );
         setFriendProfiles(friends);
+
+        if (selfProfile) {
+            setupChannels(selfProfile.username);
+        }
+
       } catch (error) {
         console.error('Error fetching user data:', error);
       } finally {
@@ -60,98 +115,14 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       }
     };
 
-    fetchData().then(() => {
-      const setupPresenceChannel = () => {
-        const presenceChannel = supabase.channel('global-presence', {
-          config: { 
-            presence: { 
-              key: currentUserId,
-            },
-          },
-        });
+    fetchData();
 
-        presenceChannel
-          .on('presence', { event: 'sync' }, () => {
-            const presenceState = presenceChannel.presenceState();
-            const onlineUserIds = [];
-            Object.keys(presenceState).forEach(key => {
-              presenceState[key].forEach(presence => {
-                if (presence.user_id && !onlineUserIds.includes(presence.user_id)) {
-                  onlineUserIds.push(presence.user_id);
-                }
-              });
-            });
-            setOnlineUsers(onlineUserIds);
-          })
-          .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-            console.log('User joined:', key, newPresences);
-          })
-          .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-            console.log('User left:', key, leftPresences);
-          })
-          .subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-              await presenceChannel.track({ 
-                user_id: currentUserId,
-                username: currentUserProfile?.username,
-                online_at: new Date().toISOString(),
-              });
-            } else if (status === 'CHANNEL_ERROR') {
-              setTimeout(() => {
-                if (presenceChannelRef.current === presenceChannel) {
-                  setupPresenceChannel();
-                }
-              }, 3000);
-            }
-          });
-
-        presenceChannelRef.current = presenceChannel;
-      };
-
-      const setupInviteChannel = () => {
-        const inviteChannel = supabase.channel(`invites:${currentUserId}`, {
-          config: { broadcast: { self: false } }
-        });
-        
-        inviteChannel
-          .on('broadcast', { event: 'live_invite' }, ({ payload }) => {
-            if (window.confirm(`${payload.from_username} challenges you to a Live Battle! Accept?`)) {
-              setActiveLiveMatch(payload.matchId);
-              setView('liveGame');
-            }
-          })
-          .subscribe((status) => {
-            if (status === 'CHANNEL_ERROR') {
-              setTimeout(() => {
-                if (inviteChannelRef.current === inviteChannel) {
-                  setupInviteChannel();
-                }
-              }, 3000);
-            }
-          });
-
-        inviteChannelRef.current = inviteChannel;
-      };
-
-      setupPresenceChannel();
-      setupInviteChannel();
-
-      const presenceInterval = setInterval(() => {
-        if (presenceChannelRef.current) {
-          presenceChannelRef.current.track({
-            user_id: currentUserId,
-            username: currentUserProfile?.username,
-            online_at: new Date().toISOString(),
-          });
-        }
-      }, 30000);
-
-      return () => {
-        clearInterval(presenceInterval);
-        cleanup();
-      };
-    });
-  }, [currentUserId, setActiveLiveMatch, setView, cleanup, currentUserProfile]);
+    return () => {
+      if (presenceChannelRef.current) supabase.removeChannel(presenceChannelRef.current);
+      if (inviteChannelRef.current) supabase.removeChannel(inviteChannelRef.current);
+      if (presenceInterval) clearInterval(presenceInterval);
+    };
+  }, [currentUserId, setActiveLiveMatch, setView]);
 
   const startLiveMatch = async (opponentId) => {
     if (waitingForOpponent) return;
