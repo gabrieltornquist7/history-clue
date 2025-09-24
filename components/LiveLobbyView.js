@@ -95,16 +95,13 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             console.log('User left:', key, leftPresences);
           })
           .subscribe(async (status) => {
-            console.log('Presence channel status:', status);
             if (status === 'SUBSCRIBED') {
-              console.log('Presence channel subscribed, tracking user');
               await presenceChannel.track({ 
                 user_id: currentUserId,
                 username: currentUserProfile?.username,
                 online_at: new Date().toISOString(),
               });
             } else if (status === 'CHANNEL_ERROR') {
-              console.error('Presence channel error, retrying...');
               setTimeout(() => {
                 if (presenceChannelRef.current === presenceChannel) {
                   setupPresenceChannel();
@@ -129,9 +126,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
             }
           })
           .subscribe((status) => {
-            console.log('Invite channel status:', status);
             if (status === 'CHANNEL_ERROR') {
-              console.error('Invite channel error, retrying...');
               setTimeout(() => {
                 if (inviteChannelRef.current === inviteChannel) {
                   setupInviteChannel();
@@ -165,52 +160,54 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
 
   const startLiveMatch = async (opponentId) => {
     if (waitingForOpponent) return;
+    
     setWaitingForOpponent(true);
     
     try {
-      const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });
+      const { data: matchId, error } = await supabase.rpc('create_live_match', { 
+        opponent_id: opponentId 
+      });
+      
       if (error) {
-        console.error('Error creating match:', error);
         alert('Error creating match: ' + error.message);
         setWaitingForOpponent(false);
         return;
       }
 
+      // --- START OF FIX ---
+      // We no longer create a temporary channel. We send directly to the opponent's
+      // listening channel.
       const opponentChannel = supabase.channel(`invites:${opponentId}`);
+      await opponentChannel.subscribe();
       
-      const timeout = setTimeout(() => {
-        console.log('Invite timeout, proceeding to game anyway');
-        supabase.removeChannel(opponentChannel);
+      const broadcastResult = await opponentChannel.send({
+        type: 'broadcast',
+        event: 'live_invite',
+        payload: { 
+          matchId, 
+          from_username: currentUserProfile?.username || 'A player',
+          from_user_id: currentUserId
+        },
+      });
+      
+      if (broadcastResult.error) {
+        console.error('Broadcast error:', broadcastResult.error);
+        alert('Failed to send challenge: ' + broadcastResult.error.message);
+        setWaitingForOpponent(false);
+      } else {
+        // Upon successful broadcast, navigate to the game view immediately.
+        // The opponent will receive the invite on their end.
         setActiveLiveMatch(matchId);
         setView('liveGame');
         setWaitingForOpponent(false);
-      }, 3000);
+      }
+      
+      // We don't need a timeout anymore since we navigate immediately.
+      // We also clean up the channel immediately after the send attempt.
+      supabase.removeChannel(opponentChannel);
+      // --- END OF FIX ---
 
-      setInviteTimeout(timeout);
-
-      opponentChannel.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await opponentChannel.send({
-            type: 'broadcast',
-            event: 'live_invite',
-            payload: { 
-              matchId, 
-              from_username: currentUserProfile?.username || 'A player',
-              from_user_id: currentUserId
-            },
-          });
-          
-          setTimeout(() => {
-            clearTimeout(timeout);
-            supabase.removeChannel(opponentChannel);
-            setActiveLiveMatch(matchId);
-            setView('liveGame');
-            setWaitingForOpponent(false);
-          }, 1000);
-        }
-      });
     } catch (error) {
-      console.error('Error starting match:', error);
       alert('Failed to start match: ' + error.message);
       setWaitingForOpponent(false);
     }
@@ -282,6 +279,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
       </header>
 
       <div className="space-y-8">
+        {/* Debug Info */}
         <div className="text-xs text-sepia bg-papyrus p-3 rounded mb-6">
           <div>Online Users: {onlineUsers.length} ({onlineUsers.join(', ')})</div>
           <div>Friends: {friendProfiles.length} ({friendProfiles.map(f => f.username).join(', ')})</div>
@@ -358,6 +356,7 @@ export default function LiveLobbyView({ setView, session, setActiveLiveMatch }) 
           </div>
         </div>
 
+        {/* Add Friends Help */}
         {friendProfiles.length === 0 && (
           <div className="text-center py-8 bg-papyrus rounded-lg border border-sepia/20">
             <h4 className="text-xl font-serif font-bold text-ink mb-2">
