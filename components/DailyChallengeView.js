@@ -49,22 +49,21 @@ export default function DailyChallengeView({
             .eq('daily_puzzle_id', dailyData.id)
             .single();
           setUserAttempt(attemptData);
-        }
 
-        // Fetch leaderboard - get today's attempts only
-        const { data: leaderboardData, error } = await supabase
-          .from('daily_attempts')
-          .select(`final_score, profiles(username, avatar_url), daily_puzzle_id`)
-          .eq('daily_puzzle_id', dailyData?.id || 0)
-          .order('final_score', { ascending: false })
-          .limit(10);
+          // Fetch leaderboard
+          const { data: leaderboardData, error } = await supabase
+            .from('daily_attempts')
+            .select(`final_score, profiles(username, avatar_url)`)
+            .eq('daily_puzzle_id', dailyData.id)
+            .order('final_score', { ascending: false })
+            .limit(10);
 
-        if (error) {
-          console.error("Error fetching leaderboard:", error);
-          setLeaderboard([]);
-        } else {
-          console.log("Leaderboard data:", leaderboardData);
-          setLeaderboard((leaderboardData || []).filter(item => item.final_score > 0));
+          if (error) {
+            console.error("Error fetching leaderboard:", error);
+            setLeaderboard([]);
+          } else {
+            setLeaderboard((leaderboardData || []).filter(item => item.final_score > 0));
+          }
         }
       } catch (error) {
         console.error("Error in fetchData:", error);
