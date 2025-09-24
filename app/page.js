@@ -10,6 +10,7 @@ import ChallengeView from '../components/ChallengeView';
 import GameView from '../components/GameView';
 import DailyChallengeView from '../components/DailyChallengeView';
 import LiveGameView from '../components/LiveGameView';
+import LiveLobbyView from '../components/LiveLobbyView'; // FIX: Add LiveLobbyView import
 
 export default function Page() {
   const [session, setSession] = useState(null);
@@ -74,13 +75,15 @@ export default function Page() {
   };
   
   const renderView = () => {
-    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily' || view === 'liveGame') && !session) {
+    if ((view === 'endless' || view === 'profile' || view === 'challenge' || view === 'game' || view === 'daily' || view === 'liveGame' || view === 'liveLobby') && !session) { // FIX: Add liveLobby to check
       return <Auth setView={setView} />;
     }
     
     switch(view) {
         case 'liveGame':
             return <LiveGameView session={session} matchId={activeLiveMatch} setView={setView} />;
+        case 'liveLobby': // FIX: Added case for liveLobby
+            return <LiveLobbyView session={session} setView={setView} setActiveLiveMatch={setActiveLiveMatch} />;
         case 'game':
             return <GameView setView={setView} challenge={activeChallenge} session={session} onChallengeComplete={onChallengeComplete} dailyPuzzleInfo={activeDailyPuzzle} onDailyStepComplete={handleDailyStepComplete} />;
         case 'endless':
