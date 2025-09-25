@@ -431,47 +431,50 @@ export default function GameView({ setView, challenge = null, session, onChallen
       `}</style>
 
       {/* Header */}
-      <header className="flex items-center justify-center p-8 relative z-10">
-        <button 
-          onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} 
-          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
-          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
-        >
-          ← Back
-          <div 
-            className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-            style={{ backgroundColor: '#d4af37' }}
-          ></div>
-        </button>
-        <div className="text-center">
-          <h1 
-            className="text-4xl font-serif font-bold text-white mb-2" 
-            style={{ 
-              letterSpacing: '0.02em',
-              textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
-            }}
+      <header className="p-8 relative z-10">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <button 
+            onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} 
+            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+            style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
           >
-            HistoryClue
-          </h1>
-          <p className="text-sm text-gray-300">
-            {dailyPuzzleInfo ? (
-              <>
-                Daily Challenge - Puzzle {dailyPuzzleInfo.step} 
-                <span className="block text-xs" style={{ color: '#d4af37' }}>
-                  ({DIFFICULTY_LABELS[dailyPuzzleInfo.step - 1]})
-                </span>
-              </>
-            ) : challenge ? (
-              `Challenge - Round ${challenge.current_round}`
-            ) : (
-              'Endless Mode'
-            )}
-          </p>
-          {dailyPuzzleInfo && (
-            <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
-              Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
+            ← Back
+            <div 
+              className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+              style={{ backgroundColor: '#d4af37' }}
+            ></div>
+          </button>
+          <div className="text-center flex-1 mx-8">
+            <h1 
+              className="text-3xl sm:text-4xl font-serif font-bold text-white mb-2" 
+              style={{ 
+                letterSpacing: '0.02em',
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              HistoryClue
+            </h1>
+            <p className="text-sm text-gray-300">
+              {dailyPuzzleInfo ? (
+                <>
+                  Daily Challenge - Puzzle {dailyPuzzleInfo.step} 
+                  <span className="block text-xs" style={{ color: '#d4af37' }}>
+                    ({DIFFICULTY_LABELS[dailyPuzzleInfo.step - 1]})
+                  </span>
+                </>
+              ) : challenge ? (
+                `Challenge - Round ${challenge.current_round}`
+              ) : (
+                'Endless Mode'
+              )}
             </p>
-          )}
+            {dailyPuzzleInfo && (
+              <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
+                Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
+              </p>
+            )}
+          </div>
+          <div className="w-24"></div>
         </div>
       </header>
 
