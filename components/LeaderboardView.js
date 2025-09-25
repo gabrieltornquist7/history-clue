@@ -116,7 +116,7 @@ export default function LeaderboardView({ setView }) {
       <header className="flex items-center justify-center p-8 relative">
         <button 
           onClick={() => setView('menu')} 
-          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+          className="absolute left-4 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
           style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
         >
           ← Menu
