@@ -44,7 +44,11 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         supabase.removeChannel(queueChannelRef.current);
       }
       if (inviteChannelRef.current) {
-        supabase.removeChannel(inviteChannelRef.current);
+        if (inviteChannelRef.current.unsubscribe) {
+          inviteChannelRef.current.unsubscribe();
+        } else {
+          supabase.removeChannel(inviteChannelRef.current);
+        }
       }
     };
   }, [session.user.id]);
@@ -204,6 +208,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       // Try using the RPC function first
       const { data, error } = await supabase.rpc('create_battle_invite');
 
+      let inviteData;
       if (error) {
         console.error('RPC Error creating invite:', error);
         
@@ -227,29 +232,59 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         }
 
         console.log('Battle created manually:', battleData);
-        setGeneratedInvite({
+        inviteData = {
           battle_id: battleData.id,
           invite_code: battleData.invite_code,
           player1: battleData.player1,
           player2: battleData.player2
-        });
+        };
       } else {
         console.log('Battle created via RPC:', data);
-        setGeneratedInvite(data);
+        inviteData = data;
       }
 
+      setGeneratedInvite(inviteData);
       setMode('waiting');
 
-      // Listen for opponent joining
-      const channel = supabase.channel(`invite:${generatedInvite?.battle_id || data?.battle_id}`);
+      // Listen for opponent joining - use battle_id in channel name
+      const channel = supabase.channel(`battle_invite:${inviteData.battle_id}`);
       inviteChannelRef.current = channel;
 
       channel
         .on('broadcast', { event: 'opponent_joined' }, ({ payload }) => {
-          setActiveLiveMatch(payload.battle_id || generatedInvite?.battle_id || data?.battle_id);
+          console.log('Opponent joined, starting battle:', payload);
+          setActiveLiveMatch(inviteData.battle_id);
           setView('liveGame');
         })
         .subscribe();
+
+      // Also listen for direct database changes
+      const battleSubscription = supabase
+        .channel(`battle_updates:${inviteData.battle_id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'battles',
+          filter: `id=eq.${inviteData.battle_id}`
+        }, (payload) => {
+          console.log('Battle updated:', payload);
+          if (payload.new.player2 && payload.new.status === 'lobby') {
+            console.log('Player 2 joined, starting battle');
+            setActiveLiveMatch(inviteData.battle_id);
+            setView('liveGame');
+          }
+        })
+        .subscribe();
+
+      // Store subscription for cleanup
+      inviteChannelRef.current = { 
+        channel, 
+        battleSubscription,
+        unsubscribe: () => {
+          supabase.removeChannel(channel);
+          supabase.removeChannel(battleSubscription);
+        }
+      };
 
     } catch (error) {
       console.error('Unexpected error creating invite:', error);
@@ -278,6 +313,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         code: inviteCode.trim().toUpperCase()
       });
 
+      let battleId;
       if (error) {
         console.error('RPC Error joining battle:', error);
         
@@ -313,37 +349,31 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         }
 
         console.log('Joined battle manually:', updatedBattle);
-        
-        // Notify the battle creator
-        const creatorChannel = supabase.channel(`invite:${updatedBattle.id}`);
-        creatorChannel.send({
-          type: 'broadcast',
-          event: 'opponent_joined',
-          payload: { battle_id: updatedBattle.id }
-        });
-
-        setActiveLiveMatch(updatedBattle.id);
-        setView('liveGame');
-        return;
+        battleId = updatedBattle.id;
+      } else {
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        console.log('Joined battle via RPC:', data);
+        battleId = data.battle_id;
       }
 
-      if (data.error) {
-        alert(data.error);
-        return;
-      }
-
-      console.log('Joined battle via RPC:', data);
-
-      // Notify the battle creator
-      const creatorChannel = supabase.channel(`invite:${data.battle_id}`);
-      creatorChannel.send({
+      // Notify the battle creator using the correct channel name
+      const creatorChannel = supabase.channel(`battle_invite:${battleId}`);
+      await creatorChannel.send({
         type: 'broadcast',
         event: 'opponent_joined',
-        payload: { battle_id: data.battle_id }
+        payload: { battle_id: battleId, joiner_id: session.user.id }
       });
 
-      setActiveLiveMatch(data.battle_id);
-      setView('liveGame');
+      console.log('Sent notification to battle creator');
+      
+      // Small delay to ensure notification is sent
+      setTimeout(() => {
+        setActiveLiveMatch(battleId);
+        setView('liveGame');
+      }, 500);
 
     } catch (error) {
       console.error('Unexpected error joining battle:', error);
