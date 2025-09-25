@@ -3,23 +3,24 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function MainMenu({ setView, session, onSignOut }) {
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(0); // stays 0 until streaks table exists
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
   useEffect(() => {
-    const fetchStreak = async () => {
-      if (session) {
-        const { data } = await supabase
-          .from("streaks")
-          .select("streak_count")
-          .eq("user_id", session.user.id)
-          .single();
+    // 🚨 Streak fetch disabled to prevent 404 spam
+    // const fetchStreak = async () => {
+    //   if (session) {
+    //     const { data } = await supabase
+    //       .from("streaks")
+    //       .select("streak_count")
+    //       .eq("user_id", session.user.id)
+    //       .single();
 
-        if (data) {
-          setStreak(data.streak_count);
-        }
-      }
-    };
+    //     if (data) {
+    //       setStreak(data.streak_count);
+    //     }
+    //   }
+    // };
 
     const fetchUserProfile = async () => {
       if (session) {
@@ -35,7 +36,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
       }
     };
 
-    fetchStreak();
+    // fetchStreak(); // disabled
     fetchUserProfile();
   }, [session]);
 
@@ -156,13 +157,6 @@ export default function MainMenu({ setView, session, onSignOut }) {
                   fontFamily: "system-ui, -apple-system, sans-serif",
                   letterSpacing: "-0.02em",
                 }}
-                onMouseEnter={(e) => {
-                  e.target.style.boxShadow =
-                    "0 0 0 2px rgba(212, 175, 55, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.boxShadow = "none";
-                }}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
@@ -186,30 +180,14 @@ export default function MainMenu({ setView, session, onSignOut }) {
                 <button
                   onClick={() => setView("endless")}
                   className="px-5 py-3.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 relative group border border-gray-700/20"
-                  style={{
-                    fontFamily: "system-ui, -apple-system, sans-serif",
-                    letterSpacing: "-0.01em",
-                  }}
                 >
                   Endless Mode
-                  <div
-                    className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-                    style={{ backgroundColor: "#d4af37" }}
-                  ></div>
                 </button>
                 <button
                   onClick={() => setView("challenge")}
                   className="px-5 py-3.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 relative group border border-gray-700/20"
-                  style={{
-                    fontFamily: "system-ui, -apple-system, sans-serif",
-                    letterSpacing: "-0.01em",
-                  }}
                 >
                   Challenge Friend
-                  <div
-                    className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-                    style={{ backgroundColor: "#d4af37" }}
-                  ></div>
                 </button>
               </div>
             </div>
@@ -235,34 +213,19 @@ export default function MainMenu({ setView, session, onSignOut }) {
                 onClick={() => setView("liveLobby")}
                 className="w-full px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group border border-pink-600/15"
                 style={{
-                  background:
-                    "linear-gradient(135deg, #b00050 0%, #d81b60 100%)",
-                  fontFamily: "system-ui, -apple-system, sans-serif",
-                  letterSpacing: "-0.02em",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = "rgba(216, 27, 96, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = "rgba(216, 27, 96, 0.15)";
+                  background: "linear-gradient(135deg, #b00050 0%, #d81b60 100%)",
                 }}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-left">
                     <div className="text-lg font-bold">Live Battle</div>
-                    <div
-                      className="text-xs font-normal text-gray-400 mt-1.5"
-                      style={{ letterSpacing: "0.03em" }}
-                    >
+                    <div className="text-xs font-normal text-gray-400 mt-1.5">
                       Real-time multiplayer
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <span
-                      className="bg-white text-pink-800 px-2.5 py-0.5 rounded-full text-xs font-bold"
-                      style={{ letterSpacing: "0.05em" }}
-                    >
-                      BETA COMING SOON 
+                    <span className="bg-white text-pink-800 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                      BETA COMING SOON
                     </span>
                     <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-pulse"></div>
                   </div>
@@ -280,24 +243,12 @@ export default function MainMenu({ setView, session, onSignOut }) {
                   <button
                     onClick={() => setView("profile")}
                     className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
-                    style={{
-                      fontFamily: "system-ui, -apple-system, sans-serif",
-                      letterSpacing: "-0.01em",
-                    }}
                   >
                     Profile
-                    <div
-                      className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-                      style={{ backgroundColor: "#d4af37" }}
-                    ></div>
                   </button>
                   <button
                     onClick={onSignOut}
                     className="px-5 py-2.5 text-gray-400 hover:text-gray-200 font-medium transition-colors duration-300"
-                    style={{
-                      fontFamily: "system-ui, -apple-system, sans-serif",
-                      letterSpacing: "-0.01em",
-                    }}
                   >
                     Sign Out
                   </button>
@@ -306,16 +257,8 @@ export default function MainMenu({ setView, session, onSignOut }) {
                 <button
                   onClick={() => setView("auth")}
                   className="w-full px-7 py-3.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 border border-gray-700/20 relative group"
-                  style={{
-                    fontFamily: "system-ui, -apple-system, sans-serif",
-                    letterSpacing: "-0.01em",
-                  }}
                 >
                   Login or Sign Up
-                  <div
-                    className="absolute bottom-0 left-7 right-7 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-                    style={{ backgroundColor: "#d4af37" }}
-                  ></div>
                 </button>
               )}
             </div>
@@ -329,10 +272,6 @@ export default function MainMenu({ setView, session, onSignOut }) {
           <button
             onClick={() => setView("leaderboard")}
             className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm"
-            style={{
-              fontFamily: "system-ui, -apple-system, sans-serif",
-              letterSpacing: "0.02em",
-            }}
           >
             Leaderboard
           </button>
@@ -340,10 +279,6 @@ export default function MainMenu({ setView, session, onSignOut }) {
           <button
             onClick={handleContactClick}
             className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm"
-            style={{
-              fontFamily: "system-ui, -apple-system, sans-serif",
-              letterSpacing: "0.02em",
-            }}
           >
             Contact
           </button>
