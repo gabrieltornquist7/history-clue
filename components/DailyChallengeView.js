@@ -240,7 +240,7 @@ export default function DailyChallengeView({
         
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="text-2xl font-serif text-white mb-4">Loading today's challenge...</div>
+            <div className="text-2xl font-serif text-white mb-4">Loading today&apos;s challenge...</div>
             <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function DailyChallengeView({
                     No Daily Challenge Available
                   </p>
                   <p className="text-gray-400">
-                    There was an issue setting up today's challenge. Please try again later or contact support.
+                    There was an issue setting up today&apos;s challenge. Please try again later or contact support.
                   </p>
                 </div>
               ) : userAttempt ? (
@@ -470,7 +470,7 @@ export default function DailyChallengeView({
                 <div className="p-12">
                   <div className="text-center mb-8">
                     <p className="text-3xl font-serif text-white mb-6">
-                      Welcome to Today's Daily Challenge!
+                      Welcome to Today&apos;s Daily Challenge!
                     </p>
                     <p className="text-gray-300 text-lg leading-relaxed mb-8">
                       Face 5 progressively challenging puzzles, from very easy to super hard. 

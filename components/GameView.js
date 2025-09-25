@@ -592,6 +592,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
               <h3 className="text-lg font-serif font-bold text-white mb-3">Year Guess</h3>
               <div className="space-y-4">
                 {/* Direct Input */}
+                {/* Direct Input */}
                 <div className="flex items-center gap-3">
                   <input
                     type="number"
@@ -647,7 +648,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                     border: '1px solid rgba(212, 175, 55, 0.2)'
                   }}
                 >
-                  <p className="text-sm text-gray-400 mb-1 uppercase tracking-wider">Your guess:</p>
+              <p className="text-sm text-gray-400 mb-1 uppercase tracking-wider">Your guess:</p>
                   <p 
                     className="text-2xl font-bold"
                     style={{ 
