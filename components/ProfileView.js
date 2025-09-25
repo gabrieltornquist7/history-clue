@@ -318,8 +318,7 @@ export default function ProfileView({ setView, session, userId = null }) {
                     className="text-sm mb-4"
                     style={{ color: '#d4af37', opacity: 0.9 }}
                   >
-                    "&ldquo;{profile.selected_title}&rdquo;
-"
+                    &quot;{profile.selected_title}&quot;
                   </p>
                 )}
 
