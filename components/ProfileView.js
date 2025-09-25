@@ -1,6 +1,6 @@
-// components/ProfileView.js
+// components/ProfileView.js - Performance Optimized Version
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Image from 'next/image';
 
@@ -18,33 +18,63 @@ export default function ProfileView({ setView, session, userId = null }) {
     async function getProfileData() {
       setLoading(true);
       
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('username, avatar_url, xp, level, is_founder, titles, selected_title')
-        .eq('id', profileId)
-        .single();
-      setProfile(profileData);
+      try {
+        // PERFORMANCE FIX 1: Make all database calls in parallel instead of sequential
+        const promises = [
+          // Profile data
+          supabase
+            .from('profiles')
+            .select('username, avatar_url, xp, level, is_founder, titles, selected_title')
+            .eq('id', profileId)
+            .single(),
+          
+          // Stats data - PERFORMANCE FIX 2: Remove .single() from RPC call as it returns an array
+          supabase.rpc('get_player_stats', { p_user_id: profileId })
+        ];
 
-      const { data: statsData, error: statsError } = await supabase.rpc('get_player_stats', { p_user_id: profileId }).single();
-      if(statsError) console.error("Error fetching stats:", statsError);
-      setStats(statsData);
-
-      // Fetch streak data
-      if (session.user.id === profileId) {
-        const { data: streakData } = await supabase
-          .from("streaks")
-          .select("streak_count")
-          .eq("user_id", profileId)
-          .single();
-        if (streakData) {
-          setStreak(streakData.streak_count);
+        // Add streak query only for own profile
+        if (session.user.id === profileId) {
+          promises.push(
+            supabase
+              .from("streaks")
+              .select("streak_count")
+              .eq("user_id", profileId)
+              .single()
+          );
         }
+
+        // Execute all queries simultaneously
+        const results = await Promise.all(promises);
+        
+        // Process results
+        const { data: profileData, error: profileError } = results[0];
+        const { data: statsData, error: statsError } = results[1];
+        
+        if (profileError) console.error("Error fetching profile:", profileError);
+        if (statsError) console.error("Error fetching stats:", statsError);
+        
+        setProfile(profileData);
+        // PERFORMANCE FIX 3: Handle RPC response properly (it might be an array or single object)
+        setStats(Array.isArray(statsData) ? statsData[0] : statsData);
+
+        // Handle streak data if present
+        if (session.user.id === profileId && results[2]) {
+          const { data: streakData, error: streakError } = results[2];
+          if (streakError) console.error("Error fetching streak:", streakError);
+          if (streakData) {
+            setStreak(streakData.streak_count);
+          }
+        }
+        
+      } catch (error) {
+        console.error("Error loading profile data:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     }
+
     if (profileId) {
-        getProfileData();
+      getProfileData();
     }
   }, [profileId, avatarKey, session.user.id]);
 
@@ -69,36 +99,46 @@ export default function ProfileView({ setView, session, userId = null }) {
     }
   };
   
-  const xpForLevel = (level) => {
-    return Math.floor(1000 * Math.pow(level || 1, 1.5));
-  };
+  // PERFORMANCE FIX 4: Memoize expensive XP calculations
+  const xpCalculations = useMemo(() => {
+    const xpForLevel = (level) => Math.floor(1000 * Math.pow(level || 1, 1.5));
+    const getNextLevelXP = (level) => Math.floor(1000 * Math.pow((level || 1) + 1, 1.5));
+    
+    const currentXP = profile?.xp || 0;
+    const currentLevel = profile?.level || 1;
+    const xpForCurrentLevel = xpForLevel(currentLevel);
+    const xpForNextLevel = getNextLevelXP(currentLevel);
+    const xpProgress = ((currentXP - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100;
+    
+    return {
+      currentXP,
+      currentLevel,
+      xpForCurrentLevel,
+      xpForNextLevel,
+      xpProgress
+    };
+  }, [profile?.xp, profile?.level]);
 
-  const getNextLevelXP = (level) => {
-    return Math.floor(1000 * Math.pow((level || 1) + 1, 1.5));
-  };
-
-  let avatarSrc = 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
-  if (profile?.avatar_url) {
+  // PERFORMANCE FIX 5: Memoize avatar URL generation
+  const avatarSrc = useMemo(() => {
+    if (!profile?.avatar_url) {
+      return 'https://placehold.co/128x128/fcf8f0/5a4b41?text=??';
+    }
     const { data } = supabase.storage.from('avatars').getPublicUrl(profile.avatar_url);
-    avatarSrc = data.publicUrl;
-  }
+    return data.publicUrl;
+  }, [profile?.avatar_url]);
 
-  const isOwnProfile = session.user.id === profileId;
-  const currentXP = profile?.xp || 0;
-  const currentLevel = profile?.level || 1;
-  const xpForCurrentLevel = xpForLevel(currentLevel);
-  const xpForNextLevel = getNextLevelXP(currentLevel);
-  const xpProgress = ((currentXP - xpForCurrentLevel) / (xpForNextLevel - xpForCurrentLevel)) * 100;
-
-  // Mock badges data (replace with real data when implemented)
-  const mockBadges = [
+  // PERFORMANCE FIX 6: Memoize badge calculations
+  const mockBadges = useMemo(() => [
     { id: 'first_win', name: 'First Victory', unlocked: true, icon: '🏆' },
     { id: 'streak_5', name: '5 Day Streak', unlocked: streak >= 5, icon: '🔥' },
     { id: 'high_scorer', name: 'High Scorer', unlocked: (stats?.total_score || 0) > 10000, icon: '⭐' },
     { id: 'social_player', name: 'Social Player', unlocked: false, icon: '👥' },
     { id: 'puzzle_master', name: 'Puzzle Master', unlocked: false, icon: '🧩' },
     { id: 'speed_demon', name: 'Speed Demon', unlocked: false, icon: '⚡' }
-  ];
+  ], [streak, stats?.total_score]);
+
+  const isOwnProfile = session.user.id === profileId;
 
   if (loading) {
     return (
@@ -290,6 +330,9 @@ export default function ProfileView({ setView, session, userId = null }) {
                       width={120} 
                       height={120} 
                       className="w-full h-full rounded-full object-cover"
+                      // PERFORMANCE FIX 7: Add loading priority and sizes
+                      priority={true}
+                      sizes="120px"
                     />
                   </div>
                   {isOwnProfile && (
@@ -336,7 +379,7 @@ export default function ProfileView({ setView, session, userId = null }) {
                         className="text-lg font-bold"
                         style={{ color: '#d4af37' }}
                       >
-                        Level {currentLevel}
+                        Level {xpCalculations.currentLevel}
                       </span>
                     </div>
                     {session.user.id === profileId && streak > 0 && (
@@ -364,15 +407,15 @@ export default function ProfileView({ setView, session, userId = null }) {
                     <div 
                       className="h-full rounded-full transition-all duration-1000 ease-out"
                       style={{ 
-                        width: `${Math.max(5, Math.min(xpProgress, 100))}%`,
+                        width: `${Math.max(5, Math.min(xpCalculations.xpProgress, 100))}%`,
                         background: 'linear-gradient(90deg, #d4af37 0%, #f4e376 50%, #d4af37 100%)',
                         boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
                       }}
                     ></div>
                   </div>
                   <div className="flex justify-between text-xs text-gray-400 mt-2">
-                    <span>{currentXP.toLocaleString()} XP</span>
-                    <span>Next: {xpForNextLevel.toLocaleString()} XP</span>
+                    <span>{xpCalculations.currentXP.toLocaleString()} XP</span>
+                    <span>Next: {xpCalculations.xpForNextLevel.toLocaleString()} XP</span>
                   </div>
                 </div>
 
