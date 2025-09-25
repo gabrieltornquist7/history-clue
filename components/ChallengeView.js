@@ -67,16 +67,25 @@ useEffect(() => {
     if (error) {
         return alert('Error creating match: ' + error.message);
     }
-    
+
     const inviteChannel = supabase.channel(`invites:${opponentId}`);
     inviteChannel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
             await inviteChannel.send({
                 type: 'broadcast',
                 event: 'live_invite',
-                payload: { matchId, from_username: currentUserProfile?.username || 'A player' },
+                payload: {
+                  battle_id: matchId,
+                  matchId,
+                  from_username: currentUserProfile?.username || 'A player'
+                },
             });
-            supabase.removeChannel(inviteChannel);
+
+            // Don't remove channel immediately - let the recipient process the invite
+            // The channel will be cleaned up when the component unmounts
+            setTimeout(() => {
+                supabase.removeChannel(inviteChannel);
+            }, 5000); // Give 5 seconds for the invite to be processed
         }
     });
     setActiveLiveMatch(matchId);

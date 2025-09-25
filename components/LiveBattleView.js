@@ -42,6 +42,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   useEffect(() => {
     let isMounted = true;
+    let battleChannel = null;
 
     const initializeBattle = async () => {
       try {
@@ -75,7 +76,46 @@ export default function LiveBattleView({ session, battleId, setView }) {
           username: oppProfile?.username || 'Anonymous'
         });
 
-        // 2. Check if there's an active round
+        // 2. Setup realtime channel for battle
+        battleChannel = supabase.channel(`live_battle:${battleId}`);
+
+        battleChannel
+          .on('broadcast', { event: 'opponent_joined' }, ({ payload }) => {
+            console.log('Opponent joined:', payload);
+          })
+          .on('broadcast', { event: 'opponent_guess' }, ({ payload }) => {
+            console.log('Opponent made guess:', payload);
+            setOppGuess(payload.guess);
+
+            // Both players finished, show results
+            if (myGuess) {
+              setRoundResult({
+                myScore: myGuess.score,
+                oppScore: payload.guess.score,
+                winner: myGuess.score > payload.guess.score ? 'me' : myGuess.score < payload.guess.score ? 'opponent' : 'tie'
+              });
+              setGameFinished(true);
+            }
+          })
+          .on('broadcast', { event: 'clue_revealed' }, ({ payload }) => {
+            console.log('Opponent revealed clue:', payload);
+          })
+          .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED' && isMounted) {
+              console.log('Connected to battle channel');
+              // Announce that we've joined
+              await battleChannel.send({
+                type: 'broadcast',
+                event: 'opponent_joined',
+                payload: {
+                  player: session.user.id,
+                  username: session.user.user_metadata?.username || 'Player'
+                }
+              });
+            }
+          });
+
+        // 3. Check if there's an active round
         let { data: existingRound, error: roundError } = await supabase
           .from('battle_rounds')
           .select('*')
@@ -87,10 +127,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
           console.error('Error checking for rounds:', roundError);
         }
 
-        // 3. Create round if none exists
+        // 4. Create round if none exists
         if (!existingRound) {
           console.log('No active round found, creating one...');
-          
+
           // Get random puzzle
           const { data: puzzles, error: puzzleError } = await supabase
             .from('puzzles')
@@ -128,7 +168,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         currentRoundId.current = existingRound.id;
 
-        // 4. Load puzzle
+        // 5. Load puzzle
         const { data: puzzleData, error: puzzleError } = await supabase
           .from('puzzles')
           .select('*, puzzle_translations(*)')
@@ -144,7 +184,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         setPuzzle(puzzleData);
         console.log('Puzzle loaded:', puzzleData.id);
 
-        // 5. Load any existing moves
+        // 6. Load any existing moves
         const { data: moves } = await supabase
           .from('battle_moves')
           .select('*')
@@ -175,6 +215,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }
         }
 
+        // 7. Check for existing opponent guess
+        const { data: oppMoves } = await supabase
+          .from('battle_moves')
+          .select('payload')
+          .eq('round_id', existingRound.id)
+          .neq('player', session.user.id)
+          .eq('action', 'guess');
+
+        if (oppMoves && oppMoves.length > 0) {
+          setOppGuess(oppMoves[0].payload);
+        }
+
         setLoading(false);
         startTimer();
 
@@ -194,8 +246,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (battleChannel) {
+        supabase.removeChannel(battleChannel);
+      }
     };
-  }, [battleId, session.user.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
 
   const startTimer = () => {
     timerRef.current = setInterval(() => {
@@ -214,20 +270,33 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   const handleRevealClue = async (clueIndex) => {
     if (myClues.includes(clueIndex) || myScore < CLUE_COSTS[clueIndex] || myGuess) return;
-    
+
     const cost = CLUE_COSTS[clueIndex];
     const newScore = myScore - cost;
-    
+
     setMyScore(newScore);
     setMyClues(prev => [...prev, clueIndex].sort());
 
-    // Save move
+    // Save move to database
     await supabase.from('battle_moves').insert({
       round_id: currentRoundId.current,
       player: session.user.id,
       action: 'reveal_clue',
       payload: { clue_index: clueIndex }
     });
+
+    // Broadcast clue reveal to opponent
+    const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
+    if (battleChannel) {
+      await battleChannel.send({
+        type: 'broadcast',
+        event: 'clue_revealed',
+        payload: {
+          player: session.user.id,
+          clue_index: clueIndex
+        }
+      });
+    }
   };
 
   const handleMapGuess = (latlng) => {
@@ -256,21 +325,21 @@ export default function LiveBattleView({ session, battleId, setView }) {
     }
 
     const distance = getDistance(
-      coords.lat, 
-      coords.lng, 
-      parseFloat(puzzle.latitude), 
+      coords.lat,
+      coords.lng,
+      parseFloat(puzzle.latitude),
       parseFloat(puzzle.longitude)
     );
-    
+
     const clueCount = myClues.length;
     const baseScore = SCORING_POINTS[clueCount - 1] || 0;
     const distancePenalty = Math.min(baseScore * 0.5, (distance / 1000) * 10);
     const yearDiff = Math.abs(selectedYear - puzzle.year);
     const timePenalty = Math.min(baseScore * 0.3, yearDiff * 5);
-    
+
     let finalScore = Math.max(0, baseScore - distancePenalty - timePenalty);
     if (distance < 50) finalScore += Math.min(1000, baseScore * 0.2);
-    
+
     finalScore = Math.round(finalScore);
 
     const guessData = {
@@ -289,7 +358,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       clearInterval(timerRef.current);
     }
 
-    // Save guess
+    // Save guess to database
     await supabase.from('battle_moves').insert({
       round_id: currentRoundId.current,
       player: session.user.id,
@@ -297,35 +366,30 @@ export default function LiveBattleView({ session, battleId, setView }) {
       payload: guessData
     });
 
-    // Check if opponent finished
-    setTimeout(checkRoundComplete, 1000);
-  };
+    // Broadcast guess to opponent via realtime channel
+    const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
+    if (battleChannel) {
+      await battleChannel.send({
+        type: 'broadcast',
+        event: 'opponent_guess',
+        payload: {
+          player: session.user.id,
+          guess: guessData
+        }
+      });
+    }
 
-  const checkRoundComplete = async () => {
-    // Check if opponent has made their guess
-    const { data: oppMoves } = await supabase
-      .from('battle_moves')
-      .select('payload')
-      .eq('round_id', currentRoundId.current)
-      .eq('player', opponent.id)
-      .eq('action', 'guess');
-
-    if (oppMoves && oppMoves.length > 0) {
-      const oppGuessData = oppMoves[0].payload;
-      setOppGuess(oppGuessData);
-      
-      // Both finished, show results
+    // Check if opponent already finished (for late joiners)
+    if (oppGuess) {
       setRoundResult({
-        myScore: myGuess.score,
-        oppScore: oppGuessData.score,
-        winner: myGuess.score > oppGuessData.score ? 'me' : myGuess.score < oppGuessData.score ? 'opponent' : 'tie'
+        myScore: guessData.score,
+        oppScore: oppGuess.score,
+        winner: guessData.score > oppGuess.score ? 'me' : guessData.score < oppGuess.score ? 'opponent' : 'tie'
       });
       setGameFinished(true);
-    } else {
-      // Keep checking
-      setTimeout(checkRoundComplete, 2000);
     }
   };
+
 
   const getClueText = (clueNumber) => {
     return puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];

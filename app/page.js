@@ -88,9 +88,10 @@ export default function Page() {
       
       inviteChannel
         .on("broadcast", { event: "live_invite" }, ({ payload }) => {
+          console.log('Received live invite:', payload);
           setIncomingInvite({
             ...payload,
-            matchId: payload.battle_id // Map to your existing structure
+            matchId: payload.battle_id || payload.matchId // Support both field names for compatibility
           });
         })
         .subscribe();
@@ -149,18 +150,20 @@ export default function Page() {
   };
 
   const acceptInvite = () => {
-    setActiveLiveMatch(incomingInvite.battle_id);
+    const battleId = incomingInvite.battle_id || incomingInvite.matchId;
+    setActiveLiveMatch(battleId);
     setIncomingInvite(null);
     handleSetView("liveGame");
   };
 
   const declineInvite = async () => {
     // Clean up the battle invitation
-    if (incomingInvite?.battle_id) {
+    const battleId = incomingInvite?.battle_id || incomingInvite?.matchId;
+    if (battleId) {
       await supabase
         .from('battles')
         .delete()
-        .eq('id', incomingInvite.battle_id);
+        .eq('id', battleId);
     }
     setIncomingInvite(null);
   };
