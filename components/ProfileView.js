@@ -34,15 +34,15 @@ export default function ProfileView({ setView, session, userId = null }) {
 
         // EMERGENCY FIX: Comment out streak query that's causing 404 spam
         // Add streak query only for own profile
-        // if (session.user.id === profileId) {
-        //   promises.push(
-        //     supabase
-        //       .from("streaks")
-        //       .select("streak_count")
-        //       .eq("user_id", profileId)
-        //       .single()
-        //   );
-        // }
+         if (session.user.id === profileId) {
+           promises.push(
+             supabase
+               .from("streaks")
+               .select("streak_count")
+               .eq("user_id", profileId)
+               .single()
+           );
+         }
 
         // Execute all queries simultaneously
         const results = await Promise.all(promises);
