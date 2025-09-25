@@ -117,11 +117,11 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
     
     if (c.status === 'completed') {
         if (c.winner_id === currentUserId) {
-            return { text: `You Won ${challengerWins}-${opponentWins}`, color: 'text-emerald-400' };
+            return { text: `You Won ${challengerWins}-${opponentWins}`, color: '#d4af37' };
         } else if (c.winner_id) {
-            return { text: `You Lost ${opponentWins}-${challengerWins}`, color: 'text-red-400' };
+            return { text: `You Lost ${opponentWins}-${challengerWins}`, color: '#ff6b6b' };
         } else {
-            return { text: `Draw ${challengerWins}-${opponentWins}`, color: 'text-gray-400' };
+            return { text: `Draw ${challengerWins}-${opponentWins}`, color: '#888' };
         }
     }
     
@@ -133,9 +133,21 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
           button: (
             <button 
               onClick={() => playChallenge(c)} 
-              className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-bold rounded-lg hover:from-pink-600 hover:to-rose-600 transition-all duration-200 shadow-lg hover:shadow-pink-500/25"
+              className="px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group"
+              style={{
+                background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                letterSpacing: '-0.02em',
+                boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+              }}
             >
-              Play
+              Play Now
             </button>
           )
         };
@@ -156,304 +168,677 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   };
 
   const tabs = [
-    { id: 'challenges', label: 'My Matches', count: incomingChallenges.length },
+    { id: 'challenges', label: 'Matches', count: incomingChallenges.length },
     { id: 'find', label: 'Find Players' },
-    { id: 'requests', label: 'Friend Requests', count: pendingRequests.length }
+    { id: 'requests', label: 'Requests', count: pendingRequests.length }
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-800 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-transparent to-transparent"></div>
-      <div className="absolute top-0 left-1/2 w-96 h-96 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full blur-3xl transform -translate-x-1/2 animate-pulse"></div>
-      
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
-        <header className="mb-8 text-center relative">
-          <button 
-            onClick={() => setView('menu')} 
-            className="absolute left-0 top-1/2 -translate-y-1/2 px-6 py-3 bg-black/50 backdrop-blur-sm border border-gray-700/50 text-white font-bold rounded-xl hover:bg-black/70 transition-all duration-200 shadow-lg hover:shadow-xl"
-          > 
-            ← Menu 
-          </button>
-          <h1 className="text-5xl font-serif font-bold bg-gradient-to-r from-amber-300 to-yellow-500 bg-clip-text text-transparent drop-shadow-lg"> 
-            Friend Matches 
-          </h1>
-          <button
-            onClick={handleInvite}
-            className="absolute right-0 top-1/2 -translate-y-1/2 px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-600 text-black font-bold rounded-xl hover:from-amber-600 hover:to-yellow-700 transition-all duration-200 shadow-lg hover:shadow-amber-500/25"
-          >
-            Invite Friend
-          </button>
-        </header>
+  if (loading) {
+    return (
+      <div 
+        className="min-h-screen relative"
+        style={{
+          background: `
+            linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+            radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+          `,
+          backgroundBlendMode: "overlay",
+        }}
+      >
+        {/* Metallic shine overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
 
-        {/* Tab Navigation */}
-        <div className="mb-8 flex justify-center">
-          <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-2 border border-gray-700/50">
-            <div className="flex space-x-2">
-              {tabs.map((tabItem) => (
-                <button
-                  key={tabItem.id}
-                  onClick={() => setTab(tabItem.id)}
-                  className={`relative px-6 py-3 font-bold rounded-xl transition-all duration-200 ${
-                    tab === tabItem.id
-                      ? 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 border border-amber-500/30'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                  }`}
-                >
-                  <span className="text-xs uppercase tracking-wider">{tabItem.label}</span>
-                  {tabItem.count > 0 && (
-                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-red-500 to-pink-500 rounded-full text-xs text-white flex items-center justify-center font-bold">
-                      {tabItem.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+        <style jsx>{`
+          @keyframes shine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+
+        <header className="p-8 relative z-10">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <button
+              onClick={() => setView('menu')}
+              className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+              style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
+            >
+              ← Menu
+              <div 
+                className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                style={{ backgroundColor: '#d4af37' }}
+              ></div>
+            </button>
+            <div className="text-center flex-1 mx-8">
+              <h1 
+                className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2" 
+                style={{ 
+                  letterSpacing: '0.02em',
+                  textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+                }}
+              >
+                Friend Matches
+              </h1>
+              <p 
+                className="text-sm italic font-light"
+                style={{ 
+                  color: '#d4af37', 
+                  opacity: 0.9, 
+                  letterSpacing: '0.05em' 
+                }}
+              >
+                Challenge friends • Compete for glory
+              </p>
             </div>
+            <div className="w-24"></div>
+          </div>
+        </header>
+        
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="text-2xl font-serif text-white mb-4">Loading friend matches...</div>
+            <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {loading ? (
-          <div className="text-center py-20">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-amber-400"></div>
-            <p className="mt-4 text-gray-400">Loading matches...</p>
+  return (
+    <div 
+      className="min-h-screen relative"
+      style={{
+        background: `
+          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+        `,
+        backgroundBlendMode: "overlay",
+      }}
+    >
+      {/* Metallic shine overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+          backgroundSize: "200% 200%",
+          animation: "shine 12s linear infinite",
+        }}
+      ></div>
+
+      <style jsx>{`
+        @keyframes shine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        @keyframes slideUp {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+          animation: slideUp 0.6s ease-out;
+        }
+      `}</style>
+
+      {/* Header */}
+      <header className="flex items-center justify-center p-8 relative z-10">
+        <button
+          onClick={() => setView('menu')}
+          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
+        >
+          ← Menu
+          <div 
+            className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+            style={{ backgroundColor: '#d4af37' }}
+          ></div>
+        </button>
+        <div className="text-center">
+          <h1 
+            className="text-5xl font-serif font-bold text-white mb-2" 
+            style={{ 
+              letterSpacing: '0.02em',
+              textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+            }}
+          >
+            Friend Matches
+          </h1>
+          <p 
+            className="text-sm italic font-light"
+            style={{ 
+              color: '#d4af37', 
+              opacity: 0.9, 
+              letterSpacing: '0.05em' 
+            }}
+          >
+            Challenge friends • Compete for glory
+          </p>
+        </div>
+        <button
+          onClick={handleInvite}
+          className="absolute right-8 px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group"
+          style={{ 
+            background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            letterSpacing: '-0.02em',
+            boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+          }}
+        >
+          Invite Friend
+        </button>
+      </header>
+
+      <div className="px-8 pb-8 relative z-10">
+        <div className="max-w-7xl mx-auto">
+          
+          {/* Tab Navigation */}
+          <div className="flex justify-center mb-8">
+            <div 
+              className="backdrop-blur rounded-lg p-1.5 border"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <div className="flex space-x-2">
+                {tabs.map((tabItem) => (
+                  <button
+                    key={tabItem.id}
+                    onClick={() => setTab(tabItem.id)}
+                    className={`relative px-5 py-2.5 font-medium rounded-md transition-all duration-300 ${
+                      tab === tabItem.id
+                        ? 'bg-gray-800 text-white border border-gray-700/30'
+                        : 'text-gray-400 hover:text-gray-200 hover:bg-gray-900/50'
+                    }`}
+                    style={{
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      letterSpacing: '-0.01em'
+                    }}
+                  >
+                    {tabItem.label}
+                    {tabItem.count > 0 && (
+                      <span 
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs text-white flex items-center justify-center font-bold"
+                        style={{ backgroundColor: '#d4af37' }}
+                      >
+                        {tabItem.count}
+                      </span>
+                    )}
+                    {tab === tabItem.id && (
+                      <div 
+                        className="absolute bottom-0 left-5 right-5 h-px"
+                        style={{ backgroundColor: '#d4af37' }}
+                      ></div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        ) : (
+
+          {/* Content */}
           <div className="space-y-8">
             {tab === 'challenges' && (
-              <div className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
                 {/* Online Friends */}
-                <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Online Friends</h3>
-                  <div className="space-y-3">
-                    {onlineFriendProfiles.length > 0 ? (
-                      onlineFriendProfiles.map(friend => (
-                        <div key={friend.id} className="bg-gray-800/30 hover:bg-gray-700/40 transition-all duration-200 rounded-lg p-4 border border-gray-700/30 hover:border-gray-600/50">
-                          <div className="flex items-center justify-between">
+                <div 
+                  className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Online Friends
+                    </h2>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {onlineFriendProfiles.length > 0 ? onlineFriendProfiles.map(friend => (
+                        <div 
+                          key={friend.id} 
+                          className="p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/30"
+                          style={{ 
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              <div className="relative">
-                                <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center">
-                                  <span className="text-sm font-bold text-white">{friend.username[0].toUpperCase()}</span>
-                                </div>
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-gray-900 rounded-full"></span>
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: '#d4af37' }}
+                                ></div>
+                                <span className="font-semibold text-white">{friend.username}</span>
                               </div>
-                              <span className="font-bold text-white">{friend.username}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => startLiveMatch(friend.id)} 
-                                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-bold rounded-lg hover:from-pink-600 hover:to-rose-600 transition-all duration-200 shadow-lg hover:shadow-pink-500/25"
-                              >
-                                Live Battle
-                              </button>
-                              <button 
-                                onClick={() => sendChallenge(friend.id)} 
-                                className="px-4 py-2 bg-gray-700 border border-gray-600 text-white text-sm font-bold rounded-lg hover:bg-gray-600 hover:border-amber-500/50 transition-all duration-200"
-                              >
-                                Challenge
-                              </button>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-400 text-center py-8">No friends are currently online.</p>
-                    )}
-                  </div>
-                </section>
-
-                {/* Offline Friends */}
-                <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Offline Friends</h3>
-                  <div className="space-y-3">
-                    {offlineFriendProfiles.length > 0 ? (
-                      offlineFriendProfiles.map(friend => (
-                        <div key={friend.id} className="bg-gray-800/30 hover:bg-gray-700/40 transition-all duration-200 rounded-lg p-4 border border-gray-700/30 hover:border-gray-600/50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="relative">
-                                <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center">
-                                  <span className="text-sm font-bold text-white">{friend.username[0].toUpperCase()}</span>
-                                </div>
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-500 border-2 border-gray-900 rounded-full"></span>
-                              </div>
-                              <span className="font-bold text-gray-300">{friend.username}</span>
-                            </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button 
+                              onClick={() => startLiveMatch(friend.id)} 
+                              className="px-4 py-2.5 font-bold text-white rounded-md transition-all duration-300 relative group border border-pink-600/15"
+                              style={{
+                                background: 'linear-gradient(135deg, #b00050 0%, #d81b60 100%)',
+                                fontFamily: 'system-ui, -apple-system, sans-serif',
+                                letterSpacing: '-0.02em'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.borderColor = 'rgba(216, 27, 96, 0.4)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.borderColor = 'rgba(216, 27, 96, 0.15)';
+                              }}
+                            >
+                              Live Battle
+                            </button>
                             <button 
                               onClick={() => sendChallenge(friend.id)} 
-                              className="px-4 py-2 bg-gray-700 border border-gray-600 text-white text-sm font-bold rounded-lg hover:bg-gray-600 hover:border-amber-500/50 transition-all duration-200"
+                              className="px-4 py-2.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 border border-gray-700/20 relative group"
+                              style={{
+                                fontFamily: 'system-ui, -apple-system, sans-serif',
+                                letterSpacing: '-0.01em'
+                              }}
                             >
                               Challenge
+                              <div 
+                                className="absolute bottom-0 left-4 right-4 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                                style={{ backgroundColor: '#d4af37' }}
+                              ></div>
                             </button>
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-400 text-center py-8">No offline friends to challenge.</p>
-                    )}
-                  </div>
-                </section>
-
-                {/* Your Turn */}
-                <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Your Turn</h3>
-                  <div className="space-y-3">
-                    {incomingChallenges.length > 0 ? (
-                      incomingChallenges.map(c => {
-                        const status = getChallengeStatus(c);
-                        const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
-                        return (
-                          <div key={c.id} className="bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 rounded-lg p-4">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-amber-300">Your turn against {opponentName}! Round {c.current_round}</span>
-                              {status.button}
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-gray-400 text-center py-8">No matches waiting for your turn.</p>
-                    )}
-                  </div>
-                </section>
-
-                {/* Waiting for Opponent */}
-                <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Waiting for Opponent</h3>
-                  <div className="space-y-3">
-                    {outgoingChallenges.length > 0 ? (
-                      outgoingChallenges.map(c => {
-                        const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
-                        return (
-                          <div key={c.id} className="bg-gray-800/30 rounded-lg p-4 border border-gray-700/30">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-gray-300">Waiting for {opponentName}... Round {c.current_round}</span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-                                <span className="text-sm text-gray-500">Pending</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-gray-400 text-center py-8">No active matches waiting for an opponent.</p>
-                    )}
-                  </div>
-                </section>
-
-                {/* Completed Matches */}
-                <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Match History</h3>
-                  <div className="space-y-3">
-                    {completedChallenges.length > 0 ? (
-                      completedChallenges.map(c => {
-                        const status = getChallengeStatus(c);
-                        return (
-                          <div key={c.id} className="bg-gray-800/30 hover:bg-gray-700/40 transition-all duration-200 rounded-lg p-4 border border-gray-700/30">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-white">{c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}</p>
-                                <p className="text-sm text-gray-400">Completed match</p>
-                              </div>
-                              <span className={`font-bold ${status.color} text-sm`}>{status.text}</span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-gray-400 text-center py-8">No completed matches yet.</p>
-                    )}
-                  </div>
-                </section>
-              </div>
-            )}
-
-            {tab === 'find' && (
-              <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Find Players</h3>
-                
-                {/* Search Bar */}
-                <div className="mb-6">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search players by username..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500/50 focus:bg-gray-800/70 transition-all duration-200"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
+                      )) : (
+                        <p className="text-center text-gray-400 italic py-8">No friends are currently online.</p>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {filteredNonFriendProfiles.length > 0 ? (
-                    filteredNonFriendProfiles.map(profile => (
-                      <div key={profile.id} className="bg-gray-800/30 hover:bg-gray-700/40 transition-all duration-200 rounded-lg p-4 border border-gray-700/30 hover:border-gray-600/50">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-bold text-white">{profile.username[0].toUpperCase()}</span>
+                {/* Offline Friends */}
+                <div 
+                  className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Offline Friends
+                    </h2>
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {offlineFriendProfiles.length > 0 ? offlineFriendProfiles.map(friend => (
+                        <div 
+                          key={friend.id} 
+                          className="p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/30"
+                          style={{ 
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                                <span className="font-semibold text-gray-300">{friend.username}</span>
+                              </div>
                             </div>
-                            <span className="font-bold text-white">{profile.username}</span>
+                            <button 
+                              onClick={() => sendChallenge(friend.id)} 
+                              className="px-4 py-2.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 border border-gray-700/20 relative group"
+                              style={{
+                                fontFamily: 'system-ui, -apple-system, sans-serif',
+                                letterSpacing: '-0.01em'
+                              }}
+                            >
+                              Challenge
+                              <div 
+                                className="absolute bottom-0 left-4 right-4 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                                style={{ backgroundColor: '#d4af37' }}
+                              ></div>
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => handleAddFriend(profile.id)} 
-                            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-sm font-bold rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
-                          >
-                            Add Friend
-                          </button>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-8">
-                      {searchQuery ? `No players found matching "${searchQuery}"` : 'No new players to add.'}
-                    </p>
-                  )}
+                      )) : (
+                        <p className="text-center text-gray-400 italic py-8">No offline friends to challenge.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </section>
+
+                {/* Your Turn */}
+                <div 
+                  className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Your Turn
+                    </h2>
+                    <div className="space-y-3">
+                      {incomingChallenges.length > 0 ? incomingChallenges.map(c => {
+                        const status = getChallengeStatus(c);
+                        const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
+                        return (
+                          <div 
+                            key={c.id} 
+                            className="p-4 rounded-lg border"
+                            style={{ 
+                              backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                              border: '1px solid rgba(139, 69, 19, 0.3)'
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-white mb-1">vs {opponentName}</p>
+                                <p className="text-sm text-gray-400">Round {c.current_round}</p>
+                              </div>
+                              {status.button}
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <p className="text-center text-gray-400 italic py-8">No matches waiting for your turn.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Waiting for Opponent */}
+                <div 
+                  className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Waiting for Opponent
+                    </h2>
+                    <div className="space-y-3">
+                      {outgoingChallenges.length > 0 ? outgoingChallenges.map(c => {
+                        const opponentName = c.challenger_id === currentUserId ? c.opponent?.username : c.challenger?.username;
+                        return (
+                          <div 
+                            key={c.id} 
+                            className="p-4 rounded-lg border transition-all duration-300"
+                            style={{ 
+                              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                              border: '1px solid rgba(255, 255, 255, 0.05)'
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-white mb-1">vs {opponentName}</p>
+                                <p className="text-sm text-gray-400">Round {c.current_round}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-2 h-2 rounded-full animate-pulse"
+                                  style={{ backgroundColor: '#d4af37' }}
+                                ></div>
+                                <span className="text-sm text-gray-500">Waiting</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <p className="text-center text-gray-400 italic py-8">No matches waiting for an opponent.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Completed Matches - Full Width */}
+                <div 
+                  className="lg:col-span-2 backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Match History
+                    </h2>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {completedChallenges.length > 0 ? completedChallenges.map(c => {
+                        const status = getChallengeStatus(c);
+                        return (
+                          <div 
+                            key={c.id} 
+                            className="p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/30"
+                            style={{ 
+                              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                              border: '1px solid rgba(255, 255, 255, 0.05)'
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-white mb-1">
+                                  {c.challenger?.username || 'Player 1'} vs {c.opponent?.username || 'Player 2'}
+                                </p>
+                                <p className="text-sm text-gray-400">Completed match</p>
+                              </div>
+                              <span 
+                                className="font-bold text-sm"
+                                style={{ color: status.color }}
+                              >
+                                {status.text}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <p className="text-center text-gray-400 italic py-8">No completed matches yet.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === 'find' && (
+              <div className="max-w-2xl mx-auto">
+                <div 
+                  className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Find Players
+                    </h2>
+                    
+                    {/* Search Bar */}
+                    <div className="mb-6">
+                      <input
+                        type="text"
+                        placeholder="Search players by username..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-900 text-white font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 focus:border-yellow-500/50 focus:outline-none transition-all duration-300"
+                        style={{
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          letterSpacing: '-0.01em'
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {filteredNonFriendProfiles.length > 0 ? (
+                        filteredNonFriendProfiles.map(profile => (
+                          <div 
+                            key={profile.id} 
+                            className="p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/30"
+                            style={{ 
+                              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                              border: '1px solid rgba(255, 255, 255, 0.05)'
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-white">{profile.username}</span>
+                              <button 
+                                onClick={() => handleAddFriend(profile.id)} 
+                                className="px-4 py-2.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 border border-gray-700/20 relative group"
+                                style={{
+                                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                                  letterSpacing: '-0.01em'
+                                }}
+                              >
+                                Add Friend
+                                <div 
+                                  className="absolute bottom-0 left-4 right-4 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                                  style={{ backgroundColor: '#d4af37' }}
+                                ></div>
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center text-gray-400 italic py-8">
+                          {searchQuery ? `No players found matching "${searchQuery}"` : 'No new players to add.'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {tab === 'requests' && (
-              <section className="bg-black/70 backdrop-blur-lg rounded-xl border border-gray-800/50 shadow-xl p-6">
-                <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider mb-4">Friend Requests</h3>
-                <div className="space-y-3">
-                  {pendingRequests.length > 0 ? (
-                    pendingRequests.map(req => (
-                      <div key={req.id} className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                              <span className="text-sm font-bold text-white">{req.user1.username[0].toUpperCase()}</span>
-                            </div>
-                            <div>
-                              <span className="font-bold text-white">{req.user1.username}</span>
-                              <p className="text-sm text-gray-400">wants to be your friend</p>
+              <div className="max-w-2xl mx-auto">
+                <div 
+                  className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <div className="p-6">
+                    <h2 
+                      className="text-xs font-semibold uppercase mb-6"
+                      style={{
+                        color: '#d4af37',
+                        opacity: 0.8,
+                        letterSpacing: '0.15em'
+                      }}
+                    >
+                      Friend Requests
+                    </h2>
+                    <div className="space-y-3">
+                      {pendingRequests.length > 0 ? (
+                        pendingRequests.map(req => (
+                          <div 
+                            key={req.id} 
+                            className="p-4 rounded-lg border"
+                            style={{ 
+                              backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                              border: '1px solid rgba(139, 69, 19, 0.3)'
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-white mb-1">{req.user1.username}</p>
+                                <p className="text-sm text-gray-400">wants to be your friend</p>
+                              </div>
+                              <button 
+                                onClick={() => handleAcceptRequest(req)} 
+                                className="px-4 py-2.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 border border-gray-700/20 relative group"
+                                style={{
+                                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                                  letterSpacing: '-0.01em'
+                                }}
+                              >
+                                Accept
+                                <div 
+                                  className="absolute bottom-0 left-4 right-4 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                                  style={{ backgroundColor: '#d4af37' }}
+                                ></div>
+                              </button>
                             </div>
                           </div>
-                          <button 
-                            onClick={() => handleAcceptRequest(req)} 
-                            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white text-sm font-bold rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
-                          >
-                            Accept
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-8">No pending friend requests.</p>
-                  )}
+                        ))
+                      ) : (
+                        <p className="text-center text-gray-400 italic py-8">No pending friend requests.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </section>
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
