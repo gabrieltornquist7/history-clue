@@ -1,8 +1,7 @@
 // next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable SWC minification for better performance
-  swcMinify: true,
+  // SWC minification is enabled by default in Next.js 13+ - no need to specify
   
   // Optimized image configuration
   images: {
@@ -34,11 +33,9 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
   
-  // Enable experimental optimizations
-  experimental: {
-    optimizeCss: true,
-    optimizeServerReact: true,
-  },
+  // Removed experimental optimizations that were causing build failures
+  // optimizeCss was causing "Cannot find module 'critters'" error
+  // optimizeServerReact can be unstable in Next.js 15.5.4
   
   // Webpack optimizations for better bundle splitting
   webpack: (config, { dev, isServer }) => {
@@ -102,8 +99,7 @@ const nextConfig = {
   // Remove Next.js powered-by header for security
   poweredByHeader: false,
   
-  // Optimize CSS loading
-  optimizeFonts: true,
+  // Font optimization is enabled by default in Next.js 10.2+ - no need to specify
   
   // Add security headers
   async headers() {
