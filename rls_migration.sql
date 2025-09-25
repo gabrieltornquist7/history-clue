@@ -142,3 +142,48 @@ END $$;
 COMMENT ON TABLE battles IS 'Live battle sessions between two players';
 COMMENT ON TABLE battle_rounds IS 'Individual rounds within a live battle';
 COMMENT ON TABLE battle_moves IS 'Player actions (clue reveals, guesses) within battle rounds';
+
+-- Create secure invite code generation function
+-- Drop the old function if it exists
+DROP FUNCTION IF EXISTS public.generate_invite_code();
+
+-- Create the secure function
+CREATE OR REPLACE FUNCTION public.generate_invite_code()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    invite_code TEXT;
+    code_exists BOOLEAN := TRUE;
+    chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    i INTEGER;
+BEGIN
+    -- Generate unique invite codes until we find one that doesn't exist
+    WHILE code_exists LOOP
+        invite_code := '';
+
+        -- Generate 6-character code
+        FOR i IN 1..6 LOOP
+            invite_code := invite_code || substr(chars, floor(random() * length(chars) + 1)::INTEGER, 1);
+        END LOOP;
+
+        -- Check if code already exists in battles table
+        SELECT EXISTS (
+            SELECT 1 FROM public.battles
+            WHERE invite_code = generate_invite_code.invite_code
+        ) INTO code_exists;
+    END LOOP;
+
+    RETURN invite_code;
+END;
+$$;
+
+-- Set function permissions (revoke from PUBLIC, grant to authenticated users and service_role)
+REVOKE ALL ON FUNCTION public.generate_invite_code() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.generate_invite_code() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.generate_invite_code() TO service_role;
+
+-- Add comment
+COMMENT ON FUNCTION public.generate_invite_code() IS 'Securely generates unique 6-character invite codes for battles';

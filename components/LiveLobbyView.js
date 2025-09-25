@@ -42,15 +42,6 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     };
   }, [session.user.id]);
 
-  // Simple invite code generator
-  const generateInviteCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
 
   const handleRandomMatch = async () => {
     setMode('searching');
@@ -182,8 +173,16 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
   const handleCreateInvite = async () => {
     try {
-      const inviteCode = generateInviteCode();
-      
+      // Generate secure invite code using database function
+      const { data: inviteCode, error: codeError } = await supabase
+        .rpc('generate_invite_code');
+
+      if (codeError || !inviteCode) {
+        console.error('Error generating invite code:', codeError);
+        alert('Failed to generate invite code');
+        return;
+      }
+
       const { data: battle, error: battleError } = await supabase
         .from('battles')
         .insert({
