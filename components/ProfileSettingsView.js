@@ -239,7 +239,7 @@ export default function ProfileSettingsView({ setView, session }) {
                       className="text-2xl font-serif"
                       style={{ color: '#d4af37' }}
                     >
-                      "{selectedTitle || 'No title selected'}"
+                      &quot;{selectedTitle || 'No title selected'}&quot;
                     </p>
                   </div>
 
@@ -298,7 +298,7 @@ export default function ProfileSettingsView({ setView, session }) {
                               selectedTitle === title ? 'text-yellow-400' : 'text-gray-300'
                             }`}
                           >
-                            "{title}"
+                            &quot;{title}&quot;
                           </span>
                           {selectedTitle === title && (
                             <span className="ml-2 text-xs text-yellow-500">✓ Selected</span>
@@ -355,7 +355,7 @@ export default function ProfileSettingsView({ setView, session }) {
                   <div className="text-6xl mb-4">🏆</div>
                   <p className="text-xl font-serif text-white mb-4">No Titles Yet</p>
                   <p className="text-gray-400 leading-relaxed max-w-md mx-auto">
-                    You haven't unlocked any titles yet. Keep playing to earn achievements and unlock special titles to display on your profile!
+                    You haven&apos;t unlocked any titles yet. Keep playing to earn achievements and unlock special titles to display on your profile!
                   </p>
                   <div className="mt-8">
                     <button
