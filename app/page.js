@@ -1,11 +1,13 @@
 "use client";
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 // Lazy load all heavy components for better performance
 const Auth = lazy(() => import("../components/Auth"));
 const MainMenu = lazy(() => import("../components/MainMenu"));
 const ProfileView = lazy(() => import("../components/ProfileView"));
+const LiveBattleView = lazy(() => import("../components/LiveBattleView"));
+const LiveLobbyView = lazy(() => import("../components/LiveLobbyView"));
 const ChallengeView = lazy(() => import("../components/ChallengeView"));
 const GameView = lazy(() => import("../components/GameView"));
 const DailyChallengeView = lazy(() => import("../components/DailyChallengeView"));
@@ -57,10 +59,6 @@ export default function Page() {
   const [viewPayload, setViewPayload] = useState(null);
   const [activeChallenge, setActiveChallenge] = useState(null);
   const [activeDailyPuzzle, setActiveDailyPuzzle] = useState(null);
-  const [activeLiveMatch, setActiveLiveMatch] = useState(null);
-  const [incomingInvite, setIncomingInvite] = useState(null);
-
-  const inviteChannelRef = useRef(null);
 
   const handleSetView = (newView, payload = null) => {
     setView(newView);
@@ -78,23 +76,10 @@ export default function Page() {
       setSession(session);
     });
 
-    let inviteChannel;
-    if (session && session.user) {
-      inviteChannel = supabase.channel(`invites:${session.user.id}`);
-      inviteChannel
-        .on("broadcast", { event: "live_invite" }, ({ payload }) => {
-          setIncomingInvite(payload);
-        })
-        .subscribe();
-    }
-
     return () => {
       subscription.unsubscribe();
-      if (inviteChannel) {
-        supabase.removeChannel(inviteChannel);
-      }
     };
-  }, [session]);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -140,16 +125,6 @@ export default function Page() {
     }
   };
 
-  const acceptInvite = () => {
-    setActiveLiveMatch(incomingInvite.matchId);
-    setIncomingInvite(null);
-    handleSetView("liveGame");
-  };
-
-  const declineInvite = () => {
-    setIncomingInvite(null);
-  };
-
   const renderView = () => {
     if (
       (view === "endless" ||
@@ -169,26 +144,6 @@ export default function Page() {
     }
 
     switch (view) {
-      case "liveGame":
-        return (
-          <Suspense fallback={<LoadingSpinner message="Loading live battle..." />}>
-            <LiveGameView
-              session={session}
-              matchId={activeLiveMatch}
-              setView={handleSetView}
-            />
-          </Suspense>
-        );
-      case "liveLobby":
-        return (
-          <Suspense fallback={<LoadingSpinner message="Loading battle lobby..." />}>
-            <LiveLobbyView
-              session={session}
-              setView={handleSetView}
-              setActiveLiveMatch={setActiveLiveMatch}
-            />
-          </Suspense>
-        );
       case "game":
         return (
           <Suspense fallback={<LoadingSpinner message="Loading puzzle..." />}>
@@ -241,7 +196,6 @@ export default function Page() {
               setView={handleSetView}
               session={session}
               setActiveChallenge={setActiveChallenge}
-              setActiveLiveMatch={setActiveLiveMatch}
             />
           </Suspense>
         );
@@ -348,40 +302,5 @@ export default function Page() {
     }
   };
 
-  return (
-    <>
-      {incomingInvite && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div 
-            className="p-8 rounded-lg shadow-2xl text-center border-2 max-w-md backdrop-blur"
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              borderColor: '#d4af37',
-              boxShadow: '0 0 50px rgba(0, 0, 0, 0.8)'
-            }}
-          >
-            <h3 className="text-2xl font-serif font-bold text-white mb-4">
-              {incomingInvite.from_username || "A player"} has challenged you to
-              a live match!
-            </h3>
-            <div className="flex gap-4 mt-6">
-              <button
-                onClick={acceptInvite}
-                className="px-6 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800 transition-colors"
-              >
-                Accept
-              </button>
-              <button
-                onClick={declineInvite}
-                className="px-6 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-colors"
-              >
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {renderView()}
-    </>
-  );
+  return <>{renderView()}</>;
 }
