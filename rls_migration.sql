@@ -10,12 +10,22 @@ DO $$
 BEGIN
     -- Drop policy if it exists to avoid conflicts
     DROP POLICY IF EXISTS "Users can access their own battles" ON battles;
+    DROP POLICY IF EXISTS "Users can access their battles and open invites" ON battles;
 
-    -- Create the policy
-    CREATE POLICY "Users can access their own battles" ON battles
+    -- Create the policy allowing access to own battles and open invites
+    CREATE POLICY "Users can access their battles and open invites" ON battles
         FOR ALL USING (
+            -- Users can access battles they're participating in
             auth.uid() = player1 OR
-            auth.uid() = player2
+            auth.uid() = player2 OR
+            -- Anyone can view open invites to join them
+            (status = 'waiting' AND player2 IS NULL AND invite_code IS NOT NULL)
+        ) WITH CHECK (
+            -- Can only insert/update if you're player1 or becoming player2
+            auth.uid() = player1 OR
+            (OLD.player2 IS NULL AND NEW.player2 = auth.uid()) OR
+            -- Allow creating new battles where you're player1
+            (NEW.player1 = auth.uid() AND OLD IS NULL)
         );
 EXCEPTION
     WHEN undefined_table THEN

@@ -250,7 +250,18 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         .single();
 
       if (findError || !battle) {
-        alert('Invalid or expired invite code');
+        console.error('Battle lookup error:', findError);
+        if (findError?.code === 'PGRST116') {
+          alert('Invalid or expired invite code');
+        } else {
+          alert('Failed to find battle. Please check your invite code and try again.');
+        }
+        return;
+      }
+
+      // Prevent joining your own battle
+      if (battle.player1 === session.user.id) {
+        alert('You cannot join your own battle');
         return;
       }
 
