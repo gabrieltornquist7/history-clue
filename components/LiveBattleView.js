@@ -1,4 +1,4 @@
-// components/LiveBattleView.js
+// components/LiveBattleView.js - SIMPLE VERSION THAT ACTUALLY WORKS
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -17,310 +17,251 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 export default function LiveBattleView({ session, battleId, setView }) {
   const [battle, setBattle] = useState(null);
-  const [currentRound, setCurrentRound] = useState(null);
   const [puzzle, setPuzzle] = useState(null);
   const [opponent, setOpponent] = useState(null);
   
   // Game state
   const [myTimer, setMyTimer] = useState(180);
-  const [oppTimer, setOppTimer] = useState(180);
   const [myClues, setMyClues] = useState([1]);
-  const [oppClues, setOppClues] = useState([1]);
   const [myScore, setMyScore] = useState(10000);
   const [selectedYear, setSelectedYear] = useState(1950);
   const [guessCoords, setGuessCoords] = useState(null);
   const [myGuess, setMyGuess] = useState(null);
   const [oppGuess, setOppGuess] = useState(null);
+  const [gameFinished, setGameFinished] = useState(false);
+  const [roundResult, setRoundResult] = useState(null);
   
-  // UI state
-  const [gamePhase, setGamePhase] = useState('waiting'); // waiting, playing, finished
-  const [roundResults, setRoundResults] = useState(null);
-  const [matchResults, setMatchResults] = useState(null);
-  const [isMyTurn, setIsMyTurn] = useState(true);
-  const [showResults, setShowResults] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const channelRef = useRef(null);
   const timerRef = useRef(null);
+  const currentRoundId = useRef(null);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
   const SCORING_POINTS = [5000, 3500, 2500, 1500, 800];
 
   useEffect(() => {
-    if (!battleId || !session?.user) return;
+    let isMounted = true;
 
-    const handleStartRound = async (payload) => {
-      console.log('Handling round start:', payload);
-      setCurrentRound({
-        id: payload.round_id,
-        round_no: payload.round_no,
-        puzzle_id: payload.puzzle_id,
-        status: 'active'
-      });
-      
-      // Load puzzle
-      const { data: puzzleData, error } = await supabase
-        .from('puzzles')
-        .select('*, puzzle_translations(*)')
-        .eq('id', payload.puzzle_id)
-        .single();
-
-      if (!error && puzzleData) {
-        setPuzzle(puzzleData);
-        setGamePhase('playing');
-        setMyTimer(180);
-        setOppTimer(180);
-        setMyClues([1]);
-        setOppClues([1]);
-        setMyScore(10000);
-        setSelectedYear(1950);
-        setGuessCoords(null);
-        setMyGuess(null);
-        setOppGuess(null);
-        console.log('Round started successfully');
-      } else {
-        console.error('Failed to load puzzle:', error);
-      }
-    };
-
-    const handleOpponentClue = (payload) => {
-      if (payload.by !== session.user.id) {
-        setOppClues(prev => [...prev, payload.clueIndex].sort());
-      }
-    };
-
-    const handleOpponentGuess = (payload) => {
-      if (payload.by !== session.user.id) {
-        setOppGuess({
-          lat: payload.lat,
-          lng: payload.lng,
-          year: payload.year,
-          correct: payload.isCorrect
-        });
-      }
-    };
-
-    const handleOpponentCorrect = (payload) => {
-      if (payload.by !== session.user.id) {
-        setMyTimer(prev => Math.min(prev, 30));
-      }
-    };
-
-    const handleRoundResult = (payload) => {
-      setRoundResults(payload);
-      setShowResults(true);
-    };
-
-    const handleMatchResult = (payload) => {
-      setMatchResults(payload);
-      setGamePhase('finished');
-    };
-
-    const loadBattle = async () => {
+    const initializeBattle = async () => {
       try {
-        console.log('Loading battle:', battleId);
+        console.log('Initializing battle:', battleId);
 
-        // Get battle info using the new function
-        const { data: battleInfo, error: infoError } = await supabase
-          .rpc('get_battle_info', { p_battle_id: battleId });
+        // 1. Load battle info
+        const { data: battleData, error: battleError } = await supabase
+          .from('battles')
+          .select(`
+            *,
+            player1_profile:profiles!battles_player1_fkey(username),
+            player2_profile:profiles!battles_player2_fkey(username)
+          `)
+          .eq('id', battleId)
+          .single();
 
-        if (infoError || battleInfo.error) {
-          console.error('Error loading battle info:', infoError || battleInfo.error);
-          setView('menu');
-          return;
+        if (battleError || !battleData) {
+          throw new Error('Battle not found');
         }
 
-        console.log('Battle info:', battleInfo);
-        setBattle(battleInfo);
-        
+        if (!isMounted) return;
+
+        setBattle(battleData);
+        console.log('Battle loaded:', battleData);
+
         // Set opponent
-        const isPlayer1 = session.user.id === battleInfo.player1.id;
-        const oppData = isPlayer1 ? battleInfo.player2 : battleInfo.player1;
+        const isPlayer1 = session.user.id === battleData.player1;
+        const oppProfile = isPlayer1 ? battleData.player2_profile : battleData.player1_profile;
         setOpponent({
-          id: oppData.id,
-          username: oppData.username || 'Anonymous'
+          id: isPlayer1 ? battleData.player2 : battleData.player1,
+          username: oppProfile?.username || 'Anonymous'
         });
 
-        // Check if battle is ready and has a round
-        if (battleInfo.current_round) {
-          // Battle already has an active round
-          setCurrentRound(battleInfo.current_round);
+        // 2. Check if there's an active round
+        let { data: existingRound, error: roundError } = await supabase
+          .from('battle_rounds')
+          .select('*')
+          .eq('battle_id', battleId)
+          .eq('status', 'active')
+          .single();
+
+        if (roundError && roundError.code !== 'PGRST116') { // PGRST116 = no rows found
+          console.error('Error checking for rounds:', roundError);
+        }
+
+        // 3. Create round if none exists
+        if (!existingRound) {
+          console.log('No active round found, creating one...');
           
-          // Load puzzle for the current round
-          const { data: puzzleData, error: puzzleError } = await supabase
+          // Get random puzzle
+          const { data: puzzles, error: puzzleError } = await supabase
             .from('puzzles')
-            .select('*, puzzle_translations(*)')
-            .eq('id', battleInfo.current_round.puzzle_id)
-            .single();
+            .select('id')
+            .limit(100);
 
-          if (!puzzleError && puzzleData) {
-            setPuzzle(puzzleData);
-            setGamePhase('playing');
-            console.log('Resumed existing round');
-          }
-        } else if (battleInfo.status === 'lobby' || battleInfo.status === 'waiting') {
-          // Battle needs to be started
-          console.log('Starting new battle...');
-          
-          // Try to start the battle
-          const { data: startData, error: startError } = await supabase
-            .rpc('start_battle', { p_battle_id: battleId });
-
-          if (startError || startData.error) {
-            console.error('Error starting battle:', startError || startData.error);
-            setView('menu');
-            return;
+          if (puzzleError || !puzzles || puzzles.length === 0) {
+            throw new Error('No puzzles available');
           }
 
-          console.log('Battle started:', startData);
+          const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
 
-          // Load the puzzle for the new round
-          const { data: puzzleData, error: puzzleError } = await supabase
-            .from('puzzles')
-            .select('*, puzzle_translations(*)')
-            .eq('id', startData.puzzle_id)
+          const { data: newRound, error: createError } = await supabase
+            .from('battle_rounds')
+            .insert({
+              battle_id: battleId,
+              round_no: 1,
+              puzzle_id: randomPuzzle.id,
+              status: 'active',
+              started_at: new Date().toISOString()
+            })
+            .select()
             .single();
 
-          if (!puzzleError && puzzleData) {
-            setPuzzle(puzzleData);
-            setCurrentRound({
-              id: startData.round_id,
-              round_no: startData.round_no,
-              puzzle_id: startData.puzzle_id,
-              status: 'active'
-            });
-            setGamePhase('playing');
-            
-            // Broadcast round start to opponent
-            if (channelRef.current) {
-              channelRef.current.send({
-                type: 'broadcast',
-                event: 'start_round',
-                payload: {
-                  round_id: startData.round_id,
-                  round_no: startData.round_no,
-                  puzzle_id: startData.puzzle_id
-                }
-              });
+          if (createError) {
+            console.error('Error creating round:', createError);
+            throw new Error('Failed to create round');
+          }
+
+          existingRound = newRound;
+          console.log('Created new round:', newRound);
+        }
+
+        if (!isMounted) return;
+
+        currentRoundId.current = existingRound.id;
+
+        // 4. Load puzzle
+        const { data: puzzleData, error: puzzleError } = await supabase
+          .from('puzzles')
+          .select('*, puzzle_translations(*)')
+          .eq('id', existingRound.puzzle_id)
+          .single();
+
+        if (puzzleError || !puzzleData) {
+          throw new Error('Failed to load puzzle');
+        }
+
+        if (!isMounted) return;
+
+        setPuzzle(puzzleData);
+        console.log('Puzzle loaded:', puzzleData.id);
+
+        // 5. Load any existing moves
+        const { data: moves } = await supabase
+          .from('battle_moves')
+          .select('*')
+          .eq('round_id', existingRound.id)
+          .eq('player', session.user.id);
+
+        if (moves && moves.length > 0) {
+          // Process existing moves
+          let clues = [1];
+          let score = 10000;
+          let guess = null;
+
+          moves.forEach(move => {
+            if (move.action === 'reveal_clue') {
+              clues.push(move.payload.clue_index);
+              score -= CLUE_COSTS[move.payload.clue_index] || 0;
+            } else if (move.action === 'guess') {
+              guess = move.payload;
             }
+          });
+
+          setMyClues([...new Set(clues)].sort());
+          setMyScore(Math.max(0, score));
+          if (guess) {
+            setMyGuess(guess);
+            setGuessCoords({ lat: guess.lat, lng: guess.lng });
+            setSelectedYear(guess.year);
           }
         }
-      } catch (error) {
-        console.error('Unexpected error loading battle:', error);
-        setView('menu');
+
+        setLoading(false);
+        startTimer();
+
+      } catch (err) {
+        console.error('Error initializing battle:', err);
+        if (isMounted) {
+          setError(err.message);
+          setLoading(false);
+        }
       }
     };
 
-    loadBattle();
-
-    // Set up Realtime channel
-    const channel = supabase.channel(`live_battle:${battleId}`);
-    channelRef.current = channel;
-
-    channel
-      .on('broadcast', { event: 'start_round' }, ({ payload }) => {
-        handleStartRound(payload);
-      })
-      .on('broadcast', { event: 'reveal_clue' }, ({ payload }) => {
-        handleOpponentClue(payload);
-      })
-      .on('broadcast', { event: 'guess' }, ({ payload }) => {
-        handleOpponentGuess(payload);
-      })
-      .on('broadcast', { event: 'opponent_correct' }, ({ payload }) => {
-        handleOpponentCorrect(payload);
-      })
-      .on('broadcast', { event: 'round_result' }, ({ payload }) => {
-        handleRoundResult(payload);
-      })
-      .on('broadcast', { event: 'match_result' }, ({ payload }) => {
-        handleMatchResult(payload);
-      })
-      .subscribe();
+    initializeBattle();
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
+      isMounted = false;
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [battleId, session?.user, setView]);
+  }, [battleId, session.user.id]);
 
-  // Timer logic
-  useEffect(() => {
-    if (gamePhase !== 'playing') return;
-
-    const handleTimeUp = async () => {
-      if (!myGuess) {
-        // Auto-submit with current location (center of map) and year
-        await handleGuessSubmit(true);
-      }
-    };
-
+  const startTimer = () => {
     timerRef.current = setInterval(() => {
       setMyTimer(prev => {
-        if (prev <= 0) {
-          handleTimeUp();
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          if (!myGuess) {
+            handleAutoSubmit();
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [gamePhase, myGuess]);
+  };
 
   const handleRevealClue = async (clueIndex) => {
-    if (myClues.includes(clueIndex) || myScore < CLUE_COSTS[clueIndex]) return;
+    if (myClues.includes(clueIndex) || myScore < CLUE_COSTS[clueIndex] || myGuess) return;
     
-    const newScore = myScore - CLUE_COSTS[clueIndex];
+    const cost = CLUE_COSTS[clueIndex];
+    const newScore = myScore - cost;
+    
     setMyScore(newScore);
     setMyClues(prev => [...prev, clueIndex].sort());
 
-    // Broadcast and record move
+    // Save move
     await supabase.from('battle_moves').insert({
-      round_id: currentRound.id,
+      round_id: currentRoundId.current,
       player: session.user.id,
       action: 'reveal_clue',
       payload: { clue_index: clueIndex }
     });
-
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'reveal_clue',
-      payload: { by: session.user.id, clueIndex }
-    });
   };
 
   const handleMapGuess = (latlng) => {
+    if (myGuess) return;
     setGuessCoords(latlng);
   };
 
   const handleYearChange = (newYear) => {
+    if (myGuess) return;
     const year = Math.max(-1000, Math.min(2025, parseInt(newYear) || 1950));
     setSelectedYear(year);
   };
 
-  const handleGuessSubmit = async (autoSubmit = false) => {
+  const handleAutoSubmit = () => {
+    if (myGuess) return;
+    handleGuessSubmit(true);
+  };
+
+  const handleGuessSubmit = async (isAutoSubmit = false) => {
     if (myGuess) return;
 
-    const coords = autoSubmit ? { lat: 0, lng: 0 } : guessCoords;
-    if (!coords && !autoSubmit) {
+    const coords = isAutoSubmit ? { lat: 0, lng: 0 } : guessCoords;
+    if (!coords && !isAutoSubmit) {
       alert('Please place a pin on the map');
       return;
     }
 
     const distance = getDistance(
-      coords.lat, coords.lng, 
-      parseFloat(puzzle.latitude), parseFloat(puzzle.longitude)
+      coords.lat, 
+      coords.lng, 
+      parseFloat(puzzle.latitude), 
+      parseFloat(puzzle.longitude)
     );
     
-    const isCorrect = distance < 200; // Within 200km counts as correct
     const clueCount = myClues.length;
     const baseScore = SCORING_POINTS[clueCount - 1] || 0;
     const distancePenalty = Math.min(baseScore * 0.5, (distance / 1000) * 10);
@@ -336,75 +277,54 @@ export default function LiveBattleView({ session, battleId, setView }) {
       lat: coords.lat,
       lng: coords.lng,
       year: selectedYear,
-      correct: isCorrect,
       score: finalScore,
-      distance: Math.round(distance)
+      distance: Math.round(distance),
+      completed_at: new Date().toISOString()
     };
 
     setMyGuess(guessData);
 
-    // Record move
+    // Stop timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    // Save guess
     await supabase.from('battle_moves').insert({
-      round_id: currentRound.id,
+      round_id: currentRoundId.current,
       player: session.user.id,
       action: 'guess',
       payload: guessData
     });
 
-    // Broadcast guess
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'guess',
-      payload: { 
-        by: session.user.id, 
-        ...guessData,
-        isCorrect: isCorrect 
-      }
-    });
+    // Check if opponent finished
+    setTimeout(checkRoundComplete, 1000);
+  };
 
-    // If correct, trigger 30-second timer for opponent
-    if (isCorrect) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'opponent_correct',
-        payload: { by: session.user.id }
+  const checkRoundComplete = async () => {
+    // Check if opponent has made their guess
+    const { data: oppMoves } = await supabase
+      .from('battle_moves')
+      .select('payload')
+      .eq('round_id', currentRoundId.current)
+      .eq('player', opponent.id)
+      .eq('action', 'guess');
+
+    if (oppMoves && oppMoves.length > 0) {
+      const oppGuessData = oppMoves[0].payload;
+      setOppGuess(oppGuessData);
+      
+      // Both finished, show results
+      setRoundResult({
+        myScore: myGuess.score,
+        oppScore: oppGuessData.score,
+        winner: myGuess.score > oppGuessData.score ? 'me' : myGuess.score < oppGuessData.score ? 'opponent' : 'tie'
       });
+      setGameFinished(true);
+    } else {
+      // Keep checking
+      setTimeout(checkRoundComplete, 2000);
     }
-
-    // Check if round should end
-    await checkRoundEnd();
-  };
-
-  const checkRoundEnd = async () => {
-    // This would typically be handled by a server function
-    // For now, we'll do basic client-side logic
-    if (myGuess && oppGuess) {
-      // Both players finished
-      const result = {
-        roundNo: currentRound.round_no,
-        p1Score: session.user.id === battle.player1 ? myGuess.score : oppGuess.score,
-        p2Score: session.user.id === battle.player2 ? myGuess.score : oppGuess.score,
-        winner: myGuess.score > oppGuess.score ? session.user.id : opponent.id
-      };
-
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'round_result',
-        payload: result
-      });
-    }
-  };
-
-  const handleNextRound = () => {
-    setShowResults(false);
-    setRoundResults(null);
-    // In a real implementation, this would trigger starting the next round
-  };
-
-  const displayYear = (year) => {
-    const yearNum = Number(year);
-    if (yearNum < 0) return `${Math.abs(yearNum)} BC`;
-    return yearNum;
   };
 
   const getClueText = (clueNumber) => {
@@ -417,12 +337,34 @@ export default function LiveBattleView({ session, battleId, setView }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!battle || !puzzle || gamePhase === 'waiting') {
+  const displayYear = (year) => {
+    const yearNum = Number(year);
+    if (yearNum < 0) return `${Math.abs(yearNum)} BC`;
+    return yearNum;
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center">
-          <div className="text-2xl font-serif mb-4">Preparing Battle...</div>
-          <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-xl">Loading Battle...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <div className="text-red-400 text-xl mb-4">Error: {error}</div>
+          <button 
+            onClick={() => setView('menu')}
+            className="px-6 py-3 bg-gray-700 text-white rounded hover:bg-gray-600"
+          >
+            Back to Menu
+          </button>
         </div>
       </div>
     );
@@ -430,7 +372,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header Bar */}
+      {/* Header */}
       <div className="bg-gray-900 border-b border-gray-700 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <button 
@@ -442,30 +384,25 @@ export default function LiveBattleView({ session, battleId, setView }) {
           
           <div className="text-center">
             <h1 className="text-2xl font-serif font-bold text-yellow-400">Live Battle</h1>
-            <p className="text-sm text-gray-300">
-              Round {currentRound?.round_no || 1} of {battle?.best_of || 3}
-            </p>
+            <p className="text-sm text-gray-300">vs {opponent?.username}</p>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-400">Your Timer</p>
-              <p className={`text-2xl font-bold ${myTimer <= 30 ? 'text-red-400' : 'text-white'}`}>
-                {formatTime(myTimer)}
-              </p>
-            </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-400">Your Timer</p>
+            <p className={`text-2xl font-bold ${myTimer <= 30 ? 'text-red-400' : 'text-white'}`}>
+              {formatTime(myTimer)}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="p-4">
         <div className="max-w-7xl mx-auto">
-          {/* Battle Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left Panel - Clues */}
             <div className="space-y-4">
-              <h2 className="text-xl font-serif font-bold text-yellow-400 mb-4">Clues</h2>
+              <h2 className="text-xl font-bold text-yellow-400">Clues</h2>
               {[1, 2, 3, 4, 5].map((num) => {
                 const isUnlocked = myClues.includes(num);
                 const clueText = getClueText(num);
@@ -473,25 +410,25 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 return (
                   <div 
                     key={num}
-                    className={`bg-gray-800 rounded-lg border-2 transition-all ${
+                    className={`bg-gray-800 rounded-lg border-2 p-4 ${
                       isUnlocked ? 'border-yellow-500' : 'border-gray-600'
                     }`}
                   >
                     {isUnlocked ? (
-                      <div className="p-4">
+                      <div>
                         <div className="text-yellow-400 font-bold mb-2">Clue {num}</div>
                         <p className="text-gray-300">{clueText}</p>
                       </div>
                     ) : (
                       <button 
-                        className="w-full p-4 text-left hover:bg-gray-700 rounded-lg"
+                        className="w-full text-left hover:bg-gray-700 p-2 rounded"
                         onClick={() => handleRevealClue(num)}
-                        disabled={myScore < CLUE_COSTS[num]}
+                        disabled={myScore < CLUE_COSTS[num] || !!myGuess}
                       >
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400">🔒 Unlock Clue {num}</span>
                           <span className="text-yellow-500 font-bold">
-                            {CLUE_COSTS[num].toLocaleString()}
+                            {CLUE_COSTS[num]}
                           </span>
                         </div>
                       </button>
@@ -510,100 +447,83 @@ export default function LiveBattleView({ session, battleId, setView }) {
               </div>
             </div>
 
-            {/* Center - Map */}
-            <div className="bg-gray-800 rounded-lg p-4">
-              <h2 className="text-xl font-serif font-bold text-yellow-400 mb-4">Map</h2>
-              <div className="h-96 rounded-lg overflow-hidden border border-gray-600">
-                <Map onGuess={handleMapGuess} />
+            {/* Center - Map and Controls */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-yellow-400">Map</h2>
+              
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="h-64 sm:h-80 rounded-lg overflow-hidden border border-gray-600">
+                  <Map onGuess={handleMapGuess} />
+                </div>
               </div>
               
               {/* Year Selector */}
-              <div className="mt-4">
+              <div className="bg-gray-800 rounded-lg p-4">
                 <h3 className="text-lg font-bold text-white mb-2">Year Guess</h3>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-2">
                   <input
                     type="number"
                     value={selectedYear}
                     onChange={(e) => handleYearChange(e.target.value)}
+                    disabled={!!myGuess}
                     min="-1000"
                     max="2025"
-                    className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-center text-yellow-400 font-bold"
+                    className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-center text-yellow-400 font-bold disabled:opacity-50"
                   />
                   <button
-                    onClick={() => setSelectedYear(prev => prev + 10)}
-                    className="px-3 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+                    onClick={() => handleYearChange(selectedYear + 10)}
+                    disabled={!!myGuess}
+                    className="px-3 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50"
                   >
                     +10
                   </button>
                   <button
-                    onClick={() => setSelectedYear(prev => prev - 10)}
-                    className="px-3 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+                    onClick={() => handleYearChange(selectedYear - 10)}
+                    disabled={!!myGuess}
+                    className="px-3 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 disabled:opacity-50"
                   >
                     -10
                   </button>
                 </div>
-                <div className="text-center mt-2">
+                <div className="text-center">
                   <span className="text-lg font-bold text-yellow-400">
                     {displayYear(selectedYear)}
                   </span>
                 </div>
               </div>
 
-              {/* Guess Button */}
+              {/* Submit Button */}
               <button 
                 onClick={() => handleGuessSubmit()}
                 disabled={!guessCoords || !!myGuess}
-                className="w-full mt-4 px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
-                {!guessCoords ? 'Place Pin First' : myGuess ? 'Guess Submitted' : 'Submit Guess'}
+                {!guessCoords ? 'Place Pin on Map' : myGuess ? 'Guess Submitted' : 'Submit Guess'}
               </button>
             </div>
 
-            {/* Right Panel - Opponent */}
+            {/* Right Panel - Status */}
             <div className="space-y-4">
-              <h2 className="text-xl font-serif font-bold text-yellow-400 mb-4">
-                Opponent: {opponent?.username}
-              </h2>
+              <h2 className="text-xl font-bold text-yellow-400">Battle Status</h2>
               
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-                <p className="text-sm text-gray-400 mb-1">Opponent Timer</p>
-                <p className={`text-2xl font-bold ${oppTimer <= 30 ? 'text-red-400' : 'text-white'}`}>
-                  {formatTime(oppTimer)}
-                </p>
-              </div>
+              {myGuess ? (
+                <div className="bg-green-800 rounded-lg p-4 border border-green-500">
+                  <h3 className="font-bold text-green-400 mb-2">Your Result</h3>
+                  <p>Score: <span className="font-bold">{myGuess.score.toLocaleString()}</span></p>
+                  <p>Distance: <span className="font-bold">{myGuess.distance}km</span></p>
+                  {!oppGuess && <p className="text-yellow-400 mt-2">Waiting for opponent...</p>}
+                </div>
+              ) : (
+                <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+                  <p className="text-gray-300">Make your guess before time runs out!</p>
+                </div>
+              )}
 
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-                <p className="text-sm text-gray-400 mb-2">Opponent Progress</p>
-                <p className="text-white">
-                  Clues revealed: <span className="text-yellow-400 font-bold">{oppClues.length}</span>
-                </p>
-                {oppGuess && (
-                  <p className="text-green-400 mt-2">✓ Guess submitted</p>
-                )}
-              </div>
-
-              {myGuess && oppGuess && (
-                <div className="bg-gray-800 rounded-lg p-4 border border-yellow-500">
-                  <h3 className="text-lg font-bold text-yellow-400 mb-2">Round Summary</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Your Score:</span>
-                      <span className="font-bold">{myGuess.score.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Opponent Score:</span>
-                      <span className="font-bold">{oppGuess.score.toLocaleString()}</span>
-                    </div>
-                    <div className="pt-2 border-t border-gray-600">
-                      <p className={`font-bold text-center ${
-                        myGuess.score > oppGuess.score ? 'text-green-400' : 
-                        myGuess.score < oppGuess.score ? 'text-red-400' : 'text-yellow-400'
-                      }`}>
-                        {myGuess.score > oppGuess.score ? 'You Win This Round!' : 
-                         myGuess.score < oppGuess.score ? 'Opponent Wins Round' : 'Round Tied!'}
-                      </p>
-                    </div>
-                  </div>
+              {oppGuess && (
+                <div className="bg-blue-800 rounded-lg p-4 border border-blue-500">
+                  <h3 className="font-bold text-blue-400 mb-2">Opponent Result</h3>
+                  <p>Score: <span className="font-bold">{oppGuess.score.toLocaleString()}</span></p>
+                  <p>Distance: <span className="font-bold">{oppGuess.distance}km</span></p>
                 </div>
               )}
             </div>
@@ -611,81 +531,46 @@ export default function LiveBattleView({ session, battleId, setView }) {
         </div>
       </div>
 
-      {/* Round Results Modal */}
-      {showResults && roundResults && (
+      {/* Results Modal */}
+      {gameFinished && roundResult && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-xl p-8 max-w-md w-full text-center border-2 border-yellow-500">
             <h3 className="text-2xl font-serif font-bold text-yellow-400 mb-6">
-              Round {roundResults.roundNo} Complete
+              Round Complete!
             </h3>
             
             <div className="space-y-4 mb-6">
-              <div className="flex justify-between text-lg">
-                <span>You:</span>
-                <span className="font-bold">{myGuess?.score.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span>{opponent?.username}:</span>
-                <span className="font-bold">{oppGuess?.score.toLocaleString()}</span>
+              <div className={`text-3xl font-bold ${
+                roundResult.winner === 'me' ? 'text-green-400' : 
+                roundResult.winner === 'opponent' ? 'text-red-400' : 'text-yellow-400'
+              }`}>
+                {roundResult.winner === 'me' ? '🏆 You Win!' : 
+                 roundResult.winner === 'opponent' ? '💔 You Lose' : '🤝 It\'s a Tie!'}
               </div>
               
-              <div className="pt-4 border-t border-gray-600">
-                <p className="text-green-400 font-bold">Answer: {puzzle.city_name}, {puzzle.year}</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Your guess was {myGuess?.distance}km away
-                </p>
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="flex justify-between mb-2">
+                  <span>Your Score:</span>
+                  <span className="font-bold">{roundResult.myScore.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Opponent Score:</span>
+                  <span className="font-bold">{roundResult.oppScore.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              <div className="text-green-400">
+                <p className="font-bold">Answer: {puzzle?.city_name}</p>
+                <p>{displayYear(puzzle?.year)}</p>
               </div>
             </div>
             
             <button 
-              onClick={handleNextRound}
+              onClick={() => setView('menu')}
               className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
             >
-              Next Round
+              Back to Menu
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Match Results Modal */}
-      {matchResults && gamePhase === 'finished' && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-xl p-8 max-w-md w-full text-center border-2 border-yellow-500">
-            <h3 className="text-3xl font-serif font-bold text-yellow-400 mb-6">
-              Battle Complete!
-            </h3>
-            
-            <div className="space-y-4 mb-6">
-              <div className="text-2xl font-bold">
-                {matchResults.winner === session.user.id ? (
-                  <span className="text-green-400">🏆 Victory!</span>
-                ) : (
-                  <span className="text-red-400">💔 Defeat</span>
-                )}
-              </div>
-              
-              <div className="bg-gray-800 rounded-lg p-4">
-                <p className="text-lg">Final Score:</p>
-                <p className="text-xl font-bold">
-                  {matchResults.p1Rounds} - {matchResults.p2Rounds}
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <button 
-                onClick={() => setView('menu')}
-                className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
-              >
-                Back to Menu
-              </button>
-              <button 
-                onClick={() => {/* Implement rematch */}}
-                className="w-full px-6 py-3 bg-gray-700 text-white font-medium rounded hover:bg-gray-600"
-              >
-                Request Rematch
-              </button>
-            </div>
           </div>
         </div>
       )}

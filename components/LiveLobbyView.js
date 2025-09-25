@@ -1,19 +1,15 @@
-// components/LiveLobbyView.js
+// components/LiveLobbyView.js - SIMPLE VERSION THAT ACTUALLY WORKS
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
-  const [mode, setMode] = useState(null); // null, 'searching', 'inviting', 'waiting'
+  const [mode, setMode] = useState(null); // null, 'searching', 'waiting'
   const [inviteCode, setInviteCode] = useState('');
   const [generatedInvite, setGeneratedInvite] = useState(null);
   const [friends, setFriends] = useState([]);
-  const [searchInput, setSearchInput] = useState('');
-  const [searchTimeout, setSearchTimeout] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
 
-  const queueChannelRef = useRef(null);
-  const inviteChannelRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
   useEffect(() => {
     // Load friends list
@@ -40,260 +36,14 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     loadFriends();
 
     return () => {
-      if (queueChannelRef.current) {
-        supabase.removeChannel(queueChannelRef.current);
-      }
-      if (inviteChannelRef.current) {
-        if (inviteChannelRef.current.unsubscribe) {
-          inviteChannelRef.current.unsubscribe();
-        } else {
-          supabase.removeChannel(inviteChannelRef.current);
-        }
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
       }
     };
   }, [session.user.id]);
 
-  const handleRandomMatch = async () => {
-    setMode('searching');
-    setIsSearching(true);
-
-    try {
-      // Check if there's already someone in the queue
-      const { data: existingQueue, error: checkError } = await supabase
-        .from('match_queue')
-        .select('user_id')
-        .neq('user_id', session.user.id)
-        .limit(1);
-
-      if (checkError) {
-        console.error('Error checking queue:', checkError);
-        setMode(null);
-        setIsSearching(false);
-        return;
-      }
-
-      if (existingQueue && existingQueue.length > 0) {
-        // Found an opponent immediately
-        const opponent = existingQueue[0];
-        
-        // Create battle
-        const { data: battle, error: battleError } = await supabase
-          .from('battles')
-          .insert({
-            player1: session.user.id,
-            player2: opponent.user_id,
-            status: 'lobby'
-          })
-          .select()
-          .single();
-
-        if (battleError) {
-          console.error('Error creating battle:', battleError);
-          setMode(null);
-          setIsSearching(false);
-          return;
-        }
-
-        // Remove opponent from queue
-        await supabase
-          .from('match_queue')
-          .delete()
-          .eq('user_id', opponent.user_id);
-
-        // Start the battle immediately
-        setActiveLiveMatch(battle.id);
-        setView('liveGame');
-        return;
-      }
-
-      // No opponent found, join queue and wait
-      const { error: queueError } = await supabase
-        .from('match_queue')
-        .upsert({ user_id: session.user.id });
-
-      if (queueError) {
-        console.error('Error joining queue:', queueError);
-        setMode(null);
-        setIsSearching(false);
-        return;
-      }
-
-      // Listen for match found (when another player joins)
-      const channel = supabase.channel(`queue:${session.user.id}`);
-      queueChannelRef.current = channel;
-
-      channel
-        .on('broadcast', { event: 'match_found' }, ({ payload }) => {
-          setActiveLiveMatch(payload.battleId);
-          setView('liveGame');
-        })
-        .subscribe();
-
-      // Poll for opponents every 2 seconds
-      const pollInterval = setInterval(async () => {
-        const { data: queueData } = await supabase
-          .from('match_queue')
-          .select('user_id')
-          .neq('user_id', session.user.id)
-          .limit(1);
-
-        if (queueData && queueData.length > 0) {
-          clearInterval(pollInterval);
-          
-          const opponent = queueData[0];
-          
-          // Create battle
-          const { data: battle, error: battleError } = await supabase
-            .from('battles')
-            .insert({
-              player1: session.user.id,
-              player2: opponent.user_id,
-              status: 'lobby'
-            })
-            .select()
-            .single();
-
-          if (!battleError) {
-            // Remove both players from queue
-            await supabase
-              .from('match_queue')
-              .delete()
-              .in('user_id', [session.user.id, opponent.user_id]);
-
-            // Notify opponent
-            const oppChannel = supabase.channel(`queue:${opponent.user_id}`);
-            oppChannel.send({
-              type: 'broadcast',
-              event: 'match_found',
-              payload: { battleId: battle.id }
-            });
-
-            // Start battle for current player
-            setActiveLiveMatch(battle.id);
-            setView('liveGame');
-          }
-        }
-      }, 2000);
-
-      // Clean up interval after 30 seconds
-      setTimeout(() => {
-        clearInterval(pollInterval);
-      }, 30000);
-
-    } catch (error) {
-      console.error('Error in random match:', error);
-      setMode(null);
-      setIsSearching(false);
-    }
-  };
-
-  const handleCancelSearch = async () => {
-    await supabase
-      .from('match_queue')
-      .delete()
-      .eq('user_id', session.user.id);
-
-    if (queueChannelRef.current) {
-      supabase.removeChannel(queueChannelRef.current);
-    }
-
-    setMode(null);
-    setIsSearching(false);
-  };
-
-  const handleCreateInvite = async () => {
-    try {
-      console.log('Creating battle invite...');
-      
-      // Try using the RPC function first
-      const { data, error } = await supabase.rpc('create_battle_invite');
-
-      let inviteData;
-      if (error) {
-        console.error('RPC Error creating invite:', error);
-        
-        // Fallback: create battle manually
-        const inviteCode = generateSimpleInviteCode();
-        const { data: battleData, error: battleError } = await supabase
-          .from('battles')
-          .insert({
-            player1: session.user.id,
-            player2: null,
-            invite_code: inviteCode,
-            status: 'waiting'
-          })
-          .select()
-          .single();
-
-        if (battleError) {
-          console.error('Error creating battle manually:', battleError);
-          alert('Failed to create invite. Please try again.');
-          return;
-        }
-
-        console.log('Battle created manually:', battleData);
-        inviteData = {
-          battle_id: battleData.id,
-          invite_code: battleData.invite_code,
-          player1: battleData.player1,
-          player2: battleData.player2
-        };
-      } else {
-        console.log('Battle created via RPC:', data);
-        inviteData = data;
-      }
-
-      setGeneratedInvite(inviteData);
-      setMode('waiting');
-
-      // Listen for opponent joining - use battle_id in channel name
-      const channel = supabase.channel(`battle_invite:${inviteData.battle_id}`);
-      inviteChannelRef.current = channel;
-
-      channel
-        .on('broadcast', { event: 'opponent_joined' }, ({ payload }) => {
-          console.log('Opponent joined, starting battle:', payload);
-          setActiveLiveMatch(inviteData.battle_id);
-          setView('liveGame');
-        })
-        .subscribe();
-
-      // Also listen for direct database changes
-      const battleSubscription = supabase
-        .channel(`battle_updates:${inviteData.battle_id}`)
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'battles',
-          filter: `id=eq.${inviteData.battle_id}`
-        }, (payload) => {
-          console.log('Battle updated:', payload);
-          if (payload.new.player2 && payload.new.status === 'lobby') {
-            console.log('Player 2 joined, starting battle');
-            setActiveLiveMatch(inviteData.battle_id);
-            setView('liveGame');
-          }
-        })
-        .subscribe();
-
-      // Store subscription for cleanup
-      inviteChannelRef.current = { 
-        channel, 
-        battleSubscription,
-        unsubscribe: () => {
-          supabase.removeChannel(channel);
-          supabase.removeChannel(battleSubscription);
-        }
-      };
-
-    } catch (error) {
-      console.error('Unexpected error creating invite:', error);
-      alert('Failed to create invite. Please try again.');
-    }
-  };
-
-  // Simple invite code generator as fallback
-  const generateSimpleInviteCode = () => {
+  // Simple invite code generator
+  const generateInviteCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
     for (let i = 0; i < 6; i++) {
@@ -302,109 +52,233 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     return result;
   };
 
+  const handleRandomMatch = async () => {
+    setMode('searching');
+
+    try {
+      // Check if someone is already waiting
+      const { data: waiting, error: waitingError } = await supabase
+        .from('match_queue')
+        .select('user_id')
+        .neq('user_id', session.user.id)
+        .limit(1);
+
+      if (waitingError) {
+        console.error('Error checking queue:', waitingError);
+        alert('Failed to search for opponents');
+        setMode(null);
+        return;
+      }
+
+      if (waiting && waiting.length > 0) {
+        // Found someone waiting, create battle immediately
+        const opponentId = waiting[0].user_id;
+        
+        const { data: battle, error: battleError } = await supabase
+          .from('battles')
+          .insert({
+            player1: session.user.id,
+            player2: opponentId,
+            status: 'active'
+          })
+          .select()
+          .single();
+
+        if (battleError) {
+          console.error('Error creating battle:', battleError);
+          alert('Failed to create battle');
+          setMode(null);
+          return;
+        }
+
+        // Remove both players from queue
+        await supabase
+          .from('match_queue')
+          .delete()
+          .in('user_id', [session.user.id, opponentId]);
+
+        // Go to battle
+        setActiveLiveMatch(battle.id);
+        setView('liveGame');
+        return;
+      }
+
+      // No one waiting, add myself to queue and poll
+      const { error: queueError } = await supabase
+        .from('match_queue')
+        .insert({ user_id: session.user.id });
+
+      if (queueError) {
+        console.error('Error joining queue:', queueError);
+        alert('Failed to join matchmaking');
+        setMode(null);
+        return;
+      }
+
+      // Poll every 2 seconds for opponents
+      pollIntervalRef.current = setInterval(async () => {
+        const { data: opponents, error } = await supabase
+          .from('match_queue')
+          .select('user_id')
+          .neq('user_id', session.user.id)
+          .limit(1);
+
+        if (!error && opponents && opponents.length > 0) {
+          clearInterval(pollIntervalRef.current);
+          
+          const opponentId = opponents[0].user_id;
+          
+          // Create battle
+          const { data: battle, error: battleError } = await supabase
+            .from('battles')
+            .insert({
+              player1: session.user.id,
+              player2: opponentId,
+              status: 'active'
+            })
+            .select()
+            .single();
+
+          if (!battleError) {
+            // Remove both from queue
+            await supabase
+              .from('match_queue')
+              .delete()
+              .in('user_id', [session.user.id, opponentId]);
+
+            // Go to battle
+            setActiveLiveMatch(battle.id);
+            setView('liveGame');
+          }
+        }
+      }, 2000);
+
+      // Stop searching after 30 seconds
+      setTimeout(() => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          handleCancelSearch();
+        }
+      }, 30000);
+
+    } catch (error) {
+      console.error('Error in random match:', error);
+      setMode(null);
+    }
+  };
+
+  const handleCancelSearch = async () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
+    await supabase
+      .from('match_queue')
+      .delete()
+      .eq('user_id', session.user.id);
+
+    setMode(null);
+  };
+
+  const handleCreateInvite = async () => {
+    try {
+      const inviteCode = generateInviteCode();
+      
+      const { data: battle, error: battleError } = await supabase
+        .from('battles')
+        .insert({
+          player1: session.user.id,
+          player2: null,
+          invite_code: inviteCode,
+          status: 'waiting'
+        })
+        .select()
+        .single();
+
+      if (battleError) {
+        console.error('Error creating battle:', battleError);
+        alert('Failed to create invite');
+        return;
+      }
+
+      setGeneratedInvite({
+        battle_id: battle.id,
+        invite_code: battle.invite_code
+      });
+      setMode('waiting');
+
+      // Simple polling to check if someone joined
+      pollIntervalRef.current = setInterval(async () => {
+        const { data: updatedBattle, error } = await supabase
+          .from('battles')
+          .select('player2, status')
+          .eq('id', battle.id)
+          .single();
+
+        if (!error && updatedBattle && updatedBattle.player2) {
+          clearInterval(pollIntervalRef.current);
+          
+          // Update battle to active
+          await supabase
+            .from('battles')
+            .update({ status: 'active' })
+            .eq('id', battle.id);
+
+          // Both players found, start battle
+          setActiveLiveMatch(battle.id);
+          setView('liveGame');
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error creating invite:', error);
+      alert('Failed to create invite');
+    }
+  };
+
   const handleJoinByCode = async () => {
     if (!inviteCode.trim()) return;
 
     try {
-      console.log('Attempting to join with code:', inviteCode.trim());
+      // Find the battle
+      const { data: battle, error: findError } = await supabase
+        .from('battles')
+        .select('*')
+        .eq('invite_code', inviteCode.trim().toUpperCase())
+        .eq('status', 'waiting')
+        .is('player2', null)
+        .single();
 
-      // Try RPC function first
-      const { data, error } = await supabase.rpc('join_battle_by_code', {
-        code: inviteCode.trim().toUpperCase()
-      });
-
-      let battleId;
-      if (error) {
-        console.error('RPC Error joining battle:', error);
-        
-        // Fallback: manual join
-        const { data: battleData, error: findError } = await supabase
-          .from('battles')
-          .select('*')
-          .eq('invite_code', inviteCode.trim().toUpperCase())
-          .eq('status', 'waiting')
-          .is('player2', null)
-          .single();
-
-        if (findError || !battleData) {
-          alert('Invalid or expired invite code');
-          return;
-        }
-
-        // Update battle with player2
-        const { data: updatedBattle, error: updateError } = await supabase
-          .from('battles')
-          .update({ 
-            player2: session.user.id, 
-            status: 'lobby' 
-          })
-          .eq('id', battleData.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Error updating battle:', updateError);
-          alert('Failed to join battle');
-          return;
-        }
-
-        console.log('Joined battle manually:', updatedBattle);
-        battleId = updatedBattle.id;
-      } else {
-        if (data.error) {
-          alert(data.error);
-          return;
-        }
-        console.log('Joined battle via RPC:', data);
-        battleId = data.battle_id;
+      if (findError || !battle) {
+        alert('Invalid or expired invite code');
+        return;
       }
 
-      // Notify the battle creator using the correct channel name
-      const creatorChannel = supabase.channel(`battle_invite:${battleId}`);
-      await creatorChannel.send({
-        type: 'broadcast',
-        event: 'opponent_joined',
-        payload: { battle_id: battleId, joiner_id: session.user.id }
-      });
+      // Join the battle
+      const { data: updatedBattle, error: updateError } = await supabase
+        .from('battles')
+        .update({ 
+          player2: session.user.id,
+          status: 'active'
+        })
+        .eq('id', battle.id)
+        .select()
+        .single();
 
-      console.log('Sent notification to battle creator');
-      
-      // Small delay to ensure notification is sent
-      setTimeout(() => {
-        setActiveLiveMatch(battleId);
-        setView('liveGame');
-      }, 500);
+      if (updateError) {
+        console.error('Error joining battle:', updateError);
+        alert('Failed to join battle');
+        return;
+      }
+
+      // Go to battle immediately
+      setActiveLiveMatch(updatedBattle.id);
+      setView('liveGame');
 
     } catch (error) {
-      console.error('Unexpected error joining battle:', error);
-      alert('Failed to join battle. Please try again.');
+      console.error('Error joining battle:', error);
+      alert('Failed to join battle');
     }
-  };
-
-  const handleInviteFriend = async (friendId) => {
-    const { data, error } = await supabase.rpc('create_battle_invite', {
-      target_user_id: friendId
-    });
-
-    if (error) {
-      console.error('Error creating friend invite:', error);
-      return;
-    }
-
-    // Send notification to friend
-    const friendChannel = supabase.channel(`invites:${friendId}`);
-    friendChannel.send({
-      type: 'broadcast',
-      event: 'live_invite',
-      payload: {
-        from_user_id: session.user.id,
-        from_username: session.user.email, // or username from profile
-        battle_id: data.battle_id
-      }
-    });
-
-    setGeneratedInvite(data);
-    setMode('waiting');
   };
 
   return (
@@ -497,7 +371,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
                 </div>
               </div>
 
-              {/* Invite Friends */}
+              {/* Create Invite */}
               <div 
                 className="backdrop-blur rounded-lg p-8 border"
                 style={{ 
@@ -506,33 +380,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
                 }}
               >
                 <h2 className="text-2xl font-serif font-bold text-white mb-4">Challenge Friends</h2>
-                <div className="space-y-4">
-                  <button
-                    onClick={handleCreateInvite}
-                    className="w-full px-6 py-3 bg-blue-700 text-white font-medium rounded-md hover:bg-blue-600"
-                  >
-                    Create Invite Link
-                  </button>
-                  
-                  {friends.length > 0 && (
-                    <div>
-                      <p className="text-gray-400 mb-3">Or invite a friend directly:</p>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {friends.map((friend) => (
-                          <div key={friend.id} className="flex items-center justify-between bg-gray-800 rounded-lg p-3">
-                            <span className="text-white">{friend.username}</span>
-                            <button
-                              onClick={() => handleInviteFriend(friend.id)}
-                              className="px-4 py-1 bg-green-700 text-white text-sm rounded hover:bg-green-600"
-                            >
-                              Invite
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={handleCreateInvite}
+                  className="w-full px-6 py-3 bg-blue-700 text-white font-medium rounded-md hover:bg-blue-600"
+                >
+                  Create Invite Code
+                </button>
               </div>
             </div>
           )}
@@ -584,7 +437,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
                   Copy Code
                 </button>
                 <button
-                  onClick={() => setMode(null)}
+                  onClick={() => {
+                    setMode(null);
+                    if (pollIntervalRef.current) {
+                      clearInterval(pollIntervalRef.current);
+                    }
+                  }}
                   className="px-6 py-3 bg-gray-700 text-white font-medium rounded-md hover:bg-gray-600"
                 >
                   Cancel
