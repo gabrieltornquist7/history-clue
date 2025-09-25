@@ -175,20 +175,74 @@ export default function DailyChallengeView({
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
-        <header className="mb-8 text-center relative">
+      <div 
+        className="min-h-screen relative"
+        style={{
+          background: `
+            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+            radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+            radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+            radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+          `
+        }}
+      >
+        {/* Metallic shine overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
+
+        <style jsx>{`
+          @keyframes shine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+
+        <header className="flex items-center justify-center p-8 relative z-10">
           <button
             onClick={() => setView('menu')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm"
+            className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+            style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
           >
-            &larr; Menu
+            ← Menu
+            <div 
+              className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+              style={{ backgroundColor: '#d4af37' }}
+            ></div>
           </button>
-          <h1 className="text-5xl font-serif font-bold text-gold-rush">
-            Daily Challenge
-          </h1>
+          <div className="text-center">
+            <h1 
+              className="text-5xl font-serif font-bold text-white mb-2" 
+              style={{ 
+                letterSpacing: '0.02em',
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              Daily Challenge
+            </h1>
+            <p 
+              className="text-sm italic font-light"
+              style={{ 
+                color: '#d4af37', 
+                opacity: 0.9, 
+                letterSpacing: '0.05em' 
+              }}
+            >
+              Five puzzles • One chance • Pure glory
+            </p>
+          </div>
         </header>
-        <div className="text-center text-sepia">
-          Loading today&apos;s challenge...
+        
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="text-2xl font-serif text-white mb-4">Loading today's challenge...</div>
+            <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
         </div>
       </div>
     );
@@ -196,167 +250,398 @@ export default function DailyChallengeView({
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
-        <header className="mb-8 text-center relative">
+      <div 
+        className="min-h-screen relative"
+        style={{
+          background: `
+            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+            radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+            radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+            radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+          `
+        }}
+      >
+        {/* Metallic shine overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
+
+        <style jsx>{`
+          @keyframes shine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+
+        <header className="flex items-center justify-center p-8 relative z-10">
           <button
             onClick={() => setView('menu')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm"
+            className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+            style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
           >
-            &larr; Menu
+            ← Menu
+            <div 
+              className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+              style={{ backgroundColor: '#d4af37' }}
+            ></div>
           </button>
-          <h1 className="text-5xl font-serif font-bold text-gold-rush">
-            Daily Challenge
-          </h1>
+          <div className="text-center">
+            <h1 
+              className="text-5xl font-serif font-bold text-white mb-2" 
+              style={{ 
+                letterSpacing: '0.02em',
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              Daily Challenge
+            </h1>
+          </div>
         </header>
-        <div className="text-center p-8 bg-papyrus rounded-lg shadow-lg border border-sepia/20">
-          <p className="text-2xl font-serif text-red-600 mb-4">Error Loading Daily Challenge</p>
-          <p className="text-sepia mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors"
+        
+        <div className="flex items-center justify-center min-h-[50vh] p-8">
+          <div 
+            className="text-center p-8 backdrop-blur rounded-xl max-w-md"
+            style={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 0 0 1px rgba(212, 175, 55, 0.2)'
+            }}
           >
-            Try Again
-          </button>
+            <p className="text-2xl font-serif text-red-400 mb-4">Error Loading Daily Challenge</p>
+            <p className="text-gray-300 mb-6">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-gray-800 text-white font-medium rounded-md hover:bg-gray-700 transition-all duration-300 border border-gray-700/30"
+              style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
-      <header className="mb-8 text-center relative">
+    <div 
+      className="min-h-screen relative"
+      style={{
+        background: `
+          linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+          radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+          radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+          radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+        `
+      }}
+    >
+      {/* Metallic shine overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+          backgroundSize: "200% 200%",
+          animation: "shine 12s linear infinite",
+        }}
+      ></div>
+
+      <style jsx>{`
+        @keyframes shine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        @keyframes slideUp {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up {
+          animation: slideUp 0.6s ease-out;
+        }
+      `}</style>
+
+      <header className="flex items-center justify-center p-8 relative z-10">
         <button
           onClick={() => setView('menu')}
-          className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-sepia-dark text-white font-bold rounded-lg hover:bg-ink transition-colors shadow-sm"
+          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
         >
-          &larr; Menu
+          ← Menu
+          <div 
+            className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+            style={{ backgroundColor: '#d4af37' }}
+          ></div>
         </button>
-        <h1 className="text-5xl font-serif font-bold text-gold-rush">
-          Daily Challenge
-        </h1>
+        <div className="text-center">
+          <h1 
+            className="text-5xl font-serif font-bold text-white mb-2" 
+            style={{ 
+              letterSpacing: '0.02em',
+              textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+            }}
+          >
+            Daily Challenge
+          </h1>
+          <p 
+            className="text-sm italic font-light"
+            style={{ 
+              color: '#d4af37', 
+              opacity: 0.9, 
+              letterSpacing: '0.05em' 
+            }}
+          >
+            Five puzzles • One chance • Pure glory
+          </p>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Challenge Area */}
-        <div className="lg:col-span-2">
-          <div className="text-center p-8 bg-papyrus rounded-lg shadow-lg border border-sepia/20">
-            {!dailyPuzzleSet ? (
-              <div>
-                <p className="text-2xl font-serif text-red-600 mb-4">
-                  No Daily Challenge Available
-                </p>
-                <p className="text-sepia">
-                  There was an issue setting up today&apos;s challenge. Please try again later or contact support.
-                </p>
-              </div>
-            ) : userAttempt ? (
-              <div>
-                <p className="text-2xl font-serif text-ink mb-6">
-                  You have already completed today&apos;s challenge!
-                </p>
-                
-                <div className="bg-parchment p-6 rounded-lg border border-sepia/20 mb-6">
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div>
-                      <p className="text-3xl font-bold text-gold-rush">
-                        {userAttempt.puzzles_completed}
-                      </p>
-                      <p className="text-sm text-sepia">Puzzles Completed</p>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-gold-rush">
-                        {userAttempt.final_score.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-sepia">Total Score</p>
-                    </div>
-                  </div>
+      <div className="px-8 pb-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          
+          {/* Main Challenge Area */}
+          <div className="lg:col-span-2">
+            <div 
+              className="backdrop-blur rounded-xl shadow-2xl border slide-up"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              {!dailyPuzzleSet ? (
+                <div className="text-center p-12">
+                  <p className="text-2xl font-serif text-red-400 mb-4">
+                    No Daily Challenge Available
+                  </p>
+                  <p className="text-gray-400">
+                    There was an issue setting up today's challenge. Please try again later or contact support.
+                  </p>
                 </div>
-                
-                <p className="text-ink">
-                  Come back tomorrow for a new set of progressively challenging puzzles!
-                </p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-2xl font-serif text-ink mb-4">
-                  Welcome to Today&apos;s Daily Challenge!
-                </p>
-                <p className="text-sepia mb-6">
-                  Face 5 progressively challenging puzzles, from very easy to super hard. 
-                  You must meet each score target to advance. One attempt per day!
-                </p>
-
-                {/* Difficulty Progression Display */}
-                <div className="mt-6 p-4 bg-parchment rounded-lg border border-sepia/20">
-                  <h3 className="text-lg font-serif font-bold text-ink mb-3">Challenge Progression</h3>
-                  <div className="grid grid-cols-5 gap-2 text-sm">
-                    {SCORE_TARGETS.map((target, index) => (
-                      <div key={index} className="text-center">
-                        <div className="font-bold text-gold-rush">Puzzle {index + 1}</div>
-                        <div className="text-xs text-sepia mb-1">{DIFFICULTY_LABELS[index]}</div>
-                        <div className="text-sepia font-semibold">{target.toLocaleString()}</div>
+              ) : userAttempt ? (
+                <div className="text-center p-12">
+                  <p className="text-3xl font-serif text-white mb-8">
+                    Challenge Complete!
+                  </p>
+                  
+                  <div 
+                    className="p-8 rounded-xl border mb-8 slide-up"
+                    style={{ 
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      border: '2px solid rgba(212, 175, 55, 0.3)',
+                      boxShadow: '0 0 30px rgba(212, 175, 55, 0.1)'
+                    }}
+                  >
+                    <div className="grid grid-cols-2 gap-8 text-center">
+                      <div>
+                        <p 
+                          className="text-5xl font-bold mb-2"
+                          style={{ 
+                            color: '#d4af37',
+                            textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
+                          }}
+                        >
+                          {userAttempt.puzzles_completed}
+                        </p>
+                        <p className="text-sm text-gray-400 uppercase tracking-wider">Puzzles Completed</p>
                       </div>
-                    ))}
+                      <div>
+                        <p 
+                          className="text-5xl font-bold mb-2"
+                          style={{ 
+                            color: '#d4af37',
+                            textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
+                          }}
+                        >
+                          {userAttempt.final_score.toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-400 uppercase tracking-wider">Total Score</p>
+                      </div>
+                    </div>
                   </div>
+                  
+                  <p className="text-gray-300 text-lg leading-relaxed">
+                    Come back tomorrow for a new set of progressively challenging puzzles!
+                  </p>
                 </div>
+              ) : (
+                <div className="p-12">
+                  <div className="text-center mb-8">
+                    <p className="text-3xl font-serif text-white mb-6">
+                      Welcome to Today's Daily Challenge!
+                    </p>
+                    <p className="text-gray-300 text-lg leading-relaxed mb-8">
+                      Face 5 progressively challenging puzzles, from very easy to super hard. 
+                      You must meet each score target to advance. One attempt per day!
+                    </p>
+                  </div>
 
-                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <h4 className="font-bold text-amber-800 mb-2">How it works:</h4>
-                  <ul className="text-sm text-amber-700 text-left space-y-1">
-                    <li>• Each puzzle gets progressively harder</li>
-                    <li>• You must reach the target score to unlock the next puzzle</li>
-                    <li>• If you fail to reach a target, your challenge ends</li>
-                    <li>• Your final score is the sum of all completed puzzles</li>
-                    <li>• Complete all 5 puzzles for maximum glory!</li>
-                  </ul>
-                </div>
-
-                <button
-                  onClick={startChallenge}
-                  className="mt-8 px-8 py-4 bg-gold-rush text-ink font-bold text-xl rounded-lg hover:bg-amber-600 transition-colors shadow-md"
-                >
-                  Begin Challenge
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Leaderboard Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="p-6 bg-papyrus border border-sepia/20 rounded-2xl shadow-lg sticky top-8">
-            <h2 className="text-2xl font-serif font-bold text-gold-rush text-center mb-6">
-              Daily Leaderboard
-            </h2>
-            {loadingLeaderboard ? (
-              <div className="text-center text-sepia">Loading scores...</div>
-            ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {leaderboard.length > 0 ? (
-                  leaderboard.map((entry, index) => (
-                    <div key={`${entry.profiles?.username || 'unknown'}-${index}`} className="flex items-center justify-between p-3 bg-parchment rounded-lg shadow-sm border border-sepia/10">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-ink w-6 text-center">{index + 1}.</span>
-                        <Image
-                          src={getAvatarUrl(entry.profiles?.avatar_url)}
-                          alt={`${entry.profiles?.username ?? 'Traveler'}'s avatar`}
-                          width={32}
-                          height={32}
-                          className="w-8 h-8 rounded-full object-cover border-2 border-gold-rush"
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-ink text-sm">{entry.profiles?.username ?? 'Traveler'}</span>
-                          <span className="text-xs text-sepia">{entry.puzzles_completed}/5 completed</span>
+                  {/* Difficulty Progression Display */}
+                  <div 
+                    className="p-6 rounded-xl border mb-8"
+                    style={{ 
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}
+                  >
+                    <h3 className="text-xl font-serif font-bold text-white mb-4 text-center">Challenge Progression</h3>
+                    <div className="grid grid-cols-5 gap-4">
+                      {SCORE_TARGETS.map((target, index) => (
+                        <div key={index} className="text-center">
+                          <div 
+                            className="font-bold text-lg mb-2"
+                            style={{ color: '#d4af37' }}
+                          >
+                            Puzzle {index + 1}
+                          </div>
+                          <div className="text-xs text-gray-400 mb-2 uppercase tracking-wider">
+                            {DIFFICULTY_LABELS[index]}
+                          </div>
+                          <div 
+                            className="text-white font-bold text-lg"
+                            style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
+                          >
+                            {target.toLocaleString()}
+                          </div>
                         </div>
-                      </div>
-                      <span className="font-bold text-gold-rush text-sm">{entry.final_score.toLocaleString()}</span>
+                      ))}
                     </div>
-                  ))
+                  </div>
+
+                  <div 
+                    className="p-6 rounded-xl border mb-8"
+                    style={{ 
+                      backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                      border: '1px solid rgba(139, 69, 19, 0.3)'
+                    }}
+                  >
+                    <h4 className="font-bold text-yellow-400 mb-3 text-lg">How it works:</h4>
+                    <ul className="text-gray-300 space-y-2 leading-relaxed">
+                      <li>• Each puzzle gets progressively harder</li>
+                      <li>• You must reach the target score to unlock the next puzzle</li>
+                      <li>• If you fail to reach a target, your challenge ends</li>
+                      <li>• Your final score is the sum of all completed puzzles</li>
+                      <li>• Complete all 5 puzzles for maximum glory!</li>
+                    </ul>
+                  </div>
+
+                  <div className="text-center">
+                    <button
+                      onClick={startChallenge}
+                      className="px-12 py-5 font-bold text-white text-xl rounded-lg transition-all duration-300 relative group"
+                      style={{ 
+                        background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        letterSpacing: '-0.02em',
+                        boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                      }}
+                    >
+                      Begin Challenge
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Leaderboard Sidebar */}
+          <div className="lg:col-span-1">
+            <div 
+              className="backdrop-blur rounded-xl shadow-2xl border sticky top-8 slide-up"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <div className="p-6">
+                <h2 
+                  className="text-2xl font-serif font-bold text-center mb-6"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+                  }}
+                >
+                  Daily Leaderboard
+                </h2>
+                
+                {loadingLeaderboard ? (
+                  <div className="text-center text-gray-400 py-8">
+                    <div className="w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                    <p>Loading scores...</p>
+                  </div>
                 ) : (
-                  <p className="text-center text-sepia">No daily scores yet. Be the first to play!</p>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {leaderboard.length > 0 ? (
+                      leaderboard.map((entry, index) => (
+                        <div 
+                          key={`${entry.profiles?.username || 'unknown'}-${index}`} 
+                          className="flex items-center justify-between p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/30"
+                          style={{ 
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            border: '1px solid rgba(255, 255, 255, 0.05)'
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span 
+                              className="font-bold w-6 text-center text-lg"
+                              style={{ color: index < 3 ? '#d4af37' : '#ffffff' }}
+                            >
+                              {index + 1}.
+                            </span>
+                            <div 
+                              className="relative"
+                              style={{
+                                border: '2px solid #d4af37',
+                                borderRadius: '50%',
+                                padding: '2px'
+                              }}
+                            >
+                              <Image
+                                src={getAvatarUrl(entry.profiles?.avatar_url)}
+                                alt={`${entry.profiles?.username ?? 'Traveler'}'s avatar`}
+                                width={32}
+                                height={32}
+                                className="w-8 h-8 rounded-full object-cover"
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-white text-sm">
+                                {entry.profiles?.username ?? 'Traveler'}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {entry.puzzles_completed}/5 completed
+                              </span>
+                            </div>
+                          </div>
+                          <span 
+                            className="font-bold text-sm"
+                            style={{ 
+                              color: '#d4af37',
+                              textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                            }}
+                          >
+                            {entry.final_score.toLocaleString()}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-400 italic py-8">
+                        No daily scores yet. Be the first to play!
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

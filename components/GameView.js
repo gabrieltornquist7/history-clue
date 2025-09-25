@@ -27,6 +27,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [gameKey, setGameKey] = useState(0);
   const [xpResults, setXpResults] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
   const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
@@ -163,6 +164,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   }, [challenge, gameKey, dailyPuzzleInfo]);
 
   const handleMapGuess = (latlng) => { setGuessCoords(latlng); };
+  
   const handleUnlockClue = (clueNumber) => { 
     if (results || unlockedClues.includes(clueNumber)) return; 
     const cost = CLUE_COSTS[clueNumber]; 
@@ -282,17 +284,34 @@ export default function GameView({ setView, challenge = null, session, onChallen
   if (isLoading) {
     return (
       <div 
-        className="min-h-screen flex items-center justify-center"
+        className="min-h-screen relative flex items-center justify-center"
         style={{
-          background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)',
-          backgroundImage: `
+          background: `
+            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
             radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
             radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
             radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
           `
         }}
       >
-        <div className="text-center">
+        {/* Metallic shine overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
+
+        <style jsx>{`
+          @keyframes shine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+
+        <div className="text-center relative z-10">
           <div className="text-2xl font-serif text-white mb-4">Loading puzzle...</div>
           <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
@@ -303,21 +322,39 @@ export default function GameView({ setView, challenge = null, session, onChallen
   if (error || !puzzle) {
     return (
       <div 
-        className="min-h-screen flex flex-col items-center justify-center p-8"
+        className="min-h-screen relative flex flex-col items-center justify-center p-8"
         style={{
-          background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)',
-          backgroundImage: `
+          background: `
+            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
             radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
             radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
             radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
           `
         }}
       >
+        {/* Metallic shine overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
+
+        <style jsx>{`
+          @keyframes shine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+
         <div 
-          className="text-center p-8 backdrop-blur rounded-xl"
+          className="text-center p-8 backdrop-blur rounded-xl relative z-10"
           style={{ 
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            border: '1px solid rgba(255, 255, 255, 0.05)'
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            boxShadow: '0 0 0 1px rgba(212, 175, 55, 0.2)'
           }}
         >
           <p className="text-red-400 font-bold mb-4 text-2xl font-serif">An Error Occurred</p>
@@ -336,21 +373,68 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
   return (
     <div 
-      className="min-h-screen"
+      className="min-h-screen relative"
       style={{
-        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)',
-        backgroundImage: `
+        background: `
+          linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
           radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
           radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
           radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
         `
       }}
     >
+      {/* Metallic shine overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+          backgroundSize: "200% 200%",
+          animation: "shine 12s linear infinite",
+        }}
+      ></div>
+
+      <style jsx>{`
+        @keyframes shine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        @keyframes shimmerLock {
+          0% { opacity: 0.3; }
+          50% { opacity: 0.8; }
+          100% { opacity: 0.3; }
+        }
+        @keyframes goldReveal {
+          0% { 
+            opacity: 0; 
+            transform: scale(0.95); 
+            box-shadow: 0 0 0 rgba(212, 175, 55, 0);
+          }
+          100% { 
+            opacity: 1; 
+            transform: scale(1); 
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+          }
+        }
+        @keyframes slideUp {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .shimmer-lock {
+          animation: shimmerLock 2s ease-in-out infinite;
+        }
+        .gold-reveal {
+          animation: goldReveal 0.5s ease-out;
+        }
+        .slide-up {
+          animation: slideUp 0.6s ease-out;
+        }
+      `}</style>
+
       {/* Header */}
-      <header className="flex items-center justify-center p-8 relative">
+      <header className="flex items-center justify-center p-8 relative z-10">
         <button 
           onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} 
-          className="absolute left-4 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
           style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
         >
           ← Back
@@ -360,7 +444,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
           ></div>
         </button>
         <div className="text-center">
-          <h1 className="text-4xl font-serif font-bold text-white mb-2" style={{ letterSpacing: '0.02em' }}>
+          <h1 
+            className="text-4xl font-serif font-bold text-white mb-2" 
+            style={{ 
+              letterSpacing: '0.02em',
+              textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+            }}
+          >
             HistoryClue
           </h1>
           <p className="text-sm text-gray-300">
@@ -386,11 +476,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
       </header>
 
       {/* Main Game Area */}
-      <div className="px-8 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-8 pb-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 max-w-7xl mx-auto">
           
           {/* Clues Section */}
-          <div className="space-y-4">
+          <div className="space-y-4 slide-up">
             {[1, 2, 3, 4, 5].map((num) => {
               const isUnlocked = unlockedClues.includes(num);
               const clueText = getClueText(num);
@@ -398,17 +488,36 @@ export default function GameView({ setView, challenge = null, session, onChallen
               return (
                 <div 
                   key={num}
-                  className="backdrop-blur rounded-lg border transition-all duration-300 hover:border-yellow-500/30"
+                  className={`backdrop-blur rounded-lg border transition-all duration-300 ${isUnlocked ? 'gold-reveal' : ''}`}
                   style={{ 
                     backgroundColor: isUnlocked ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
-                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                    border: isUnlocked 
+                      ? '2px solid rgba(212, 175, 55, 0.3)' 
+                      : '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: isUnlocked 
+                      ? '0 0 20px rgba(212, 175, 55, 0.1)' 
+                      : 'none'
                   }}
                 >
                   {isUnlocked ? (
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
-                        <span className="font-serif font-bold text-white">Clue {num}</span>
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ 
+                            backgroundColor: '#d4af37',
+                            boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+                          }}
+                        ></div>
+                        <span 
+                          className="font-serif font-bold text-lg"
+                          style={{ 
+                            color: '#d4af37',
+                            textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                          }}
+                        >
+                          Clue {num}
+                        </span>
                       </div>
                       <p className={`text-gray-300 leading-relaxed ${num === 1 ? 'italic text-lg' : ''}`}>
                         {clueText || 'Loading...'}
@@ -416,7 +525,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                     </div>
                   ) : (
                     <button 
-                      className="w-full p-6 text-left group hover:bg-white/5 transition-all duration-300" 
+                      className="w-full p-4 sm:p-6 text-left group hover:bg-white/5 transition-all duration-300 shimmer-lock" 
                       onClick={() => handleUnlockClue(num)}
                     >
                       <div className="flex items-center justify-between">
@@ -447,7 +556,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
           {/* Map & Guess Panel */}
           <div 
-            className="backdrop-blur rounded-lg border p-6 space-y-6 hover:border-yellow-500/20 transition-all duration-300"
+            className="backdrop-blur rounded-lg border p-4 sm:p-6 space-y-6 hover:border-yellow-500/20 transition-all duration-300 slide-up"
             style={{ 
               backgroundColor: 'rgba(0, 0, 0, 0.7)',
               border: '1px solid rgba(255, 255, 255, 0.05)',
@@ -456,12 +565,23 @@ export default function GameView({ setView, challenge = null, session, onChallen
           >
             {/* Map */}
             <div>
-              <h3 className="text-lg font-serif font-bold text-white mb-3 text-center">Guess Location</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-serif font-bold text-white">Guess Location</h3>
+                <button
+                  onClick={() => setIsMapFullscreen(!isMapFullscreen)}
+                  className="p-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+                  title="Toggle Fullscreen"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </button>
+              </div>
               <div 
                 className="rounded-lg overflow-hidden border-2 hover:border-yellow-500/50 transition-colors duration-300" 
                 style={{ border: '2px solid rgba(255, 255, 255, 0.1)' }}
               >
-                <div className="h-80">
+                <div className={isMapFullscreen ? "h-96" : "h-64 sm:h-80"}>
                   <Map onGuess={handleMapGuess} />
                 </div>
               </div>
@@ -479,33 +599,40 @@ export default function GameView({ setView, challenge = null, session, onChallen
                     onChange={(e) => handleYearChange(e.target.value)}
                     min="-1000"
                     max="2025"
-                    className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors"
-                    style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                    className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors text-lg"
+                    style={{ 
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      color: '#d4af37',
+                      textShadow: '0 0 10px rgba(212, 175, 55, 0.3)',
+                      boxShadow: '0 0 0 0 rgba(212, 175, 55, 0.2)'
+                    }}
                   />
-                  <div className="flex flex-col gap-1">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => adjustYear(10)}
-                      className="px-3 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors text-sm"
+                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                      style={{ minWidth: '50px' }}
                     >
                       +10
                     </button>
                     <button
                       onClick={() => adjustYear(1)}
-                      className="px-3 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors text-sm"
+                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                      style={{ minWidth: '50px' }}
                     >
                       +1
                     </button>
-                  </div>
-                  <div className="flex flex-col gap-1">
                     <button
                       onClick={() => adjustYear(-10)}
-                      className="px-3 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors text-sm"
+                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                      style={{ minWidth: '50px' }}
                     >
                       -10
                     </button>
                     <button
                       onClick={() => adjustYear(-1)}
-                      className="px-3 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors text-sm"
+                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                      style={{ minWidth: '50px' }}
                     >
                       -1
                     </button>
@@ -513,18 +640,45 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 </div>
 
                 {/* Display */}
-                <div className="text-center p-4 rounded-lg" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-                  <p className="text-sm text-gray-400 mb-1">Your guess:</p>
-                  <p className="text-2xl font-bold text-white">{displayYear(selectedYear)}</p>
+                <div 
+                  className="text-center p-4 rounded-lg border"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    border: '1px solid rgba(212, 175, 55, 0.2)'
+                  }}
+                >
+                  <p className="text-sm text-gray-400 mb-1 uppercase tracking-wider">Your guess:</p>
+                  <p 
+                    className="text-2xl font-bold"
+                    style={{ 
+                      color: '#d4af37',
+                      textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                    }}
+                  >
+                    {displayYear(selectedYear)}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Score Display */}
-            <div className="p-4 rounded-lg border" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', borderColor: 'rgba(212, 175, 55, 0.2)' }}>
+            <div 
+              className="p-4 rounded-lg border"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                border: '2px solid rgba(212, 175, 55, 0.2)',
+                boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
+              }}
+            >
               <div className="text-center">
                 <p className="text-sm text-gray-400 mb-1 uppercase tracking-wide">Potential Score</p>
-                <p className="text-2xl font-bold" style={{ color: '#d4af37' }}>
+                <p 
+                  className="text-3xl font-bold mb-1"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
+                  }}
+                >
                   {score.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500">points remaining</p>
@@ -535,15 +689,16 @@ export default function GameView({ setView, challenge = null, session, onChallen
             <button 
               onClick={() => setShowConfirmModal(true)}
               disabled={!guessCoords || !!results}
-              className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative group"
               style={{ 
                 background: !guessCoords || !!results ? '#374151' : 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
                 fontFamily: 'system-ui, -apple-system, sans-serif',
-                letterSpacing: '-0.01em'
+                letterSpacing: '-0.01em',
+                fontSize: '18px'
               }}
               onMouseEnter={(e) => {
                 if (!e.target.disabled) {
-                  e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4)';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 10px 30px rgba(139, 0, 0, 0.3)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -563,17 +718,30 @@ export default function GameView({ setView, challenge = null, session, onChallen
             className="backdrop-blur rounded-xl p-8 max-w-md w-full text-center"
             style={{ 
               backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '2px solid rgba(212, 175, 55, 0.3)',
+              boxShadow: '0 0 50px rgba(0, 0, 0, 0.8)'
             }}
           >
             <h3 className="text-2xl font-serif font-bold text-white mb-4">Confirm Your Guess</h3>
             <div className="space-y-3 mb-6">
               <p className="text-gray-300">
-                <span className="font-semibold">Year:</span> {displayYear(selectedYear)}
+                <span className="font-semibold">Year:</span> 
+                <span 
+                  className="font-bold ml-2"
+                  style={{ color: '#d4af37' }}
+                >
+                  {displayYear(selectedYear)}
+                </span>
               </p>
               <p className="text-gray-300">
                 <span className="font-semibold">Potential Score:</span> 
-                <span className="font-bold ml-1" style={{ color: '#d4af37' }}>
+                <span 
+                  className="font-bold ml-2"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                  }}
+                >
                   {score.toLocaleString()}
                 </span>
               </p>
@@ -601,13 +769,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
       {results && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div 
-            className="backdrop-blur rounded-xl p-8 max-w-md w-full text-center shadow-2xl"
+            className="backdrop-blur rounded-xl p-8 max-w-md w-full text-center shadow-2xl slide-up"
             style={{ 
               backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              border: '2px solid rgba(212, 175, 55, 0.3)'
+              border: '2px solid rgba(212, 175, 55, 0.3)',
+              boxShadow: '0 0 80px rgba(0, 0, 0, 0.8)'
             }}
           >
-            <h2 className="text-3xl font-serif font-bold text-white mb-6">Round Complete</h2>
+            <h2 
+              className="text-3xl font-serif font-bold text-white mb-6"
+              style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.3)' }}
+            >
+              Round Complete
+            </h2>
             
             {/* Daily Challenge Result */}
             {dailyPuzzleInfo && (
@@ -640,15 +814,37 @@ export default function GameView({ setView, challenge = null, session, onChallen
               </div>
             </div>
             
-            <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(212, 175, 55, 0.1)' }}>
-              <h3 className="text-2xl font-serif font-bold mb-2" style={{ color: '#d4af37' }}>
+            <div 
+              className="mb-6 p-6 rounded-lg border"
+              style={{ 
+                backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                border: '2px solid rgba(212, 175, 55, 0.3)',
+                boxShadow: '0 0 30px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <h3 
+                className="text-3xl font-serif font-bold mb-2"
+                style={{ 
+                  color: '#d4af37',
+                  textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
+                }}
+              >
                 Final Score: {results.finalScore.toLocaleString()}
               </h3>
             </div>
             
             {xpResults && (
-              <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-                <p className="font-bold text-lg" style={{ color: '#d4af37' }}>
+              <div 
+                className="mb-6 p-4 rounded-lg"
+                style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+              >
+                <p 
+                  className="font-bold text-lg"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                  }}
+                >
                   +{xpResults.xp_gained.toLocaleString()} XP
                 </p>
                 {xpResults.new_level > xpResults.old_level && (
@@ -661,7 +857,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
                     className="h-3 rounded-full transition-all duration-500" 
                     style={{ 
                       width: `${(xpResults.new_xp / xpResults.xp_for_new_level) * 100}%`,
-                      backgroundColor: '#d4af37'
+                      backgroundColor: '#d4af37',
+                      boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
                     }}
                   ></div>
                 </div>
@@ -676,7 +873,14 @@ export default function GameView({ setView, challenge = null, session, onChallen
               className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300"
               style={{ 
                 background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-                fontFamily: 'system-ui, -apple-system, sans-serif'
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
               }}
             >
               {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
