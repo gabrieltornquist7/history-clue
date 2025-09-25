@@ -48,6 +48,64 @@ export default function LiveBattleView({ session, battleId, setView }) {
   useEffect(() => {
     if (!battleId || !session?.user) return;
 
+    const handleStartRound = async (payload) => {
+      setCurrentRound(payload);
+      
+      // Load puzzle
+      const { data: puzzleData, error } = await supabase
+        .from('puzzles')
+        .select('*, puzzle_translations(*)')
+        .eq('id', payload.puzzle_id)
+        .single();
+
+      if (!error) {
+        setPuzzle(puzzleData);
+        setGamePhase('playing');
+        setMyTimer(180);
+        setOppTimer(180);
+        setMyClues([1]);
+        setOppClues([1]);
+        setMyScore(10000);
+        setSelectedYear(1950);
+        setGuessCoords(null);
+        setMyGuess(null);
+        setOppGuess(null);
+      }
+    };
+
+    const handleOpponentClue = (payload) => {
+      if (payload.by !== session.user.id) {
+        setOppClues(prev => [...prev, payload.clueIndex].sort());
+      }
+    };
+
+    const handleOpponentGuess = (payload) => {
+      if (payload.by !== session.user.id) {
+        setOppGuess({
+          lat: payload.lat,
+          lng: payload.lng,
+          year: payload.year,
+          correct: payload.isCorrect
+        });
+      }
+    };
+
+    const handleOpponentCorrect = (payload) => {
+      if (payload.by !== session.user.id) {
+        setMyTimer(prev => Math.min(prev, 30));
+      }
+    };
+
+    const handleRoundResult = (payload) => {
+      setRoundResults(payload);
+      setShowResults(true);
+    };
+
+    const handleMatchResult = (payload) => {
+      setMatchResults(payload);
+      setGamePhase('finished');
+    };
+
     const loadBattle = async () => {
       // Get battle info
       const { data: battleData, error: battleError } = await supabase
@@ -136,11 +194,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
         clearInterval(timerRef.current);
       }
     };
-  }, [battleId, session?.user]);
+  }, [battleId, session?.user, setView]);
 
   // Timer logic
   useEffect(() => {
     if (gamePhase !== 'playing') return;
+
+    const handleTimeUp = async () => {
+      if (!myGuess) {
+        // Auto-submit with current location (center of map) and year
+        await handleGuessSubmit(true);
+      }
+    };
 
     timerRef.current = setInterval(() => {
       setMyTimer(prev => {
@@ -157,72 +222,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         clearInterval(timerRef.current);
       }
     };
-  }, [gamePhase]);
-
-  const handleStartRound = async (payload) => {
-    setCurrentRound(payload);
-    
-    // Load puzzle
-    const { data: puzzleData, error } = await supabase
-      .from('puzzles')
-      .select('*, puzzle_translations(*)')
-      .eq('id', payload.puzzle_id)
-      .single();
-
-    if (!error) {
-      setPuzzle(puzzleData);
-      setGamePhase('playing');
-      setMyTimer(180);
-      setOppTimer(180);
-      setMyClues([1]);
-      setOppClues([1]);
-      setMyScore(10000);
-      setSelectedYear(1950);
-      setGuessCoords(null);
-      setMyGuess(null);
-      setOppGuess(null);
-    }
-  };
-
-  const handleOpponentClue = (payload) => {
-    if (payload.by !== session.user.id) {
-      setOppClues(prev => [...prev, payload.clueIndex].sort());
-    }
-  };
-
-  const handleOpponentGuess = (payload) => {
-    if (payload.by !== session.user.id) {
-      setOppGuess({
-        lat: payload.lat,
-        lng: payload.lng,
-        year: payload.year,
-        correct: payload.isCorrect
-      });
-    }
-  };
-
-  const handleOpponentCorrect = (payload) => {
-    if (payload.by !== session.user.id) {
-      setMyTimer(prev => Math.min(prev, 30));
-    }
-  };
-
-  const handleRoundResult = (payload) => {
-    setRoundResults(payload);
-    setShowResults(true);
-  };
-
-  const handleMatchResult = (payload) => {
-    setMatchResults(payload);
-    setGamePhase('finished');
-  };
-
-  const handleTimeUp = async () => {
-    if (!myGuess) {
-      // Auto-submit with current location (center of map) and year
-      await handleGuessSubmit(true);
-    }
-  };
+  }, [gamePhase, myGuess]);
 
   const handleRevealClue = async (clueIndex) => {
     if (myClues.includes(clueIndex) || myScore < CLUE_COSTS[clueIndex]) return;

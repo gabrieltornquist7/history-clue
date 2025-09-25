@@ -271,7 +271,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
               >
                 <h2 className="text-2xl font-serif font-bold text-white mb-4">Join by Code</h2>
                 <p className="text-gray-300 mb-6">
-                  Enter a friend's invite code to join their battle.
+                  Enter a friend&apos;s invite code to join their battle.
                 </p>
                 <div className="flex gap-3">
                   <input
