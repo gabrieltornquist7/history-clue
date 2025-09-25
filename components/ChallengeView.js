@@ -16,42 +16,51 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const currentUserId = session?.user?.id;
   const refetchData = () => setDataVersion((v) => v + 1);
 
-  useEffect(() => {
-    if (!currentUserId) {
-        setLoading(false);
-        return;
-    }
-      
-    const fetchData = async () => {
-      setLoading(true);
-      const { data: selfProfile } = await supabase.from('profiles').select('username').eq('id', currentUserId).single();
-      setCurrentUserProfile(selfProfile);
-      
-      const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
-      setProfiles(profilesData || []);
-      const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
-      setFriendships(friendshipsData || []);
-      const { data: challengesData } = await supabase.from('challenges').select(`*, challenger:challenger_id(id, username), opponent:opponent_id(id, username)`).or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`).order('created_at', { ascending: false });
-      setChallenges(challengesData || []);
+// Replace the useEffect in components/ChallengeView.js around line 45
+useEffect(() => {
+  if (!currentUserId) {
       setLoading(false);
-    };
-    fetchData();
+      return;
+  }
+    
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: selfProfile } = await supabase.from('profiles').select('username').eq('id', currentUserId).single();
+    setCurrentUserProfile(selfProfile);
+    
+    const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
+    setProfiles(profilesData || []);
+    const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+    setFriendships(friendshipsData || []);
+    const { data: challengesData } = await supabase.from('challenges').select(`*, challenger:challenger_id(id, username), opponent:opponent_id(id, username)`).or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`).order('created_at', { ascending: false });
+    setChallenges(challengesData || []);
+    setLoading(false);
+  };
+  fetchData();
 
-    const channel = supabase.channel('online-users');
-    channel.on('presence', { event: 'sync' }, () => {
-        const presenceState = channel.presenceState();
-        const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
-        setOnlineFriends(onlineUserIds);
-    }).subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({ user_id: session.user.id });
-      }
-    });
+  const channel = supabase.channel('online-users');
+  let isMounted = true;  // ADD THIS - prevents memory leaks
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUserId, dataVersion, session?.user?.id]);
+  channel.on('presence', { event: 'sync' }, () => {
+      if (!isMounted) return;  // ADD THIS - prevents updates after unmount
+      
+      const presenceState = channel.presenceState();
+      const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
+      setOnlineFriends(onlineUserIds);
+  }).subscribe(async (status) => {
+    if (status === 'SUBSCRIBED' && isMounted) {  // ADD isMounted check
+      await channel.track({ user_id: session.user.id });
+    }
+  });
+
+  return () => {
+    isMounted = false;  // ADD THIS - marks component as unmounted
+    if (channel.state === 'joined') {  // ADD THIS - proper cleanup
+      channel.untrack();
+    }
+    supabase.removeChannel(channel);
+  };
+}, [currentUserId, dataVersion, session?.user?.id]);
 
   const startLiveMatch = async (opponentId) => {
     const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });

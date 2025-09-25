@@ -1,17 +1,58 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { supabase } from "../lib/supabaseClient";
-import Auth from "../components/Auth";
-import LiveBattleView from "../components/LiveBattleView";
-import MainMenu from "../components/MainMenu";
-import ProfileView from "../components/ProfileView";
-import ChallengeView from "../components/ChallengeView";
-import GameView from "../components/GameView";
-import DailyChallengeView from "../components/DailyChallengeView";
-import LiveGameView from "../components/LiveGameView";
-import LiveLobbyView from "../components/LiveLobbyView";
-import ProfileSettingsView from "../components/ProfileSettingsView";
-import LeaderboardView from "../components/LeaderboardView"; // Import the new component
+
+// Lazy load all heavy components for better performance
+const Auth = lazy(() => import("../components/Auth"));
+const LiveBattleView = lazy(() => import("../components/LiveBattleView"));
+const MainMenu = lazy(() => import("../components/MainMenu"));
+const ProfileView = lazy(() => import("../components/ProfileView"));
+const ChallengeView = lazy(() => import("../components/ChallengeView"));
+const GameView = lazy(() => import("../components/GameView"));
+const DailyChallengeView = lazy(() => import("../components/DailyChallengeView"));
+const LiveGameView = lazy(() => import("../components/LiveGameView"));
+const LiveLobbyView = lazy(() => import("../components/LiveLobbyView"));
+const ProfileSettingsView = lazy(() => import("../components/ProfileSettingsView"));
+const LeaderboardView = lazy(() => import("../components/LeaderboardView"));
+
+// Optimized loading component that matches your app's design
+const LoadingSpinner = ({ message = "Loading..." }) => (
+  <div 
+    className="min-h-screen relative"
+    style={{
+      background: `
+        linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+        radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+      `,
+      backgroundBlendMode: "overlay",
+    }}
+  >
+    {/* Metallic shine overlay */}
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+        backgroundSize: "200% 200%",
+        animation: "shine 12s linear infinite",
+      }}
+    ></div>
+
+    <style jsx>{`
+      @keyframes shine {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+    `}</style>
+
+    <div className="flex items-center justify-center min-h-screen relative z-10">
+      <div className="text-center">
+        <div className="text-2xl font-serif text-white mb-4">{message}</div>
+        <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+      </div>
+    </div>
+  </div>
+);
 
 export default function Page() {
   const [session, setSession] = useState(null);
@@ -125,90 +166,173 @@ export default function Page() {
         view === "leaderboard") &&
       !session
     ) {
-      return <Auth setView={handleSetView} />;
+      return (
+        <Suspense fallback={<LoadingSpinner message="Loading authentication..." />}>
+          <Auth setView={handleSetView} />
+        </Suspense>
+      );
     }
 
     switch (view) {
       case "liveGame":
         return (
-          <LiveGameView
-            session={session}
-            matchId={activeLiveMatch}
-            setView={handleSetView}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading live battle..." />}>
+            <LiveGameView
+              session={session}
+              matchId={activeLiveMatch}
+              setView={handleSetView}
+            />
+          </Suspense>
         );
       case "liveLobby":
         return (
-          <LiveLobbyView
-            session={session}
-            setView={handleSetView}
-            setActiveLiveMatch={setActiveLiveMatch}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading battle lobby..." />}>
+            <LiveLobbyView
+              session={session}
+              setView={handleSetView}
+              setActiveLiveMatch={setActiveLiveMatch}
+            />
+          </Suspense>
         );
       case "game":
         return (
-          <GameView
-            setView={handleSetView}
-            challenge={activeChallenge}
-            session={session}
-            onChallengeComplete={onChallengeComplete}
-            dailyPuzzleInfo={activeDailyPuzzle}
-            onDailyStepComplete={handleDailyStepComplete}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading puzzle..." />}>
+            <GameView
+              setView={handleSetView}
+              challenge={activeChallenge}
+              session={session}
+              onChallengeComplete={onChallengeComplete}
+              dailyPuzzleInfo={activeDailyPuzzle}
+              onDailyStepComplete={handleDailyStepComplete}
+            />
+          </Suspense>
         );
       case "endless":
-        return <GameView setView={handleSetView} session={session} />;
+        return (
+          <Suspense fallback={<LoadingSpinner message="Loading endless mode..." />}>
+            <GameView setView={handleSetView} session={session} />
+          </Suspense>
+        );
       case "daily":
         return (
-          <DailyChallengeView
-            setView={handleSetView}
-            session={session}
-            setActiveDailyPuzzle={setActiveDailyPuzzle}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading daily challenge..." />}>
+            <DailyChallengeView
+              setView={handleSetView}
+              session={session}
+              setActiveDailyPuzzle={setActiveDailyPuzzle}
+            />
+          </Suspense>
         );
       case "auth":
-        return <Auth setView={handleSetView} />;
+        return (
+          <Suspense fallback={<LoadingSpinner message="Loading authentication..." />}>
+            <Auth setView={handleSetView} />
+          </Suspense>
+        );
       case "profile":
         return (
-          <ProfileView
-            setView={handleSetView}
-            session={session}
-            userId={viewPayload}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading profile..." />}>
+            <ProfileView
+              setView={handleSetView}
+              session={session}
+              userId={viewPayload}
+            />
+          </Suspense>
         );
       case "challenge":
         return (
-          <ChallengeView
-            setView={handleSetView}
-            session={session}
-            setActiveChallenge={setActiveChallenge}
-            setActiveLiveMatch={setActiveLiveMatch}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading challenges..." />}>
+            <ChallengeView
+              setView={handleSetView}
+              session={session}
+              setActiveChallenge={setActiveChallenge}
+              setActiveLiveMatch={setActiveLiveMatch}
+            />
+          </Suspense>
         );
       case "profileSettings":
-        return <ProfileSettingsView setView={handleSetView} session={session} />;
-      case "leaderboard":
-        return <LeaderboardView setView={handleSetView} />;
-      case "contact": // 👈 NEW VIEW
         return (
-          <div className="flex items-center justify-center min-h-screen bg-parchment p-6">
-            <div className="p-8 bg-papyrus border border-sepia/20 rounded-2xl shadow-lg max-w-lg text-center">
-              <h1 className="text-3xl font-bold text-gold-rush mb-4">
+          <Suspense fallback={<LoadingSpinner message="Loading settings..." />}>
+            <ProfileSettingsView setView={handleSetView} session={session} />
+          </Suspense>
+        );
+      case "leaderboard":
+        return (
+          <Suspense fallback={<LoadingSpinner message="Loading leaderboard..." />}>
+            <LeaderboardView setView={handleSetView} />
+          </Suspense>
+        );
+      case "contact":
+        return (
+          <div 
+            className="min-h-screen relative flex items-center justify-center p-6"
+            style={{
+              background: `
+                linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+                radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+              `,
+              backgroundBlendMode: "overlay",
+            }}
+          >
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+                backgroundSize: "200% 200%",
+                animation: "shine 12s linear infinite",
+              }}
+            ></div>
+            
+            <style jsx>{`
+              @keyframes shine {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+              }
+            `}</style>
+
+            <div 
+              className="p-8 rounded-2xl shadow-2xl max-w-lg text-center relative z-10 backdrop-blur border"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <h1 
+                className="text-3xl font-serif font-bold mb-4"
+                style={{ 
+                  color: '#d4af37',
+                  textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+                }}
+              >
                 Contact Me
               </h1>
-              <p className="text-lg text-sepia mb-4">
+              <p className="text-lg text-white mb-4">
                 You can always reach me at:
               </p>
               <a
                 href="mailto:GABRIEL@HISTORYCLUE.COM"
-                className="text-xl font-semibold text-blue-700 underline"
+                className="text-xl font-semibold text-blue-400 underline hover:text-blue-300 transition-colors"
               >
                 GABRIEL@HISTORYCLUE.COM
               </a>
               <div className="mt-6">
                 <button
                   onClick={() => handleSetView("menu")}
-                  className="px-6 py-2 bg-gold-rush text-ink font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md"
+                  className="px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    letterSpacing: '-0.02em',
+                    boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }}
                 >
                   Back to Menu
                 </button>
@@ -218,11 +342,13 @@ export default function Page() {
         );
       default:
         return (
-          <MainMenu
-            setView={handleSetView}
-            session={session}
-            onSignOut={handleSignOut}
-          />
+          <Suspense fallback={<LoadingSpinner message="Loading menu..." />}>
+            <MainMenu
+              setView={handleSetView}
+              session={session}
+              onSignOut={handleSignOut}
+            />
+          </Suspense>
         );
     }
   };
@@ -231,21 +357,28 @@ export default function Page() {
     <>
       {incomingInvite && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-parchment p-8 rounded-lg shadow-lg text-center border-2 border-gold-rush">
-            <h3 className="text-2xl font-serif font-bold text-ink">
+          <div 
+            className="p-8 rounded-lg shadow-2xl text-center border-2 max-w-md backdrop-blur"
+            style={{ 
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              borderColor: '#d4af37',
+              boxShadow: '0 0 50px rgba(0, 0, 0, 0.8)'
+            }}
+          >
+            <h3 className="text-2xl font-serif font-bold text-white mb-4">
               {incomingInvite.from_username || "A player"} has challenged you to
               a live match!
             </h3>
             <div className="flex gap-4 mt-6">
               <button
                 onClick={acceptInvite}
-                className="px-6 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800"
+                className="px-6 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800 transition-colors"
               >
                 Accept
               </button>
               <button
                 onClick={declineInvite}
-                className="px-6 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800"
+                className="px-6 py-2 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800 transition-colors"
               >
                 Decline
               </button>

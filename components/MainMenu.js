@@ -262,7 +262,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                       className="bg-white text-pink-800 px-2.5 py-0.5 rounded-full text-xs font-bold"
                       style={{ letterSpacing: "0.05em" }}
                     >
-                      BETA
+                      dCOMING SOON
                     </span>
                     <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-pulse"></div>
                   </div>
