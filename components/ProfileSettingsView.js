@@ -1,54 +1,71 @@
-// components/ProfileSettingsView.js
+// components/ProfileSettingsView.js - Fixed & Optimized
 "use client";
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function ProfileSettingsView({ setView, session }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
-  const [selectedTitle, setSelectedTitle] = useState('');
+  const [selectedTitle, setSelectedTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function getProfileData() {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('username, titles, selected_title')
-          .eq('id', user.id)
-          .single();
-        setProfile(profileData);
-        setSelectedTitle(profileData?.selected_title || '');
+      if (!session?.user?.id) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      setLoading(true);
+      try {
+        const { data: profileData, error } = await supabase
+          .from("profiles")
+          .select("username, titles, selected_title")
+          .eq("id", session.user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching profile:", error.message);
+        } else {
+          setProfile(profileData);
+          setSelectedTitle(profileData?.selected_title || "");
+        }
+      } catch (err) {
+        console.error("Unexpected error fetching profile:", err);
+      } finally {
+        setLoading(false);
+      }
     }
+
     getProfileData();
-  }, [session.user.id]);
+  }, [session?.user?.id]);
 
   const handleSave = async () => {
+    if (!session?.user?.id) return;
+
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    try {
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({ selected_title: selectedTitle })
-        .eq('id', user.id);
-      
+        .eq("id", session.user.id);
+
       if (error) {
-        alert('Error updating title: ' + error.message);
+        alert("Error updating title: " + error.message);
       } else {
-        alert('Title updated successfully!');
-        setView('profile');
+        alert("Title updated successfully!");
+        setView("profile");
       }
+    } catch (err) {
+      alert("Unexpected error: " + err.message);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) {
     return (
-      <div 
+      <div
         className="min-h-screen relative"
         style={{
           background: `
@@ -58,6 +75,75 @@ export default function ProfileSettingsView({ setView, session }) {
           `,
           backgroundBlendMode: "overlay",
         }}
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
+
+        <style jsx>{`
+          @keyframes shine {
+            0% {
+              background-position: 200% 0;
+            }
+            100% {
+              background-position: -200% 0;
+            }
+          }
+        `}</style>
+
+        <header className="p-8 relative z-10">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <button
+              onClick={() => setView("profile")}
+              className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+            >
+              ← Back to Profile
+              <div
+                className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                style={{ backgroundColor: "#d4af37" }}
+              ></div>
+            </button>
+            <div className="text-center flex-1 mx-8">
+              <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2">
+                Profile Settings
+              </h1>
+              <p className="text-sm italic font-light" style={{ color: "#d4af37" }}>
+                Customize your profile • Manage preferences
+              </p>
+            </div>
+            <div className="w-24"></div>
+          </div>
+        </header>
+
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="text-2xl font-serif text-white mb-4">
+              Loading settings...
+            </div>
+            <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen relative"
+      style={{
+        background: `
+          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+        `,
+        backgroundBlendMode: "overlay",
+      }}
       >
         {/* Metallic shine overlay */}
         <div
@@ -416,4 +502,3 @@ export default function ProfileSettingsView({ setView, session }) {
       </div>
     </div>
   );
-}

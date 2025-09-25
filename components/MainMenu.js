@@ -7,38 +7,22 @@ export default function MainMenu({ setView, session, onSignOut }) {
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
   useEffect(() => {
-    // 🚨 Streak fetch disabled to prevent 404 spam
-    // const fetchStreak = async () => {
-    //   if (session) {
-    //     const { data } = await supabase
-    //       .from("streaks")
-    //       .select("streak_count")
-    //       .eq("user_id", session.user.id)
-    //       .single();
-
-    //     if (data) {
-    //       setStreak(data.streak_count);
-    //     }
-    //   }
-    // };
+    if (!session?.user?.id) return;
 
     const fetchUserProfile = async () => {
-      if (session) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, username, is_founder")
-          .eq("id", session.user.id)
-          .single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, username, is_founder")
+        .eq("id", session.user.id)
+        .single();
 
-        if (data) {
-          setCurrentUserProfile(data);
-        }
+      if (!error && data) {
+        setCurrentUserProfile(data);
       }
     };
 
-    // fetchStreak(); // disabled
     fetchUserProfile();
-  }, [session]);
+  }, [session?.user?.id]); // ✅ fixed deps
 
   const handleContactClick = () => {
     if (session && currentUserProfile?.is_founder) {
@@ -161,10 +145,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                 <div className="flex items-center justify-between">
                   <div className="text-left">
                     <div className="text-lg font-bold">Daily Challenge</div>
-                    <div
-                      className="text-xs font-normal text-gray-400 mt-1.5"
-                      style={{ letterSpacing: "0.03em" }}
-                    >
+                    <div className="text-xs font-normal text-gray-400 mt-1.5">
                       5 puzzles • Progressive difficulty
                     </div>
                   </div>
@@ -219,7 +200,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                 <div className="flex items-center justify-between">
                   <div className="text-left">
                     <div className="text-lg font-bold">Live Battle</div>
-                    <div className="text-xs font-normal text-gray-400 mt-1.5">
+                    <div className="text-xs text-gray-400 mt-1.5">
                       Real-time multiplayer
                     </div>
                   </div>
