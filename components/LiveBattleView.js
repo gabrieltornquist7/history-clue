@@ -49,7 +49,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
     if (!battleId || !session?.user) return;
 
     const handleStartRound = async (payload) => {
-      setCurrentRound(payload);
+      console.log('Handling round start:', payload);
+      setCurrentRound({
+        id: payload.round_id,
+        round_no: payload.round_no,
+        puzzle_id: payload.puzzle_id,
+        status: 'active'
+      });
       
       // Load puzzle
       const { data: puzzleData, error } = await supabase
@@ -58,7 +64,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         .eq('id', payload.puzzle_id)
         .single();
 
-      if (!error) {
+      if (!error && puzzleData) {
         setPuzzle(puzzleData);
         setGamePhase('playing');
         setMyTimer(180);
@@ -70,6 +76,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
         setGuessCoords(null);
         setMyGuess(null);
         setOppGuess(null);
+        console.log('Round started successfully');
+      } else {
+        console.error('Failed to load puzzle:', error);
       }
     };
 
@@ -107,55 +116,97 @@ export default function LiveBattleView({ session, battleId, setView }) {
     };
 
     const loadBattle = async () => {
-      // Get battle info
-      const { data: battleData, error: battleError } = await supabase
-        .from('battles')
-        .select(`
-          *,
-          player1_profile:profiles!battles_player1_fkey(username),
-          player2_profile:profiles!battles_player2_fkey(username)
-        `)
-        .eq('id', battleId)
-        .single();
+      try {
+        console.log('Loading battle:', battleId);
 
-      if (battleError) {
-        console.error('Error loading battle:', battleError);
-        setView('menu');
-        return;
-      }
+        // Get battle info using the new function
+        const { data: battleInfo, error: infoError } = await supabase
+          .rpc('get_battle_info', { p_battle_id: battleId });
 
-      setBattle(battleData);
-      
-      // Set opponent
-      const isPlayer1 = session.user.id === battleData.player1;
-      const oppProfile = isPlayer1 ? battleData.player2_profile : battleData.player1_profile;
-      setOpponent({
-        id: isPlayer1 ? battleData.player2 : battleData.player1,
-        username: oppProfile?.username || 'Anonymous'
-      });
-
-      // Get current round
-      const { data: roundData, error: roundError } = await supabase
-        .from('battle_rounds')
-        .select('*')
-        .eq('battle_id', battleId)
-        .eq('status', 'active')
-        .single();
-
-      if (!roundError && roundData) {
-        setCurrentRound(roundData);
-        
-        // Load puzzle
-        const { data: puzzleData, error: puzzleError } = await supabase
-          .from('puzzles')
-          .select('*, puzzle_translations(*)')
-          .eq('id', roundData.puzzle_id)
-          .single();
-
-        if (!puzzleError && puzzleData) {
-          setPuzzle(puzzleData);
-          setGamePhase('playing');
+        if (infoError || battleInfo.error) {
+          console.error('Error loading battle info:', infoError || battleInfo.error);
+          setView('menu');
+          return;
         }
+
+        console.log('Battle info:', battleInfo);
+        setBattle(battleInfo);
+        
+        // Set opponent
+        const isPlayer1 = session.user.id === battleInfo.player1.id;
+        const oppData = isPlayer1 ? battleInfo.player2 : battleInfo.player1;
+        setOpponent({
+          id: oppData.id,
+          username: oppData.username || 'Anonymous'
+        });
+
+        // Check if battle is ready and has a round
+        if (battleInfo.current_round) {
+          // Battle already has an active round
+          setCurrentRound(battleInfo.current_round);
+          
+          // Load puzzle for the current round
+          const { data: puzzleData, error: puzzleError } = await supabase
+            .from('puzzles')
+            .select('*, puzzle_translations(*)')
+            .eq('id', battleInfo.current_round.puzzle_id)
+            .single();
+
+          if (!puzzleError && puzzleData) {
+            setPuzzle(puzzleData);
+            setGamePhase('playing');
+            console.log('Resumed existing round');
+          }
+        } else if (battleInfo.status === 'lobby' || battleInfo.status === 'waiting') {
+          // Battle needs to be started
+          console.log('Starting new battle...');
+          
+          // Try to start the battle
+          const { data: startData, error: startError } = await supabase
+            .rpc('start_battle', { p_battle_id: battleId });
+
+          if (startError || startData.error) {
+            console.error('Error starting battle:', startError || startData.error);
+            setView('menu');
+            return;
+          }
+
+          console.log('Battle started:', startData);
+
+          // Load the puzzle for the new round
+          const { data: puzzleData, error: puzzleError } = await supabase
+            .from('puzzles')
+            .select('*, puzzle_translations(*)')
+            .eq('id', startData.puzzle_id)
+            .single();
+
+          if (!puzzleError && puzzleData) {
+            setPuzzle(puzzleData);
+            setCurrentRound({
+              id: startData.round_id,
+              round_no: startData.round_no,
+              puzzle_id: startData.puzzle_id,
+              status: 'active'
+            });
+            setGamePhase('playing');
+            
+            // Broadcast round start to opponent
+            if (channelRef.current) {
+              channelRef.current.send({
+                type: 'broadcast',
+                event: 'start_round',
+                payload: {
+                  round_id: startData.round_id,
+                  round_no: startData.round_no,
+                  puzzle_id: startData.puzzle_id
+                }
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error loading battle:', error);
+        setView('menu');
       }
     };
 
