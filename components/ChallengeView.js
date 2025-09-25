@@ -288,57 +288,59 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
       `}</style>
 
       {/* Header */}
-      <header className="flex items-center justify-center p-8 relative z-10">
-        <button
-          onClick={() => setView('menu')}
-          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
-          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
-        >
-          ← Menu
-          <div 
-            className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-            style={{ backgroundColor: '#d4af37' }}
-          ></div>
-        </button>
-        <div className="text-center">
-          <h1 
-            className="text-5xl font-serif font-bold text-white mb-2" 
+      <header className="p-8 relative z-10">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <button
+            onClick={() => setView('menu')}
+            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+            style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
+          >
+            ← Menu
+            <div 
+              className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+              style={{ backgroundColor: '#d4af37' }}
+            ></div>
+          </button>
+          <div className="text-center flex-1 mx-8">
+            <h1 
+              className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2" 
+              style={{ 
+                letterSpacing: '0.02em',
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              Friend Matches
+            </h1>
+            <p 
+              className="text-sm italic font-light"
+              style={{ 
+                color: '#d4af37', 
+                opacity: 0.9, 
+                letterSpacing: '0.05em' 
+              }}
+            >
+              Challenge friends • Compete for glory
+            </p>
+          </div>
+          <button
+            onClick={handleInvite}
+            className="px-6 py-3 font-bold text-white rounded-md transition-all duration-300 relative group"
             style={{ 
-              letterSpacing: '0.02em',
-              textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+              background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              letterSpacing: '-0.02em',
+              boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
             }}
           >
-            Friend Matches
-          </h1>
-          <p 
-            className="text-sm italic font-light"
-            style={{ 
-              color: '#d4af37', 
-              opacity: 0.9, 
-              letterSpacing: '0.05em' 
-            }}
-          >
-            Challenge friends • Compete for glory
-          </p>
+            Invite Friend
+          </button>
         </div>
-        <button
-          onClick={handleInvite}
-          className="absolute right-8 px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group"
-          style={{ 
-            background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            letterSpacing: '-0.02em',
-            boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
-          }}
-        >
-          Invite Friend
-        </button>
       </header>
 
       <div className="px-8 pb-8 relative z-10">
