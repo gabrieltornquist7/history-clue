@@ -4,14 +4,11 @@ import { supabase } from "../lib/supabaseClient";
 
 // Lazy load all heavy components for better performance
 const Auth = lazy(() => import("../components/Auth"));
-const LiveBattleView = lazy(() => import("../components/LiveBattleView"));
 const MainMenu = lazy(() => import("../components/MainMenu"));
 const ProfileView = lazy(() => import("../components/ProfileView"));
 const ChallengeView = lazy(() => import("../components/ChallengeView"));
 const GameView = lazy(() => import("../components/GameView"));
 const DailyChallengeView = lazy(() => import("../components/DailyChallengeView"));
-const LiveGameView = lazy(() => import("../components/LiveGameView"));
-const LiveLobbyView = lazy(() => import("../components/LiveLobbyView"));
 const ProfileSettingsView = lazy(() => import("../components/ProfileSettingsView"));
 const LeaderboardView = lazy(() => import("../components/LeaderboardView"));
 
@@ -160,8 +157,6 @@ export default function Page() {
         view === "challenge" ||
         view === "game" ||
         view === "daily" ||
-        view === "liveGame" ||
-        view === "liveLobby" ||
         view === "profileSettings" ||
         view === "leaderboard") &&
       !session
