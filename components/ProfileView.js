@@ -1,4 +1,4 @@
-// components/ProfileView.js - Performance Optimized Version
+// components/ProfileView.js - Emergency Fix Version (Streaks Disabled)
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -10,7 +10,7 @@ export default function ProfileView({ setView, session, userId = null }) {
   const [stats, setStats] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [avatarKey, setAvatarKey] = useState(Date.now());
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(0); // Will always be 0 until streaks table is created
 
   const profileId = userId || session.user.id;
 
@@ -32,16 +32,17 @@ export default function ProfileView({ setView, session, userId = null }) {
           supabase.rpc('get_player_stats', { p_user_id: profileId })
         ];
 
+        // EMERGENCY FIX: Comment out streak query that's causing 404 spam
         // Add streak query only for own profile
-        if (session.user.id === profileId) {
-          promises.push(
-            supabase
-              .from("streaks")
-              .select("streak_count")
-              .eq("user_id", profileId)
-              .single()
-          );
-        }
+        // if (session.user.id === profileId) {
+        //   promises.push(
+        //     supabase
+        //       .from("streaks")
+        //       .select("streak_count")
+        //       .eq("user_id", profileId)
+        //       .single()
+        //   );
+        // }
 
         // Execute all queries simultaneously
         const results = await Promise.all(promises);
@@ -57,14 +58,15 @@ export default function ProfileView({ setView, session, userId = null }) {
         // PERFORMANCE FIX 3: Handle RPC response properly (it might be an array or single object)
         setStats(Array.isArray(statsData) ? statsData[0] : statsData);
 
+        // EMERGENCY FIX: Comment out streak handling until streaks table exists
         // Handle streak data if present
-        if (session.user.id === profileId && results[2]) {
-          const { data: streakData, error: streakError } = results[2];
-          if (streakError) console.error("Error fetching streak:", streakError);
-          if (streakData) {
-            setStreak(streakData.streak_count);
-          }
-        }
+        // if (session.user.id === profileId && results[2]) {
+        //   const { data: streakData, error: streakError } = results[2];
+        //   if (streakError) console.error("Error fetching streak:", streakError);
+        //   if (streakData) {
+        //     setStreak(streakData.streak_count);
+        //   }
+        // }
         
       } catch (error) {
         console.error("Error loading profile data:", error);
@@ -76,7 +78,7 @@ export default function ProfileView({ setView, session, userId = null }) {
     if (profileId) {
       getProfileData();
     }
-  }, [profileId, avatarKey, session.user.id]);
+  }, [profileId, session?.user?.id]); // PERFORMANCE FIX: Remove avatarKey from deps to prevent infinite loops
 
   const uploadAvatar = async (event) => {
     try {
@@ -90,7 +92,7 @@ export default function ProfileView({ setView, session, userId = null }) {
       await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
       await supabase.from('profiles').update({ avatar_url: filePath }).eq('id', user.id);
       
-      setAvatarKey(Date.now());
+      setAvatarKey(Date.now()); // This will trigger avatar refresh but not useEffect loop
 
     } catch (error) { 
       alert(error.message); 
@@ -126,12 +128,12 @@ export default function ProfileView({ setView, session, userId = null }) {
     }
     const { data } = supabase.storage.from('avatars').getPublicUrl(profile.avatar_url);
     return data.publicUrl;
-  }, [profile?.avatar_url]);
+  }, [profile?.avatar_url, avatarKey]); // Include avatarKey here for avatar refresh
 
   // PERFORMANCE FIX 6: Memoize badge calculations
   const mockBadges = useMemo(() => [
     { id: 'first_win', name: 'First Victory', unlocked: true, icon: '🏆' },
-    { id: 'streak_5', name: '5 Day Streak', unlocked: streak >= 5, icon: '🔥' },
+    { id: 'streak_5', name: '5 Day Streak', unlocked: streak >= 5, icon: '🔥' }, // Will be false until streaks implemented
     { id: 'high_scorer', name: 'High Scorer', unlocked: (stats?.total_score || 0) > 10000, icon: '⭐' },
     { id: 'social_player', name: 'Social Player', unlocked: false, icon: '👥' },
     { id: 'puzzle_master', name: 'Puzzle Master', unlocked: false, icon: '🧩' },
@@ -330,7 +332,6 @@ export default function ProfileView({ setView, session, userId = null }) {
                       width={120} 
                       height={120} 
                       className="w-full h-full rounded-full object-cover"
-                      // PERFORMANCE FIX 7: Add loading priority and sizes
                       priority={true}
                       sizes="120px"
                     />
@@ -382,6 +383,7 @@ export default function ProfileView({ setView, session, userId = null }) {
                         Level {xpCalculations.currentLevel}
                       </span>
                     </div>
+                    {/* EMERGENCY FIX: Streak display will be hidden since streak is always 0 */}
                     {session.user.id === profileId && streak > 0 && (
                       <div 
                         className="px-3 py-1 rounded-lg border flex items-center gap-1"
