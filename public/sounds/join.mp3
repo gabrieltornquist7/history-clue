@@ -1,0 +1,3 @@
+# This is a placeholder for the join sound audio file
+# In a real project, this would be an MP3 audio file
+# For testing purposes, the audio element will gracefully handle the missing file

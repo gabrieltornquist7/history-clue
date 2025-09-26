@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
+import { normalizeInvite, isValidInviteCode, safePlayAudio } from '../lib/shared';
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
   // Use profile cache for optimized profile fetching
@@ -263,16 +264,25 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   };
 
   const handleJoinByCode = async () => {
-    if (!inviteCode.trim()) return;
+    const code = normalizeInvite(inviteCode);
+    if (!isValidInviteCode(code)) {
+      alert('Please enter a valid 6-character invite code');
+      return;
+    }
 
     try {
+      console.debug('[LiveLobby] Joining battle with invite code:', code);
+
+      // Play join sound on user gesture
+      await safePlayAudio('join-sound');
+
       // Find the battle with proper authorization logic
       // - Anyone can see waiting battles with no player2 (open invites)
       // - Only player1 or player2 can see active battles (for rejoins)
       const { data: battle, error: findError } = await supabase
         .from("battles")
         .select("*")
-        .eq("invite_code", inviteCode.trim().toUpperCase())
+        .eq("invite_code", code)
         .or(`and(status.eq.waiting,player2.is.null),and(status.eq.active,or(player1.eq.${session.user.id},player2.eq.${session.user.id}))`)
         .single();
 
@@ -356,7 +366,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen relative"
       style={{
         background: `
@@ -366,6 +376,11 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         `
       }}
     >
+      {/* Audio element for join sound */}
+      <audio id="join-sound" preload="none">
+        <source src="/sounds/join.mp3" type="audio/mpeg" />
+        <source src="/sounds/join.ogg" type="audio/ogg" />
+      </audio>
       {/* Header */}
       <header className="p-8 relative z-10">
         <div className="flex items-center justify-between max-w-4xl mx-auto">

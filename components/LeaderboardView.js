@@ -29,6 +29,7 @@ export default function LeaderboardView({ setView }) {
         let fetchError = null;
 
         // First, try the direct query with proper join
+        console.debug('[Leaderboard] Loading top scores via Supabase client');
         const { data: directScores, error: directError } = await supabase
           .from('scores')
           .select(`
