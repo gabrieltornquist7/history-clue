@@ -51,11 +51,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         // 1. Load battle info
         const { data: battleData, error: battleError } = await supabase
           .from('battles')
-          .select(`
-            *,
-            player1_profile:profiles!player1(username),
-            player2_profile:profiles!player2(username)
-          `)
+          .select('*')
           .eq('id', battleId)
           .single();
 
@@ -64,6 +60,20 @@ export default function LiveBattleView({ session, battleId, setView }) {
         }
 
         if (!isMounted) return;
+
+        // 2. Load related player profiles
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .in('id', [battleData.player1, battleData.player2].filter(Boolean));
+
+        if (profilesError) {
+          console.error('Failed to load profiles:', profilesError);
+        }
+
+        // 3. Attach profiles back to battle object
+        battleData.player1_profile = profiles?.find(p => p.id === battleData.player1) || null;
+        battleData.player2_profile = profiles?.find(p => p.id === battleData.player2) || null;
 
         setBattle(battleData);
         console.log('Battle loaded:', battleData);
