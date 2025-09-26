@@ -30,9 +30,68 @@ useEffect(() => {
     
     const { data: profilesData } = await supabase.from('profiles').select('id, username, avatar_url').not('id', 'eq', currentUserId);
     setProfiles(profilesData || []);
-    const { data: friendshipsData } = await supabase.from('friendships').select(`*, user1:user_id_1(id, username), user2:user_id_2(id, username)`).or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+
+    // Step 1: Get friendships
+    const { data: friendshipsRaw, error: friendshipsError } = await supabase
+      .from('friendships')
+      .select('*')
+      .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+
+    console.log('Friendships fetched:', { friendshipsRaw, friendshipsError });
+
+    // Step 2: Get profiles for friendships
+    let friendshipsData = [];
+    if (friendshipsRaw && friendshipsRaw.length > 0) {
+      const userIds = [...new Set(friendshipsRaw.flatMap(f => [f.user_id_1, f.user_id_2]))];
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', userIds);
+
+      console.log('Friendship profiles fetched:', { userProfiles, profilesError });
+
+      if (userProfiles) {
+        // Attach user profiles to friendships
+        friendshipsData = friendshipsRaw.map(f => ({
+          ...f,
+          user1: userProfiles.find(p => p.id === f.user_id_1) || null,
+          user2: userProfiles.find(p => p.id === f.user_id_2) || null
+        }));
+      }
+    }
+
     setFriendships(friendshipsData || []);
-    const { data: challengesData } = await supabase.from('challenges').select(`*, challenger:challenger_id(id, username), opponent:opponent_id(id, username)`).or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`).order('created_at', { ascending: false });
+
+    // Step 3: Get challenges (also needs fixing for profile joins)
+    const { data: challengesRaw, error: challengesError } = await supabase
+      .from('challenges')
+      .select('*')
+      .or(`challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId}`)
+      .order('created_at', { ascending: false });
+
+    console.log('Challenges fetched:', { challengesRaw, challengesError });
+
+    // Step 4: Get profiles for challenges
+    let challengesData = [];
+    if (challengesRaw && challengesRaw.length > 0) {
+      const challengeUserIds = [...new Set(challengesRaw.flatMap(c => [c.challenger_id, c.opponent_id]))];
+      const { data: challengeProfiles, error: challengeProfilesError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', challengeUserIds);
+
+      console.log('Challenge profiles fetched:', { challengeProfiles, challengeProfilesError });
+
+      if (challengeProfiles) {
+        // Attach user profiles to challenges
+        challengesData = challengesRaw.map(c => ({
+          ...c,
+          challenger: challengeProfiles.find(p => p.id === c.challenger_id) || null,
+          opponent: challengeProfiles.find(p => p.id === c.opponent_id) || null
+        }));
+      }
+    }
+
     setChallenges(challengesData || []);
     setLoading(false);
   };

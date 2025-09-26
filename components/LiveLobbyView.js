@@ -14,23 +14,41 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   useEffect(() => {
     // Load friends list
     const loadFriends = async () => {
-      const { data, error } = await supabase
+      // Step 1: Get friendships
+      const { data: friendships, error } = await supabase
         .from('friendships')
-        .select(`
-          friend:profiles!friend_id(id, username),
-          requester:profiles!requester_id(id, username)
-        `)
+        .select('*')
         .or(`requester_id.eq.${session.user.id},friend_id.eq.${session.user.id}`)
         .eq('status', 'accepted');
 
-      if (!error && data) {
-        const friendsList = data.map(friendship => {
-          return friendship.requester.id === session.user.id 
-            ? friendship.friend 
-            : friendship.requester;
-        });
-        setFriends(friendsList);
+      console.log('Friendships fetched:', { friendships, error });
+
+      if (error) {
+        console.error('Error loading friendships:', error);
+        return;
       }
+
+      // Step 2: Get friend profiles if friendships exist
+      let friendsList = [];
+      if (friendships && friendships.length > 0) {
+        // Get unique friend IDs
+        const friendIds = [...new Set(friendships.flatMap(f => [f.requester_id, f.friend_id]))].filter(id => id !== session.user.id);
+
+        if (friendIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .in('id', friendIds);
+
+          console.log('Friend profiles fetched:', { profiles, profilesError });
+
+          if (!profilesError && profiles) {
+            friendsList = profiles;
+          }
+        }
+      }
+
+      setFriends(friendsList);
     };
 
     loadFriends();
