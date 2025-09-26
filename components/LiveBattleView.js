@@ -1,9 +1,7 @@
-// components/LiveBattleView.js - OPTIMIZED VERSION WITH GLOBAL SUBSCRIPTIONS & CACHE
+// components/LiveBattleView.js - MINIMAL WORKING VERSION
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { subscribeBattleRounds, subscribeBattleBroadcast, sendBattleBroadcast } from '../lib/supabaseSubscriptions';
-import { useProfileCache, useProfile } from '../lib/useProfileCache';
 import dynamic from 'next/dynamic';
 
 const Map = dynamic(() => import('./Map'), { ssr: false });
@@ -18,8 +16,6 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 export default function LiveBattleView({ session, battleId, setView }) {
-  // Use profile cache for optimized profile fetching
-  const { fetchProfiles } = useProfileCache();
 
   const [battle, setBattle] = useState(null);
   const [puzzle, setPuzzle] = useState(null);
@@ -49,8 +45,6 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   useEffect(() => {
     let isMounted = true;
-    let unsubscribeBroadcast = null;
-    let unsubscribeRounds = null;
 
     const initializeBattle = async () => {
       try {
@@ -78,14 +72,24 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         if (!isMounted) return;
 
-        // 2. Load related player profiles from cache (much faster!)
-        const playerIds = [battleData.player1, battleData.player2].filter(Boolean);
-        const profiles = await fetchProfiles(playerIds);
-        console.log('Loaded profiles from cache:', profiles.length, 'profiles');
+        // 2. Load player profiles directly
+        if (battleData.player1) {
+          const { data: p1 } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', battleData.player1)
+            .single();
+          battleData.player1_profile = p1;
+        }
 
-        // 3. Attach profiles back to battle object
-        battleData.player1_profile = profiles?.find(p => p.id === battleData.player1) || null;
-        battleData.player2_profile = profiles?.find(p => p.id === battleData.player2) || null;
+        if (battleData.player2) {
+          const { data: p2 } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', battleData.player2)
+            .single();
+          battleData.player2_profile = p2;
+        }
 
         setBattle(battleData);
         console.log('Battle loaded:', battleData);
@@ -98,90 +102,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
           username: oppProfile?.username || 'Anonymous'
         });
 
-        // 2. Setup global battle broadcast subscription
-        unsubscribeBroadcast = subscribeBattleBroadcast(battleId, ({ payload }) => {
-          if (!isMounted) return;
-
-          console.log('Battle broadcast received:', payload);
-          const { event, data } = payload;
-
-          switch (event) {
-            case 'opponent_joined':
-              console.log('Opponent joined:', data);
-              break;
-
-            case 'opponent_guess':
-              console.log('Opponent made guess:', data);
-              setOppGuess(data.guess);
-
-              // Both players finished, show results
-              if (myGuess) {
-                setRoundResult({
-                  myScore: myGuess.score,
-                  oppScore: data.guess.score,
-                  winner: myGuess.score > data.guess.score ? 'me' : myGuess.score < data.guess.score ? 'opponent' : 'tie'
-                });
-                setGameFinished(true);
-              }
-              break;
-
-            case 'clue_revealed':
-              console.log('Opponent revealed clue:', data);
-              break;
-
-            case 'guess_made':
-              console.log('First guess made by:', data.by);
-              if (data.by !== session.user.id && !firstGuessSubmitted) {
-                // Timer drop to 45 seconds when opponent makes first guess
-                console.log('Dropping timer to 45 seconds due to opponent guess');
-                setMyTimer(45);
-              }
-              break;
-
-            case 'timer_update':
-              console.log('Timer update received:', data);
-              if (data.playerId !== session.user.id) {
-                setMyTimer(data.timer);
-              }
-              break;
-
-            default:
-              console.log('Unknown broadcast event:', event, data);
-          }
-        });
-
-        // 3. Setup global battle rounds subscription
-        unsubscribeRounds = subscribeBattleRounds(battleId, (payload) => {
-          if (!isMounted) return;
-          console.log('Round update via global subscription:', payload);
-          if (payload.new) {
-            handleRoundUpdate(payload.new);
-          }
-        });
-
-        // 4. Announce that we've joined
-        setTimeout(() => {
-          sendBattleBroadcast(battleId, 'opponent_joined', {
-            player: session.user.id,
-            username: session.user.user_metadata?.username || 'Player'
-          });
-        }, 1000);
-
-        // 4. Check if there's an active round with comprehensive session validation
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('DEBUG user:', session?.user?.id, 'battle:', {
-          id: battleId,
-          player1: battleData.player1,
-          player2: battleData.player2,
-          userIsPlayer1: session?.user?.id === battleData.player1,
-          userIsPlayer2: session?.user?.id === battleData.player2,
-          userIsAuthorized: session?.user?.id === battleData.player1 || session?.user?.id === battleData.player2
-        });
-
-        if (!session?.user?.id) {
-          console.error('No authenticated session found');
-          throw new Error('Authentication required');
-        }
+        // 3. Check if there's an active round
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
 
         if (session.user.id !== battleData.player1 && session.user.id !== battleData.player2) {
           console.error('User not authorized for this battle:', {
@@ -296,54 +218,16 @@ export default function LiveBattleView({ session, battleId, setView }) {
         setPuzzle(puzzleData);
         console.log('Puzzle loaded:', puzzleData.id);
 
-        // 7. Load any existing moves
-        const { data: moves } = await supabase
-          .from('battle_moves')
-          .select('*')
-          .eq('round_id', existingRound.id)
-          .eq('player', session.user.id);
-
-        if (moves && moves.length > 0) {
-          // Process existing moves
-          let clues = [1];
-          let score = 10000;
-          let guess = null;
-
-          moves.forEach(move => {
-            if (move.action === 'reveal_clue') {
-              clues.push(move.payload.clue_index);
-              score -= CLUE_COSTS[move.payload.clue_index] || 0;
-            } else if (move.action === 'guess') {
-              guess = move.payload;
-            }
-          });
-
-          setMyClues([...new Set(clues)].sort());
-          setMyScore(Math.max(0, score));
-          if (guess) {
-            setMyGuess(guess);
-            setGuessCoords({ lat: guess.lat, lng: guess.lng });
-            setSelectedYear(guess.year);
-          }
-        }
-
-        // 8. Check for existing opponent guess
-        const { data: oppMoves } = await supabase
-          .from('battle_moves')
-          .select('payload')
-          .eq('round_id', existingRound.id)
-          .neq('player', session.user.id)
-          .eq('action', 'guess');
-
-        if (oppMoves && oppMoves.length > 0) {
-          setOppGuess(oppMoves[0].payload);
-        }
 
         setLoading(false);
         startTimer();
 
       } catch (err) {
         console.error('Error initializing battle:', err);
+        // Show more specific error messages
+        if (err.message.includes('Cannot access')) {
+          console.error('Initialization error - likely a code loading issue');
+        }
         if (isMounted) {
           setError(err.message);
           setLoading(false);
@@ -358,9 +242,6 @@ export default function LiveBattleView({ session, battleId, setView }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      // Cleanup global subscriptions
-      if (unsubscribeBroadcast) unsubscribeBroadcast();
-      if (unsubscribeRounds) unsubscribeRounds();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
@@ -397,11 +278,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       payload: { clue_index: clueIndex }
     });
 
-    // Broadcast clue reveal to opponent
-    sendBattleBroadcast(battleId, 'clue_revealed', {
-      player: session.user.id,
-      clue_index: clueIndex
-    });
+    // TODO: Add realtime broadcast when ready
   };
 
   const handleMapGuess = (latlng) => {
@@ -538,27 +415,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       }
     }
 
-    // Broadcast first guess event to trigger timer drop
-    if (!firstGuessSubmitted && !oppGuess) {
-      sendBattleBroadcast(battleId, 'guess_made', { by: session.user.id });
-      setFirstGuessSubmitted(true);
-    }
-
-    // Then broadcast the actual guess
-    sendBattleBroadcast(battleId, 'opponent_guess', {
-      player: session.user.id,
-      guess: guessData
-    });
-
-    // Check if opponent already finished (for late joiners)
-    if (oppGuess) {
-      setRoundResult({
-        myScore: guessData.score,
-        oppScore: oppGuess.score,
-        winner: guessData.score > oppGuess.score ? 'me' : guessData.score < oppGuess.score ? 'opponent' : 'tie'
-      });
-      setGameFinished(true);
-    }
+    // TODO: Add realtime broadcasts when ready
   };
 
   const handleRoundUpdate = (round) => {
