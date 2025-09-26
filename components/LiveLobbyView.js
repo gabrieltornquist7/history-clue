@@ -330,9 +330,26 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         await safePlayAudio('join-sound');
       }
 
-      // Use the new helper with fallback handling
+      // Call with timeout to prevent hanging
       console.log('[LiveLobby] Calling fetchJoinableMatchByInvite...');
-      const { battle, path, error: findError } = await fetchJoinableMatchByInvite(code, session?.user?.id);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      );
+
+      const fetchPromise = fetchJoinableMatchByInvite(code, session?.user?.id);
+
+      let result;
+      try {
+        result = await Promise.race([fetchPromise, timeoutPromise]);
+      } catch (timeoutError) {
+        console.error('[LiveLobby] Request timed out');
+        alert('Request timed out. Please try again.');
+        setJoinLoading(false);
+        return;
+      }
+
+      const { battle, path, error: findError } = result;
       console.log('[LiveLobby] fetchJoinableMatchByInvite returned:', { battle, path, findError });
 
       // Add detailed logging for debugging
@@ -353,7 +370,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
       if (!battle) {
         console.warn('[LiveLobby] No battle found for code:', code);
-        alert('Invite not found');
+        alert('No battle found with that invite code. Please check the code and try again.');
         setJoinLoading(false);
         return;
       }
@@ -393,6 +410,16 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
       // Join the battle as player2
       console.log('[LiveLobby] Joining battle as player2...');
+
+      // Verify session before update
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        console.error('[LiveLobby] Lost session before join');
+        alert('Session expired. Please sign in again.');
+        setJoinLoading(false);
+        return;
+      }
+
       const { data: updatedBattle, error: updateError } = await supabase
         .from('battles')
         .update({
@@ -400,12 +427,26 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
           status: 'active'
         })
         .eq('id', battle.id)
+        .is('player2', null)  // Only update if player2 is still null (prevent race conditions)
         .select()
         .single();
 
       if (updateError) {
-        console.error('Error joining battle:', updateError);
-        alert('Failed to join battle');
+        console.error('[LiveLobby] Error joining battle:', updateError);
+        if (updateError.code === '406') {
+          alert('Not authorized to join this battle. Please check you are signed in.');
+        } else if (updateError.code === 'PGRST116') {
+          alert('Battle was already joined by another player.');
+        } else {
+          alert('Failed to join battle. Please try again.');
+        }
+        setJoinLoading(false);
+        return;
+      }
+
+      if (!updatedBattle) {
+        console.error('[LiveLobby] No battle returned after update');
+        alert('Battle was already joined by another player.');
         setJoinLoading(false);
         return;
       }
@@ -417,7 +458,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
     } catch (error) {
       console.error('[LiveLobby] Error in handleJoinByCode:', error);
-      alert('Failed to join battle');
+      alert('Failed to join battle. Please try again.');
     } finally {
       setJoinLoading(false);
     }
