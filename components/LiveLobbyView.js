@@ -241,10 +241,10 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     try {
       // Find the battle - waiting battles must have no player2, active battles can have player2 (for rejoins)
       const { data: battle, error: findError } = await supabase
-        .from('battles')
-        .select('*')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .or("and(status.eq.waiting,player2.is.null),and(status.eq.active)")
+        .from("battles")
+        .select("*")
+        .eq("invite_code", inviteCode.trim().toUpperCase())
+        .or("and(status.eq.waiting,player2.is.null),status.eq.active")
         .single();
 
       // Add detailed logging for debugging
@@ -252,15 +252,20 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         inviteCode: inviteCode.trim().toUpperCase(),
         battle,
         findError,
-        errorCode: findError?.code
+        errorCode: findError?.code,
+        errorMessage: findError?.message
       });
 
       if (findError || !battle) {
         console.error('Battle lookup error:', findError);
         if (findError?.code === 'PGRST116') {
-          alert('Invalid or expired invite code');
-        } else {
+          alert('Invite not found');
+        } else if (findError?.code === 'PGRST301') {
+          alert('Not authorized');
+        } else if (findError) {
           alert('Failed to find battle. Please check your invite code and try again.');
+        } else {
+          alert('Invite not found');
         }
         return;
       }
