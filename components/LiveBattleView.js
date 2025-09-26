@@ -1,7 +1,9 @@
-// components/LiveBattleView.js - SIMPLE VERSION THAT ACTUALLY WORKS
+// components/LiveBattleView.js - OPTIMIZED VERSION WITH GLOBAL SUBSCRIPTIONS & CACHE
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { subscribeBattleRounds, subscribeBattles } from '../lib/supabaseSubscriptions';
+import { useProfileCache, useProfile } from '../lib/useProfileCache';
 import dynamic from 'next/dynamic';
 
 const Map = dynamic(() => import('./Map'), { ssr: false });
@@ -16,6 +18,9 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 export default function LiveBattleView({ session, battleId, setView }) {
+  // Use profile cache for optimized profile fetching
+  const { fetchProfiles } = useProfileCache();
+
   const [battle, setBattle] = useState(null);
   const [puzzle, setPuzzle] = useState(null);
   const [opponent, setOpponent] = useState(null);
@@ -73,15 +78,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         if (!isMounted) return;
 
-        // 2. Load related player profiles
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, username')
-          .in('id', [battleData.player1, battleData.player2].filter(Boolean));
-
-        if (profilesError) {
-          console.error('Failed to load profiles:', profilesError);
-        }
+        // 2. Load related player profiles from cache (much faster!)
+        const playerIds = [battleData.player1, battleData.player2].filter(Boolean);
+        const profiles = await fetchProfiles(playerIds);
+        console.log('Loaded profiles from cache:', profiles.length, 'profiles');
 
         // 3. Attach profiles back to battle object
         battleData.player1_profile = profiles?.find(p => p.id === battleData.player1) || null;
@@ -161,9 +161,29 @@ export default function LiveBattleView({ session, battleId, setView }) {
             }
           });
 
-        // 4. Check if there's an active round
-        console.log('DEBUG session before battle_rounds query:', authSession?.user?.id);
-        console.log('Battle data for context:', { battleId, player1: battleData.player1, player2: battleData.player2 });
+        // 4. Check if there's an active round with comprehensive session validation
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('DEBUG user:', session?.user?.id, 'battle:', {
+          id: battleId,
+          player1: battleData.player1,
+          player2: battleData.player2,
+          userIsPlayer1: session?.user?.id === battleData.player1,
+          userIsPlayer2: session?.user?.id === battleData.player2,
+          userIsAuthorized: session?.user?.id === battleData.player1 || session?.user?.id === battleData.player2
+        });
+
+        if (!session?.user?.id) {
+          console.error('No authenticated session found');
+          throw new Error('Authentication required');
+        }
+
+        if (session.user.id !== battleData.player1 && session.user.id !== battleData.player2) {
+          console.error('User not authorized for this battle:', {
+            userId: session.user.id,
+            battlePlayers: { player1: battleData.player1, player2: battleData.player2 }
+          });
+          throw new Error('Not authorized to access this battle');
+        }
 
         let { data: existingRound, error: roundError } = await supabase
           .from('battle_rounds')
@@ -176,7 +196,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
           battleId,
           existingRound,
           roundError,
-          sessionUserId: authSession?.user?.id,
+          sessionUserId: session?.user?.id,
           errorCode: roundError?.code,
           errorMessage: roundError?.message
         });
@@ -221,6 +241,27 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
           if (createError) {
             console.error('Error creating round:', createError);
+
+            if (createError.code === '406') {
+              console.error('406 Not Acceptable - RLS authorization failed:', {
+                userId: session?.user?.id,
+                battleId: battleId,
+                battlePlayers: { player1: battleData.player1, player2: battleData.player2 },
+                userAuthorized: session?.user?.id === battleData.player1 || session?.user?.id === battleData.player2,
+                message: 'Current session user is not authorized by RLS policy'
+              });
+            } else if (createError.code === '400') {
+              console.error('400 Bad Request - Invalid insert payload:', {
+                payload: {
+                  battle_id: battleId,
+                  round_no: 1,
+                  puzzle_id: randomPuzzle.id,
+                  status: 'active',
+                  started_at: new Date().toISOString()
+                },
+                message: 'Insert call has missing/invalid payload'
+              });
+            }
             throw new Error('Failed to create round');
           }
 
@@ -440,22 +481,40 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
     // Debug session before update
     const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-    console.log('DEBUG session before completion update:', {
-      sessionUserId: currentSession?.user?.id,
+    console.log('DEBUG user:', currentSession?.user?.id, 'battle:', {
+      id: battle.id,
+      player1: battle.player1,
+      player2: battle.player2,
+      userIsPlayer1: currentSession?.user?.id === battle.player1,
+      userIsPlayer2: currentSession?.user?.id === battle.player2,
+      userIsAuthorized: currentSession?.user?.id === battle.player1 || currentSession?.user?.id === battle.player2,
       sessionError,
       isPlayer1,
       completionField,
+      roundId: currentRoundId.current
+    });
+
+    if (!currentSession?.user?.id) {
+      console.error('No authenticated session for completion update');
+      return;
+    }
+
+    const updatePayload = {
+      [completionField]: new Date().toISOString()
+    };
+
+    console.log('Round update attempt:', {
       roundId: currentRoundId.current,
-      battlePlayers: { player1: battle.player1, player2: battle.player2 }
+      payload: updatePayload,
+      conditions: { id: currentRoundId.current }
     });
 
     const { error: completionError } = await supabase
       .from('battle_rounds')
-      .update({
-        [completionField]: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', currentRoundId.current);
 
+    console.log('Update error:', completionError);
     console.log('Completion update result:', {
       currentRoundId: currentRoundId.current,
       completionField,
@@ -466,6 +525,21 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
     if (completionError) {
       console.error('Error updating completion timestamp:', completionError);
+
+      if (completionError.code === '406') {
+        console.error('406 Not Acceptable - RLS authorization failed:', {
+          userId: currentSession?.user?.id,
+          battlePlayers: { player1: battle.player1, player2: battle.player2 },
+          userAuthorized: currentSession?.user?.id === battle.player1 || currentSession?.user?.id === battle.player2,
+          message: 'Current session user is not authorized by RLS policy'
+        });
+      } else if (completionError.code === '400') {
+        console.error('400 Bad Request - Invalid update payload:', {
+          payload: updatePayload,
+          conditions: { id: currentRoundId.current },
+          message: 'Update call has missing/invalid payload or conditions'
+        });
+      }
     }
 
     // Broadcast first guess event to trigger timer drop
@@ -518,23 +592,56 @@ export default function LiveBattleView({ session, battleId, setView }) {
       // Mark current round as finished (only one client should do this)
       const finishRound = async () => {
         try {
-          const authSession = await supabase.auth.getSession();
-          console.log('DEBUG session before battle_rounds update (finish):', authSession?.data?.session?.user?.id);
-          console.log('Round data for context:', { roundId: round.id, status: round.status });
+          const { data: { session } } = await supabase.auth.getSession();
+          console.log('DEBUG user:', session?.user?.id, 'battle:', {
+            id: round.battle_id,
+            roundId: round.id,
+            status: round.status,
+            userIsAuthenticated: !!session?.user?.id
+          });
+
+          if (!session?.user?.id) {
+            console.error('No authenticated session for round finish update');
+            return;
+          }
+
+          const updatePayload = {
+            status: 'finished',
+            finished_at: new Date().toISOString()
+          };
+
+          console.log('Round update attempt:', {
+            roundId: round.id,
+            payload: updatePayload,
+            conditions: { id: round.id, status: 'active' }
+          });
 
           const { error: finishError } = await supabase
             .from('battle_rounds')
-            .update({
-              status: 'finished',
-              finished_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', round.id)
             .eq('status', 'active'); // Only update if still active (prevents race conditions)
 
-          console.log('Finishing round:', { roundId: round.id, finishError });
+          console.log('Update error:', finishError);
+          console.log('Finishing round result:', { roundId: round.id, success: !finishError, error: finishError });
 
           if (finishError) {
             console.error('Error finishing round:', finishError);
+
+            if (finishError.code === '406') {
+              console.error('406 Not Acceptable - RLS authorization failed:', {
+                userId: session?.user?.id,
+                roundId: round.id,
+                battleId: round.battle_id,
+                message: 'Current session user is not authorized by RLS policy'
+              });
+            } else if (finishError.code === '400') {
+              console.error('400 Bad Request - Invalid update payload:', {
+                payload: updatePayload,
+                conditions: { id: round.id, status: 'active' },
+                message: 'Update call has missing/invalid payload or conditions'
+              });
+            }
             return;
           }
 
@@ -576,6 +683,27 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
               if (createError) {
                 console.error('Error creating next round:', createError);
+
+                if (createError.code === '406') {
+                  console.error('406 Not Acceptable - RLS authorization failed:', {
+                    userId: authSession?.data?.session?.user?.id,
+                    battleId: round.battle_id,
+                    message: 'Current session user is not authorized by RLS policy'
+                  });
+                } else if (createError.code === '400') {
+                  console.error('400 Bad Request - Invalid insert payload:', {
+                    payload: {
+                      battle_id: round.battle_id,
+                      round_no: (round.round_no || 1) + 1,
+                      puzzle_id: randomPuzzle.id,
+                      status: 'active',
+                      started_at: new Date().toISOString(),
+                      player1_completed_at: null,
+                      player2_completed_at: null
+                    },
+                    message: 'Insert call has missing/invalid payload'
+                  });
+                }
                 return;
               }
 
