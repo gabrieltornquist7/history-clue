@@ -20,7 +20,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [battle, setBattle] = useState(null);
   const [puzzle, setPuzzle] = useState(null);
   const [opponent, setOpponent] = useState(null);
-  
+
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
   // Game state
   const [myTimer, setMyTimer] = useState(180);
   const [myClues, setMyClues] = useState([1]);
@@ -48,6 +49,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
     const initializeBattle = async () => {
       try {
+        setConnectionStatus('loading');
         console.log('Initializing battle:', battleId);
 
         // 0. Verify authentication session
@@ -68,6 +70,16 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         if (battleError || !battleData) {
           throw new Error('Battle not found');
+        }
+
+        // If battle is waiting and both players present, activate it
+        if (battleData.status === 'waiting' && battleData.player1 && battleData.player2) {
+          console.log('Activating waiting battle');
+          await supabase
+            .from('battles')
+            .update({ status: 'active' })
+            .eq('id', battleId);
+          battleData.status = 'active';
         }
 
         if (!isMounted) return;
@@ -107,6 +119,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
           id: isPlayer1 ? battleData.player2 : battleData.player1,
           username: oppProfile?.username || oppProfile?.user_metadata?.username || 'Opponent'
         });
+
+        setConnectionStatus('connected');
 
         // 3. Check if there's an active round
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -236,6 +250,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         startTimer();
 
       } catch (err) {
+        setConnectionStatus('error');
         console.error('Error initializing battle:', err);
         // Show more specific error messages
         if (err.message.includes('Cannot access')) {
@@ -647,7 +662,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-xl">Loading Battle...</div>
+          <div className="text-xl">Connecting to Battle...</div>
+          <div className="text-sm text-gray-400 mt-2">Status: {connectionStatus}</div>
         </div>
       </div>
     );

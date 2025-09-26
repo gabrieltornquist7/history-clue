@@ -418,6 +418,14 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       if (battle.player1 === session.user.id) {
         // User is the inviter - just rejoin the existing battle
         console.log('[LiveLobby] Rejoining battle as inviter');
+        // If battle is waiting, check if player2 has joined
+        if (battle.status === 'waiting' && battle.player2) {
+          // Update to active
+          await supabase
+            .from('battles')
+            .update({ status: 'active' })
+            .eq('id', battle.id);
+        }
         setActiveLiveMatch(battle.id);
         setView('liveGame');
         setJoinLoading(false);
@@ -442,6 +450,23 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
       // Join the battle as player2
       console.log('[LiveLobby] Joining battle as player2...');
+
+      // Add a small delay to avoid race conditions
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Double-check battle is still available
+      const { data: currentBattle } = await supabase
+        .from('battles')
+        .select('*')
+        .eq('id', battle.id)
+        .single();
+
+      if (currentBattle?.player2 && currentBattle.player2 !== session.user.id) {
+        console.log('[LiveLobby] Battle already has player2');
+        alert('This battle was just joined by another player.');
+        setJoinLoading(false);
+        return;
+      }
 
       // Verify session before update
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -484,6 +509,10 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       }
 
       console.log('[LiveLobby] Successfully joined battle:', updatedBattle);
+
+      // Add delay before entering to ensure both sides are ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Go to battle immediately
       setActiveLiveMatch(updatedBattle.id);
       setView('liveGame');
