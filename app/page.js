@@ -1,6 +1,29 @@
 "use client";
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { supabase } from "../lib/supabaseClient";
+
+// Error boundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error boundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 // Lazy load all heavy components for better performance
 const Auth = lazy(() => import("../components/Auth"));
@@ -192,11 +215,24 @@ export default function Page() {
       case "liveGame":
         return (
           <Suspense fallback={<LoadingSpinner message="Loading live battle..." />}>
-            <LiveBattleView
-              session={session}
-              battleId={activeLiveMatch}
-              setView={handleSetView}
-            />
+            <ErrorBoundary
+              fallback={
+                <div className="min-h-screen flex items-center justify-center bg-black text-white">
+                  <div className="text-center">
+                    <p className="text-red-400 mb-4">Failed to load battle</p>
+                    <button onClick={() => setView('menu')} className="px-4 py-2 bg-gray-700 rounded">
+                      Back to Menu
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              <LiveBattleView
+                session={session}
+                battleId={activeLiveMatch}
+                setView={handleSetView}
+              />
+            </ErrorBoundary>
           </Suspense>
         );
       case "liveLobby":

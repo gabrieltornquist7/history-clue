@@ -73,22 +73,28 @@ export default function LiveBattleView({ session, battleId, setView }) {
         if (!isMounted) return;
 
         // 2. Load player profiles directly
-        if (battleData.player1) {
-          const { data: p1 } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', battleData.player1)
-            .single();
-          battleData.player1_profile = p1;
-        }
+        try {
+          if (battleData.player1) {
+            const { data: p1 } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', battleData.player1)
+              .single();
+            battleData.player1_profile = p1;
+          }
 
-        if (battleData.player2) {
-          const { data: p2 } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', battleData.player2)
-            .single();
-          battleData.player2_profile = p2;
+          if (battleData.player2) {
+            const { data: p2 } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', battleData.player2)
+              .single();
+            battleData.player2_profile = p2;
+          }
+        } catch (profileError) {
+          console.warn('Could not load profiles, using defaults:', profileError);
+          battleData.player1_profile = null;
+          battleData.player2_profile = null;
         }
 
         setBattle(battleData);
@@ -99,7 +105,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         const oppProfile = isPlayer1 ? battleData.player2_profile : battleData.player1_profile;
         setOpponent({
           id: isPlayer1 ? battleData.player2 : battleData.player1,
-          username: oppProfile?.username || 'Anonymous'
+          username: oppProfile?.username || oppProfile?.user_metadata?.username || 'Opponent'
         });
 
         // 3. Check if there's an active round
@@ -117,20 +123,27 @@ export default function LiveBattleView({ session, battleId, setView }) {
           .from('battle_rounds')
           .select('*')
           .eq('battle_id', battleId)
-          .eq('status', 'active')
-          .single();
+          .eq('status', 'active');
 
         console.log('Active round fetch result:', {
           battleId,
           existingRound,
           roundError,
-          sessionUserId: session?.user?.id,
-          errorCode: roundError?.code,
-          errorMessage: roundError?.message
+          sessionUserId: session?.user?.id
         });
 
-        if (roundError && roundError.code !== 'PGRST116') { // PGRST116 = no rows found
-          console.error('Error checking for rounds:', roundError);
+        // Handle array response
+        if (existingRound && Array.isArray(existingRound)) {
+          existingRound = existingRound[0] || null;
+        }
+
+        if (roundError) {
+          if (roundError.code === '406') {
+            console.warn('RLS policy issue with battle_rounds, attempting to create round anyway');
+            existingRound = null; // Force creation of new round
+          } else if (roundError.code !== 'PGRST116') { // PGRST116 = no rows found
+            console.error('Error checking for rounds:', roundError);
+          }
         }
 
         // 5. Create round if none exists
@@ -227,6 +240,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
         // Show more specific error messages
         if (err.message.includes('Cannot access')) {
           console.error('Initialization error - likely a code loading issue');
+          // Try to recover by refreshing once
+          if (!window.hasReloaded) {
+            window.hasReloaded = true;
+            window.location.reload();
+          }
         }
         if (isMounted) {
           setError(err.message);
@@ -665,7 +683,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
           
           <div className="text-center">
             <h1 className="text-2xl font-serif font-bold text-yellow-400">Live Battle</h1>
-            <p className="text-sm text-gray-300">vs {opponent?.username}</p>
+            <p className="text-sm text-gray-300">vs {opponent?.username || 'Loading...'}</p>
           </div>
           
           <div className="text-center">
