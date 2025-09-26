@@ -18,8 +18,8 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       const { data: friendships, error } = await supabase
         .from('friendships')
         .select('*')
-        .or(`requester_id.eq.${session.user.id},friend_id.eq.${session.user.id}`)
-        .eq('status', 'accepted');
+        .eq('status', 'accepted')
+        .or(`requester_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
 
       console.log('Friendships fetched:', { friendships, error });
 
