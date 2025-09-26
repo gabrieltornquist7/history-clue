@@ -1,9 +1,13 @@
-// components/LiveLobbyView.js - SIMPLE VERSION THAT ACTUALLY WORKS
+// components/LiveLobbyView.js - OPTIMIZED VERSION WITH PROFILE CACHE
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useProfileCache } from '../lib/useProfileCache';
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
+  // Use profile cache for optimized profile fetching
+  const { fetchProfiles } = useProfileCache();
+
   const [mode, setMode] = useState(null); // null, 'searching', 'waiting'
   const [inviteCode, setInviteCode] = useState('');
   const [generatedInvite, setGeneratedInvite] = useState(null);
@@ -43,14 +47,11 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         const friendIds = [...new Set(friendships.flatMap(f => [f.user_id_1, f.user_id_2]))].filter(id => id !== session.user.id);
 
         if (friendIds.length > 0) {
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, username')
-            .in('id', friendIds);
+          // Use profile cache instead of direct DB query (much faster!)
+          const profiles = await fetchProfiles(friendIds);
+          console.log('Friend profiles loaded from cache:', profiles.length, 'profiles');
 
-          console.log('Friend profiles fetched:', { profiles, profilesError });
-
-          if (!profilesError && profiles) {
+          if (profiles) {
             friendsList = profiles;
           }
         }

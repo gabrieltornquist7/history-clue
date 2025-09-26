@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { subscribeBattleRounds, subscribeBattles } from '../lib/supabaseSubscriptions';
+import { subscribeBattleRounds, subscribeBattleBroadcast, sendBattleBroadcast } from '../lib/supabaseSubscriptions';
 import { useProfileCache, useProfile } from '../lib/useProfileCache';
 import dynamic from 'next/dynamic';
 
@@ -49,8 +49,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   useEffect(() => {
     let isMounted = true;
-    let battleChannel = null;
-    let roundChannel = null;
+    let unsubscribeBroadcast = null;
+    let unsubscribeRounds = null;
 
     const initializeBattle = async () => {
       try {
@@ -98,68 +98,74 @@ export default function LiveBattleView({ session, battleId, setView }) {
           username: oppProfile?.username || 'Anonymous'
         });
 
-        // 2. Setup realtime channel for battle
-        battleChannel = supabase.channel(`live_battle:${battleId}`);
+        // 2. Setup global battle broadcast subscription
+        unsubscribeBroadcast = subscribeBattleBroadcast(battleId, ({ payload }) => {
+          if (!isMounted) return;
 
-        battleChannel
-          .on('broadcast', { event: 'opponent_joined' }, ({ payload }) => {
-            console.log('Opponent joined:', payload);
-          })
-          .on('broadcast', { event: 'opponent_guess' }, ({ payload }) => {
-            console.log('Opponent made guess:', payload);
-            setOppGuess(payload.guess);
+          console.log('Battle broadcast received:', payload);
+          const { event, data } = payload;
 
-            // Both players finished, show results
-            if (myGuess) {
-              setRoundResult({
-                myScore: myGuess.score,
-                oppScore: payload.guess.score,
-                winner: myGuess.score > payload.guess.score ? 'me' : myGuess.score < payload.guess.score ? 'opponent' : 'tie'
-              });
-              setGameFinished(true);
-            }
-          })
-          .on('broadcast', { event: 'clue_revealed' }, ({ payload }) => {
-            console.log('Opponent revealed clue:', payload);
-          })
-          .on('broadcast', { event: 'guess_made' }, ({ payload }) => {
-            console.log('First guess made by:', payload.by);
-            if (payload.by !== session.user.id && !firstGuessSubmitted) {
-              // Timer drop to 45 seconds when opponent makes first guess
-              setMyTimer(45);
-            }
-          })
-          .subscribe(async (status) => {
-            if (status === 'SUBSCRIBED' && isMounted) {
-              console.log('Connected to battle channel');
-              // Announce that we've joined
-              await battleChannel.send({
-                type: 'broadcast',
-                event: 'opponent_joined',
-                payload: {
-                  player: session.user.id,
-                  username: session.user.user_metadata?.username || 'Player'
-                }
-              });
-            }
+          switch (event) {
+            case 'opponent_joined':
+              console.log('Opponent joined:', data);
+              break;
+
+            case 'opponent_guess':
+              console.log('Opponent made guess:', data);
+              setOppGuess(data.guess);
+
+              // Both players finished, show results
+              if (myGuess) {
+                setRoundResult({
+                  myScore: myGuess.score,
+                  oppScore: data.guess.score,
+                  winner: myGuess.score > data.guess.score ? 'me' : myGuess.score < data.guess.score ? 'opponent' : 'tie'
+                });
+                setGameFinished(true);
+              }
+              break;
+
+            case 'clue_revealed':
+              console.log('Opponent revealed clue:', data);
+              break;
+
+            case 'guess_made':
+              console.log('First guess made by:', data.by);
+              if (data.by !== session.user.id && !firstGuessSubmitted) {
+                // Timer drop to 45 seconds when opponent makes first guess
+                console.log('Dropping timer to 45 seconds due to opponent guess');
+                setMyTimer(45);
+              }
+              break;
+
+            case 'timer_update':
+              console.log('Timer update received:', data);
+              if (data.playerId !== session.user.id) {
+                setMyTimer(data.timer);
+              }
+              break;
+
+            default:
+              console.log('Unknown broadcast event:', event, data);
+          }
+        });
+
+        // 3. Setup global battle rounds subscription
+        unsubscribeRounds = subscribeBattleRounds(battleId, (payload) => {
+          if (!isMounted) return;
+          console.log('Round update via global subscription:', payload);
+          if (payload.new) {
+            handleRoundUpdate(payload.new);
+          }
+        });
+
+        // 4. Announce that we've joined
+        setTimeout(() => {
+          sendBattleBroadcast(battleId, 'opponent_joined', {
+            player: session.user.id,
+            username: session.user.user_metadata?.username || 'Player'
           });
-
-        // 3. Setup realtime channel for round changes
-        roundChannel = supabase.channel(`battle_rounds:${battleId}`);
-
-        roundChannel
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'battle_rounds', filter: `battle_id=eq.${battleId}` },
-            (payload) => {
-              console.log('Round update:', payload);
-              handleRoundUpdate(payload.new);
-            }
-          )
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Connected to rounds channel');
-            }
-          });
+        }, 1000);
 
         // 4. Check if there's an active round with comprehensive session validation
         const { data: { session } } = await supabase.auth.getSession();
@@ -352,12 +358,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      if (battleChannel) {
-        supabase.removeChannel(battleChannel);
-      }
-      if (roundChannel) {
-        supabase.removeChannel(roundChannel);
-      }
+      // Cleanup global subscriptions
+      if (unsubscribeBroadcast) unsubscribeBroadcast();
+      if (unsubscribeRounds) unsubscribeRounds();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
@@ -395,17 +398,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
     });
 
     // Broadcast clue reveal to opponent
-    const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
-    if (battleChannel) {
-      await battleChannel.send({
-        type: 'broadcast',
-        event: 'clue_revealed',
-        payload: {
-          player: session.user.id,
-          clue_index: clueIndex
-        }
-      });
-    }
+    sendBattleBroadcast(battleId, 'clue_revealed', {
+      player: session.user.id,
+      clue_index: clueIndex
+    });
   };
 
   const handleMapGuess = (latlng) => {
@@ -543,28 +539,16 @@ export default function LiveBattleView({ session, battleId, setView }) {
     }
 
     // Broadcast first guess event to trigger timer drop
-    const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
-    if (battleChannel) {
-      // First broadcast the guess_made event for timer drop
-      if (!firstGuessSubmitted && !oppGuess) {
-        await battleChannel.send({
-          type: 'broadcast',
-          event: 'guess_made',
-          payload: { by: session.user.id }
-        });
-        setFirstGuessSubmitted(true);
-      }
-
-      // Then broadcast the actual guess
-      await battleChannel.send({
-        type: 'broadcast',
-        event: 'opponent_guess',
-        payload: {
-          player: session.user.id,
-          guess: guessData
-        }
-      });
+    if (!firstGuessSubmitted && !oppGuess) {
+      sendBattleBroadcast(battleId, 'guess_made', { by: session.user.id });
+      setFirstGuessSubmitted(true);
     }
+
+    // Then broadcast the actual guess
+    sendBattleBroadcast(battleId, 'opponent_guess', {
+      player: session.user.id,
+      guess: guessData
+    });
 
     // Check if opponent already finished (for late joiners)
     if (oppGuess) {

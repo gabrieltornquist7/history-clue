@@ -1,7 +1,8 @@
-// components/ChallengeView.js
+// components/ChallengeView.js - OPTIMIZED WITH PROFILE CACHE
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useProfileCache } from '../lib/useProfileCache';
 
 export default function ChallengeView({ setView, session, setActiveChallenge, setActiveLiveMatch }) {
   const [tab, setTab] = useState('challenges');
