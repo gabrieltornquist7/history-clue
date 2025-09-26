@@ -17,8 +17,8 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       const { data, error } = await supabase
         .from('friendships')
         .select(`
-          friend:profiles!friendships_friend_id_fkey(id, username),
-          requester:profiles!friendships_requester_id_fkey(id, username)
+          friend:profiles!friend_id(id, username),
+          requester:profiles!requester_id(id, username)
         `)
         .or(`requester_id.eq.${session.user.id},friend_id.eq.${session.user.id}`)
         .eq('status', 'accepted');

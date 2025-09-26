@@ -53,8 +53,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
           .from('battles')
           .select(`
             *,
-            player1_profile:profiles!battles_player1_fkey(username),
-            player2_profile:profiles!battles_player2_fkey(username)
+            player1_profile:profiles!player1(username),
+            player2_profile:profiles!player2(username)
           `)
           .eq('id', battleId)
           .single();
