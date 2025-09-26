@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import dynamic from 'next/dynamic';
+import { subscribeToBattle, broadcastBattleEvent } from '../lib/realtimeHelpers';
 
 const Map = dynamic(() => import('./Map'), { ssr: false });
 
@@ -46,6 +47,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   useEffect(() => {
     let isMounted = true;
+    let unsubscribe = null;
 
     const initializeBattle = async () => {
       try {
@@ -119,6 +121,46 @@ export default function LiveBattleView({ session, battleId, setView }) {
           id: isPlayer1 ? battleData.player2 : battleData.player1,
           username: oppProfile?.username || oppProfile?.user_metadata?.username || 'Opponent'
         });
+
+        // Setup realtime subscription
+        unsubscribe = subscribeToBattle(battleId, ({ event, payload }) => {
+          if (!isMounted) return;
+
+          switch (event) {
+            case 'guess_submitted':
+              if (payload.playerId !== session.user.id) {
+                console.log('Opponent submitted guess:', payload);
+                setOppGuess(payload.guess);
+
+                // Check if both players done
+                if (myGuess) {
+                  showResults(myGuess, payload.guess);
+                }
+              }
+              break;
+
+            case 'first_guess':
+              if (payload.playerId !== session.user.id && !firstGuessSubmitted) {
+                console.log('Opponent made first guess, dropping timer to 45s');
+                setMyTimer(45);
+              }
+              break;
+
+            case 'clue_revealed':
+              if (payload.playerId !== session.user.id) {
+                console.log('Opponent revealed clue:', payload.clueIndex);
+              }
+              break;
+
+            default:
+              console.log('Unknown event:', event, payload);
+          }
+        });
+
+        // Announce we joined
+        setTimeout(() => {
+          broadcastBattleEvent(battleId, 'player_joined', { playerId: session.user.id });
+        }, 1000);
 
         setConnectionStatus('connected');
 
@@ -275,6 +317,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (unsubscribe) unsubscribe();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
@@ -311,7 +354,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
       payload: { clue_index: clueIndex }
     });
 
-    // TODO: Add realtime broadcast when ready
+    // Broadcast to opponent
+    broadcastBattleEvent(battleId, 'clue_revealed', {
+      playerId: session.user.id,
+      clueIndex
+    });
   };
 
   const handleMapGuess = (latlng) => {
@@ -448,7 +495,44 @@ export default function LiveBattleView({ session, battleId, setView }) {
       }
     }
 
-    // TODO: Add realtime broadcasts when ready
+    // Broadcast first guess if needed
+    if (!firstGuessSubmitted && !oppGuess) {
+      broadcastBattleEvent(battleId, 'first_guess', {
+        playerId: session.user.id
+      });
+      setFirstGuessSubmitted(true);
+    }
+
+    // Broadcast the guess
+    broadcastBattleEvent(battleId, 'guess_submitted', {
+      playerId: session.user.id,
+      guess: guessData
+    });
+
+    // Check if opponent already finished
+    if (oppGuess) {
+      showResults(guessData, oppGuess);
+    }
+  };
+
+  const showResults = (myGuessData, oppGuessData) => {
+    console.log('Showing results:', { myGuessData, oppGuessData });
+
+    const myFinalScore = myGuessData.score || 0;
+    const oppFinalScore = oppGuessData.score || 0;
+
+    setRoundResult({
+      myScore: myFinalScore,
+      oppScore: oppFinalScore,
+      winner: myFinalScore > oppFinalScore ? 'me' :
+              myFinalScore < oppFinalScore ? 'opponent' : 'tie'
+    });
+    setGameFinished(true);
+
+    // Stop timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
   };
 
   const handleRoundUpdate = (round) => {
@@ -826,7 +910,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   <h3 className="font-bold text-green-400 mb-2">Your Result</h3>
                   <p>Score: <span className="font-bold">{myGuess.score.toLocaleString()}</span></p>
                   <p>Distance: <span className="font-bold">{myGuess.distance}km</span></p>
-                  {!oppGuess && <p className="text-yellow-400 mt-2">Waiting for opponent...</p>}
+                  {!oppGuess && (
+                    <div className="mt-2">
+                      <div className="text-yellow-400">Waiting for opponent...</div>
+                      <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
+                        <div className="bg-yellow-400 h-2 rounded-full animate-pulse" style={{width: '50%'}}></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
