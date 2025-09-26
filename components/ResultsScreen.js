@@ -3,7 +3,7 @@ export default function ResultsScreen({ results, handlePlayAgain }) {
   const displayYear = (year) => {
     const yearNum = Number(year);
     if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
-    if (yearNum === 0) return '1 BCE'; // No year 0 in historical dating
+    if (yearNum === 0) return `Year 0`;
     return `${yearNum} CE`;
   };
   return (

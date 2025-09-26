@@ -370,12 +370,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const handleYearChange = (newYear) => {
     if (myGuess) return;
     const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 1950));
-    // Handle year 0 (doesn't exist in historical dating)
-    if (year === 0) {
-      setSelectedYear(1);
-    } else {
-      setSelectedYear(year);
-    }
+    setSelectedYear(year);
   };
 
   const handleAutoSubmit = () => {
@@ -745,7 +740,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const displayYear = (year) => {
     const yearNum = Number(year);
     if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
-    if (yearNum === 0) return '1 BCE'; // No year 0 in historical dating
+    if (yearNum === 0) return `Year 0`;
     return `${yearNum} CE`;
   };
 
@@ -778,7 +773,33 @@ export default function LiveBattleView({ session, battleId, setView }) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div
+      className="min-h-screen relative text-white"
+      style={{
+        background: `
+          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+        `,
+        backgroundBlendMode: "overlay",
+      }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+          backgroundSize: "200% 200%",
+          animation: "shine 12s linear infinite",
+        }}
+      />
+      <style jsx>{`
+        @keyframes shine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+
+      <div className="relative z-10">
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-700 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -988,6 +1009,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

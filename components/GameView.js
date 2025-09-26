@@ -178,21 +178,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
   const handleYearChange = (newYear) => {
     const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 1950));
-    // Handle year 0 (doesn't exist in historical dating)
-    if (year === 0) {
-      setSelectedYear(1);
-    } else {
-      setSelectedYear(year);
-    }
+    setSelectedYear(year);
   };
 
   const adjustYear = (amount) => {
     const newYear = selectedYear + amount;
-    let adjustedYear = Math.max(-3000, Math.min(2025, newYear));
-    // Handle year 0 (doesn't exist in historical dating)
-    if (adjustedYear === 0) {
-      adjustedYear = amount > 0 ? 1 : -1;
-    }
+    const adjustedYear = Math.max(-3000, Math.min(2025, newYear));
     setSelectedYear(adjustedYear);
   };
 
@@ -280,7 +271,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const displayYear = (year) => {
     const yearNum = Number(year);
     if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
-    if (yearNum === 0) return '1 BCE'; // No year 0 in historical dating
+    if (yearNum === 0) return `Year 0`;
     return `${yearNum} CE`;
   };
 

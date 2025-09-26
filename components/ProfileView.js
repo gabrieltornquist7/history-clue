@@ -159,7 +159,7 @@ export default function ProfileView({ setView, session, userId = null }) {
           <div className="lg:col-span-1">
             <div className="backdrop-blur rounded-xl shadow-2xl border" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
               <div className="p-6 text-center">
-                <div className="w-32 h-32 rounded-full mx-auto mb-4 border-2 border-yellow-500">
+                <div className="w-32 h-32 rounded-full mx-auto mb-4 border-2 border-yellow-500 relative group">
                   <Image
                     key={avatarKey}
                     src={avatarSrc}
@@ -168,6 +168,20 @@ export default function ProfileView({ setView, session, userId = null }) {
                     height={120}
                     className="w-full h-full rounded-full object-cover"
                   />
+                  {!userId && (
+                    <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <span className="text-white text-xs font-medium px-2 py-1 bg-gray-900 rounded">
+                        {uploading ? 'Uploading...' : 'Change'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={uploadAvatar}
+                        disabled={uploading}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
                 </div>
                 <h2 className="text-2xl font-serif font-bold text-white mb-1">{profile?.username || "Anonymous"}</h2>
                 {profile?.selected_title && (

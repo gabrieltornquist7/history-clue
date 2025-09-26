@@ -220,10 +220,16 @@ export default function MainMenu({ setView, session, onSignOut }) {
             {/* Account Section */}
             <div className="p-7 pt-5">
               {session ? (
-                <div className="flex items-center justify-center gap-5">
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => setView("friends")}
+                    className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
+                  >
+                    Friends
+                  </button>
                   <button
                     onClick={() => setView("profile")}
-                    className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+                    className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
                   >
                     Profile
                   </button>

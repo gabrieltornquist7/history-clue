@@ -29,6 +29,7 @@ class ErrorBoundary extends React.Component {
 const Auth = lazy(() => import("../components/Auth"));
 const MainMenu = lazy(() => import("../components/MainMenu"));
 const ProfileView = lazy(() => import("../components/ProfileView"));
+const FriendsView = lazy(() => import("../components/FriendsView"));
 const LiveBattleView = lazy(() => import("../components/LiveBattleView"));
 const LiveLobbyView = lazy(() => import("../components/LiveLobbyView"));
 const ChallengeView = lazy(() => import("../components/ChallengeView"));
@@ -288,6 +289,12 @@ export default function Page() {
               session={session}
               userId={viewPayload}
             />
+          </Suspense>
+        );
+      case "friends":
+        return (
+          <Suspense fallback={<LoadingSpinner message="Loading friends..." />}>
+            <FriendsView setView={handleSetView} session={session} />
           </Suspense>
         );
       case "challenge":
