@@ -239,14 +239,21 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     if (!inviteCode.trim()) return;
 
     try {
-      // Find the battle
+      // Find the battle - allow both 'waiting' and 'active' status for invite lookup
       const { data: battle, error: findError } = await supabase
         .from('battles')
         .select('*')
         .eq('invite_code', inviteCode.trim().toUpperCase())
-        .eq('status', 'waiting')
-        .is('player2', null)
+        .in('status', ['waiting', 'active'])
         .single();
+
+      // Add detailed logging for debugging
+      console.log('Battle lookup:', {
+        inviteCode: inviteCode.trim().toUpperCase(),
+        battle,
+        findError,
+        errorCode: findError?.code
+      });
 
       if (findError || !battle) {
         console.error('Battle lookup error:', findError);
@@ -258,16 +265,39 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         return;
       }
 
-      // Prevent joining your own battle
-      if (battle.player1 === session.user.id) {
-        alert('You cannot join your own battle');
+      // Check if battle already has both players (fully occupied)
+      if (battle.player2 && battle.player1 !== session.user.id && battle.player2 !== session.user.id) {
+        alert('This battle is already full');
         return;
       }
 
-      // Join the battle
+      // Handle different scenarios
+      if (battle.player1 === session.user.id) {
+        // User is the inviter - just rejoin the existing battle
+        console.log('Rejoining battle as inviter');
+        setActiveLiveMatch(battle.id);
+        setView('liveGame');
+        return;
+      }
+
+      if (battle.player2 === session.user.id) {
+        // User is already the joiner - just rejoin the existing battle
+        console.log('Rejoining battle as joiner');
+        setActiveLiveMatch(battle.id);
+        setView('liveGame');
+        return;
+      }
+
+      // New player joining - must be empty player2 slot
+      if (battle.player2) {
+        alert('This battle is already full');
+        return;
+      }
+
+      // Join the battle as player2
       const { data: updatedBattle, error: updateError } = await supabase
         .from('battles')
-        .update({ 
+        .update({
           player2: session.user.id,
           status: 'active'
         })
