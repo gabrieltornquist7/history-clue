@@ -369,39 +369,40 @@ export default function DailyChallengeView({
         }
       `}</style>
 
-      <header className="flex items-center justify-center p-8 relative z-10">
+      <header className="flex items-center justify-between p-8 relative z-10">
         <button
           onClick={() => setView('menu')}
-          className="absolute left-8 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+          className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
           style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
         >
           ← Menu
-          <div 
+          <div
             className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
             style={{ backgroundColor: '#d4af37' }}
           ></div>
         </button>
-        <div className="text-center">
-          <h1 
-            className="text-5xl font-serif font-bold text-white mb-2" 
-            style={{ 
+        <div className="flex-1 text-center">
+          <h1
+            className="text-5xl font-serif font-bold text-white mb-2"
+            style={{
               letterSpacing: '0.02em',
               textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
             }}
           >
             Daily Challenge
           </h1>
-          <p 
+          <p
             className="text-sm italic font-light"
-            style={{ 
-              color: '#d4af37', 
-              opacity: 0.9, 
-              letterSpacing: '0.05em' 
+            style={{
+              color: '#d4af37',
+              opacity: 0.9,
+              letterSpacing: '0.05em'
             }}
           >
             Five puzzles • One chance • Pure glory
           </p>
         </div>
+        <div className="w-[120px]"></div>
       </header>
 
       <div className="px-8 pb-8 relative z-10">

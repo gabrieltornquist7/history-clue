@@ -77,21 +77,24 @@ export default function LeaderboardView({ setView }) {
       }}
     >
       {/* Header */}
-      <header className="flex items-center justify-center p-8 relative">
-        <button 
-          onClick={() => setView('menu')} 
-          className="absolute left-4 px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+      <header className="flex items-center justify-between p-8">
+        <button
+          onClick={() => setView('menu')}
+          className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
           style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
         >
           ← Menu
-          <div 
+          <div
             className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
             style={{ backgroundColor: '#d4af37' }}
           ></div>
         </button>
-        <h1 className="text-4xl font-serif font-bold" style={{ color: '#d4af37', letterSpacing: '0.02em' }}>
-          Endless Leaderboard
-        </h1>
+        <div className="flex-1 text-center">
+          <h1 className="text-4xl font-serif font-bold" style={{ color: '#d4af37', letterSpacing: '0.02em' }}>
+            Endless Leaderboard
+          </h1>
+        </div>
+        <div className="w-[120px]"></div>
       </header>
 
       {/* Main Content */}

@@ -1,6 +1,6 @@
 // components/ChallengeView.js - OPTIMIZED WITH PROFILE CACHE
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
 
@@ -15,7 +15,7 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const currentUserId = session?.user?.id;
-  const refetchData = () => setDataVersion((v) => v + 1);
+  const refetchData = useCallback(() => setDataVersion((v) => v + 1), []);
 
 // Replace the useEffect in components/ChallengeView.js around line 45
 useEffect(() => {
@@ -121,6 +121,28 @@ useEffect(() => {
     supabase.removeChannel(channel);
   };
 }, [currentUserId, dataVersion, session?.user?.id]);
+
+// Auto-refresh challenges when updated
+useEffect(() => {
+  if (!currentUserId) return;
+
+  const challengesSubscription = supabase
+    .channel('challenges-updates')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'challenges',
+      filter: `challenger_id=eq.${currentUserId},opponent_id=eq.${currentUserId}`
+    }, (payload) => {
+      console.log('[ChallengeView] Challenge updated:', payload);
+      refetchData();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(challengesSubscription);
+  };
+}, [currentUserId, refetchData]);
 
   const startLiveMatch = async (opponentId) => {
     const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });
