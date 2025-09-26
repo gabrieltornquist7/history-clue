@@ -206,7 +206,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className="bg-white text-pink-800 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                      BETA COMING SOON
+                      BETA 
                     </span>
                     <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-pulse"></div>
                   </div>

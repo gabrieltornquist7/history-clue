@@ -30,7 +30,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [oppGuess, setOppGuess] = useState(null);
   const [gameFinished, setGameFinished] = useState(false);
   const [roundResult, setRoundResult] = useState(null);
-  
+  const [currentRound, setCurrentRound] = useState(null);
+  const [firstGuessSubmitted, setFirstGuessSubmitted] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -43,6 +45,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
   useEffect(() => {
     let isMounted = true;
     let battleChannel = null;
+    let roundChannel = null;
 
     const initializeBattle = async () => {
       try {
@@ -110,6 +113,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
           .on('broadcast', { event: 'clue_revealed' }, ({ payload }) => {
             console.log('Opponent revealed clue:', payload);
           })
+          .on('broadcast', { event: 'guess_made' }, ({ payload }) => {
+            console.log('First guess made by:', payload.by);
+            if (payload.by !== session.user.id && !firstGuessSubmitted) {
+              // Timer drop to 45 seconds when opponent makes first guess
+              setMyTimer(45);
+            }
+          })
           .subscribe(async (status) => {
             if (status === 'SUBSCRIBED' && isMounted) {
               console.log('Connected to battle channel');
@@ -125,7 +135,24 @@ export default function LiveBattleView({ session, battleId, setView }) {
             }
           });
 
-        // 3. Check if there's an active round
+        // 3. Setup realtime channel for round changes
+        roundChannel = supabase.channel(`battle_rounds:${battleId}`);
+
+        roundChannel
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'battle_rounds', filter: `battle_id=eq.${battleId}` },
+            (payload) => {
+              console.log('Round update:', payload);
+              handleRoundUpdate(payload.new);
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Connected to rounds channel');
+            }
+          });
+
+        // 4. Check if there's an active round
         let { data: existingRound, error: roundError } = await supabase
           .from('battle_rounds')
           .select('*')
@@ -137,7 +164,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
           console.error('Error checking for rounds:', roundError);
         }
 
-        // 4. Create round if none exists
+        // 5. Create round if none exists
         if (!existingRound) {
           console.log('No active round found, creating one...');
 
@@ -177,8 +204,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
         if (!isMounted) return;
 
         currentRoundId.current = existingRound.id;
+        setCurrentRound(existingRound);
 
-        // 5. Load puzzle
+        // 6. Load puzzle
         const { data: puzzleData, error: puzzleError } = await supabase
           .from('puzzles')
           .select('*, puzzle_translations(*)')
@@ -194,7 +222,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         setPuzzle(puzzleData);
         console.log('Puzzle loaded:', puzzleData.id);
 
-        // 6. Load any existing moves
+        // 7. Load any existing moves
         const { data: moves } = await supabase
           .from('battle_moves')
           .select('*')
@@ -225,7 +253,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }
         }
 
-        // 7. Check for existing opponent guess
+        // 8. Check for existing opponent guess
         const { data: oppMoves } = await supabase
           .from('battle_moves')
           .select('payload')
@@ -258,6 +286,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
       }
       if (battleChannel) {
         supabase.removeChannel(battleChannel);
+      }
+      if (roundChannel) {
+        supabase.removeChannel(roundChannel);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -376,9 +407,20 @@ export default function LiveBattleView({ session, battleId, setView }) {
       payload: guessData
     });
 
-    // Broadcast guess to opponent via realtime channel
+    // Broadcast first guess event to trigger timer drop
     const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
     if (battleChannel) {
+      // First broadcast the guess_made event for timer drop
+      if (!firstGuessSubmitted && !oppGuess) {
+        await battleChannel.send({
+          type: 'broadcast',
+          event: 'guess_made',
+          payload: { by: session.user.id }
+        });
+        setFirstGuessSubmitted(true);
+      }
+
+      // Then broadcast the actual guess
       await battleChannel.send({
         type: 'broadcast',
         event: 'opponent_guess',
@@ -400,6 +442,116 @@ export default function LiveBattleView({ session, battleId, setView }) {
     }
   };
 
+  const handleRoundUpdate = (round) => {
+    if (!round) return;
+
+    console.log('Processing round update:', round);
+    setCurrentRound(round);
+
+    // Check if both players have submitted guesses in this round
+    const checkBothPlayersGuessed = async () => {
+      try {
+        const { data: allMoves, error } = await supabase
+          .from('battle_moves')
+          .select('player, action')
+          .eq('round_id', round.id)
+          .eq('action', 'guess');
+
+        if (error) {
+          console.error('Error checking moves:', error);
+          return;
+        }
+
+        const uniquePlayers = new Set(allMoves?.map(move => move.player) || []);
+        console.log('Players who have guessed:', uniquePlayers.size, 'out of 2');
+
+        if (uniquePlayers.size >= 2 && round.status === 'active') {
+          console.log('Both players have guessed, finishing round and starting next');
+
+          // Mark current round as finished
+          await supabase
+            .from('battle_rounds')
+            .update({ status: 'finished', finished_at: new Date().toISOString() })
+            .eq('id', round.id);
+
+          // Create next round after a short delay
+          setTimeout(async () => {
+            try {
+              // Get random puzzle for next round
+              const { data: puzzles, error: puzzleError } = await supabase
+                .from('puzzles')
+                .select('id')
+                .limit(100);
+
+              if (puzzleError || !puzzles || puzzles.length === 0) {
+                console.error('Failed to get puzzles for next round');
+                return;
+              }
+
+              const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+
+              const { data: newRound, error: createError } = await supabase
+                .from('battle_rounds')
+                .insert({
+                  battle_id: round.battle_id,
+                  round_no: (round.round_no || 1) + 1,
+                  puzzle_id: randomPuzzle.id,
+                  status: 'active',
+                  started_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+              if (createError) {
+                console.error('Error creating next round:', createError);
+                return;
+              }
+
+              console.log('Created next round:', newRound);
+
+              // Reset game state for new round
+              currentRoundId.current = newRound.id;
+              setMyTimer(180); // Reset to 3 minutes
+              setMyClues([1]);
+              setMyScore(10000);
+              setMyGuess(null);
+              setOppGuess(null);
+              setGuessCoords(null);
+              setSelectedYear(1950);
+              setGameFinished(false);
+              setRoundResult(null);
+              setFirstGuessSubmitted(false);
+
+              // Load new puzzle
+              const { data: newPuzzleData, error: newPuzzleError } = await supabase
+                .from('puzzles')
+                .select('*, puzzle_translations(*)')
+                .eq('id', newRound.puzzle_id)
+                .single();
+
+              if (!newPuzzleError && newPuzzleData) {
+                setPuzzle(newPuzzleData);
+                console.log('Loaded new puzzle for round', newRound.round_no);
+              }
+
+              // Restart timer
+              startTimer();
+
+            } catch (err) {
+              console.error('Error setting up next round:', err);
+            }
+          }, 3000); // 3 second delay to show results
+        }
+      } catch (err) {
+        console.error('Error in round progression:', err);
+      }
+    };
+
+    // Only check for round progression if the round just became active or got updated
+    if (round.status === 'active') {
+      checkBothPlayersGuessed();
+    }
+  };
 
   const getClueText = (clueNumber) => {
     return puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];

@@ -37,16 +37,40 @@ DO $$
 BEGIN
     ALTER TABLE IF EXISTS battle_rounds ENABLE ROW LEVEL SECURITY;
 
-    -- Drop policy if it exists
+    -- Drop old policies if they exist
     DROP POLICY IF EXISTS "Users can access rounds of their battles" ON battle_rounds;
+    DROP POLICY IF EXISTS "Players can access their own battle rounds" ON battle_rounds;
+    DROP POLICY IF EXISTS "Players can select battle rounds" ON battle_rounds;
+    DROP POLICY IF EXISTS "Players can update battle rounds" ON battle_rounds;
+    DROP POLICY IF EXISTS "Players can insert battle rounds" ON battle_rounds;
 
-    -- Policy: Users can only access rounds of battles they're in
-    CREATE POLICY "Users can access rounds of their battles" ON battle_rounds
-        FOR ALL USING (
-            EXISTS (
-                SELECT 1 FROM battles
-                WHERE battles.id = battle_rounds.battle_id
-                AND (battles.player1 = auth.uid() OR battles.player2 = auth.uid())
+    -- Allow select for both players in the parent battle
+    CREATE POLICY "Players can select battle rounds" ON battle_rounds
+        FOR SELECT USING (
+            auth.uid() IN (
+                SELECT player1 FROM battles WHERE battles.id = battle_rounds.battle_id
+                UNION
+                SELECT player2 FROM battles WHERE battles.id = battle_rounds.battle_id
+            )
+        );
+
+    -- Allow update (making a guess, finishing round)
+    CREATE POLICY "Players can update battle rounds" ON battle_rounds
+        FOR UPDATE USING (
+            auth.uid() IN (
+                SELECT player1 FROM battles WHERE battles.id = battle_rounds.battle_id
+                UNION
+                SELECT player2 FROM battles WHERE battles.id = battle_rounds.battle_id
+            )
+        );
+
+    -- Allow insert (creating a new round when the previous is finished)
+    CREATE POLICY "Players can insert battle rounds" ON battle_rounds
+        FOR INSERT WITH CHECK (
+            auth.uid() IN (
+                SELECT player1 FROM battles WHERE battles.id = battle_rounds.battle_id
+                UNION
+                SELECT player2 FROM battles WHERE battles.id = battle_rounds.battle_id
             )
         );
 EXCEPTION
