@@ -203,6 +203,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
   const handleCreateInvite = async () => {
     try {
+      // Clear any existing polling first
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+
       // Generate secure invite code using database function
       const { data: inviteCode, error: codeError } = await supabase
         .rpc('generate_invite_code');
@@ -237,6 +243,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       setMode('waiting');
 
       // Simple polling to check if someone joined
+      let errorCount = 0;
       pollIntervalRef.current = setInterval(async () => {
         const { data: updatedBattle, error } = await supabase
           .from('battles')
@@ -244,9 +251,25 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
           .eq('id', battle.id)
           .single();
 
-        if (!error && updatedBattle && updatedBattle.player2) {
+        if (error) {
+          errorCount++;
+          console.error('[LiveLobby] Polling error:', error);
+
+          // Stop polling after 3 errors to prevent runaway requests
+          if (errorCount >= 3 || error.code === '406') {
+            console.error('[LiveLobby] Stopping poll due to repeated errors');
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setMode(null);
+            setGeneratedInvite(null);
+            alert('Lost connection to battle. Please try again.');
+            return;
+          }
+        } else if (updatedBattle && updatedBattle.player2) {
+          // Someone joined!
           clearInterval(pollIntervalRef.current);
-          
+          pollIntervalRef.current = null;
+
           // Update battle to active
           await supabase
             .from('battles')
@@ -256,6 +279,9 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
           // Both players found, start battle
           setActiveLiveMatch(battle.id);
           setView('liveGame');
+        } else {
+          // Reset error count on successful poll
+          errorCount = 0;
         }
       }, 1000);
 
@@ -560,10 +586,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
                 </button>
                 <button
                   onClick={() => {
-                    setMode(null);
                     if (pollIntervalRef.current) {
                       clearInterval(pollIntervalRef.current);
+                      pollIntervalRef.current = null;
                     }
+                    setMode(null);
+                    setGeneratedInvite(null);
                   }}
                   className="px-6 py-3 bg-gray-700 text-white font-medium rounded-md hover:bg-gray-600"
                 >
