@@ -3,23 +3,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchTopScores } from '../lib/leaderboardApi';
-import Image from 'next/image';
-import PageWrapper from './ui/PageWrapper';
-import Card from './ui/Card';
+import { AvatarImage } from '../lib/avatarHelpers';
 
 export default function LeaderboardView({ setView }) {
   const [loading, setLoading] = useState(true);
   const [endlessLeaderboard, setEndlessLeaderboard] = useState([]);
   const [error, setError] = useState(null);
 
-  const getAvatarUrl = (avatar_url) => {
-    if (!avatar_url) return 'https://placehold.co/40x40/fcf8f0/5a4b41?text=?';
-    const { data, error } = supabase.storage.from('avatars').getPublicUrl(avatar_url);
-    if (error || !data?.publicUrl) {
-      return 'https://placehold.co/40x40/fcf8f0/5a4b41?text=?';
-    }
-    return data.publicUrl;
-  };
 
   useEffect(() => {
     let ignore = false;
@@ -67,39 +57,61 @@ export default function LeaderboardView({ setView }) {
   }, []);
 
   return (
-    <PageWrapper>
-      {/* Header */}
-      <header className="flex items-center justify-between p-8">
-        <button
-          onClick={() => setView('menu')}
-          className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
-          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
-        >
-          ← Menu
-          <div
-            className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-            style={{ backgroundColor: '#d4af37' }}
-          ></div>
-        </button>
-        <div className="flex-1 text-center">
-          <h1 className="text-4xl font-serif font-bold" style={{ color: '#d4af37', letterSpacing: '0.02em' }}>
-            Endless Leaderboard
-          </h1>
+    <div
+      className="min-h-screen relative"
+      style={{
+        background: `
+          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+        `,
+        backgroundBlendMode: "overlay",
+      }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+          backgroundSize: "200% 200%",
+          animation: "shine 12s linear infinite",
+        }}
+      />
+      <style jsx>{`
+        @keyframes shine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
+
+      <header className="p-8 relative z-10">
+        <div className="flex items-center justify-between max-w-4xl mx-auto">
+          <button
+            onClick={() => setView('menu')}
+            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
+          >
+            ← Back
+          </button>
+          <div className="text-center flex-1 px-4">
+            <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2"
+                style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
+              Leaderboard
+            </h1>
+            <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
+              Top players across all modes
+            </p>
+          </div>
+          <div className="w-24"></div>
         </div>
-        <div className="w-[120px]"></div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex items-start justify-center min-h-[calc(100vh-120px)] p-8 pt-4">
-        <div className="w-full max-w-3xl">
-          <div 
-            className="backdrop-blur rounded-xl p-8 shadow-2xl"
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
-            }}
-          >
+      <div className="px-8 pb-8 relative z-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="backdrop-blur rounded-lg overflow-hidden"
+               style={{
+                 backgroundColor: "rgba(0, 0, 0, 0.7)",
+                 boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)"
+               }}>
+            <div className="p-6">
             {loading ? (
               <div className="text-center py-12">
                 <div className="text-xl text-gray-400 mb-4">Loading scores...</div>
@@ -138,12 +150,10 @@ export default function LeaderboardView({ setView }) {
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
                           )}
                         </div>
-                        <Image
-                          src={getAvatarUrl(entry.profiles?.avatar_url)}
-                          alt={`${entry.profiles?.username ?? 'Traveler'}'s avatar`}
-                          width={40}
-                          height={40}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-yellow-500"
+                        <AvatarImage
+                          url={entry.profiles?.avatar_url}
+                          size="w-10 h-10"
+                          className="border-2 border-yellow-500"
                         />
                         <div>
                           <span className="font-bold text-white text-lg">{entry.profiles?.username ?? 'Traveler'}</span>
@@ -177,9 +187,10 @@ export default function LeaderboardView({ setView }) {
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>
-    </PageWrapper>
+    </div>
   );
 }

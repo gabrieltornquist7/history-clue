@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { AvatarImage } from '../lib/avatarHelpers';
+import UserProfileView from './UserProfileView';
 
 export default function FriendsView({ setView, session }) {
   const [friends, setFriends] = useState([]);
@@ -10,6 +12,7 @@ export default function FriendsView({ setView, session }) {
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('friends');
+  const [viewingProfile, setViewingProfile] = useState(null);
   const currentUserId = session?.user?.id;
 
   useEffect(() => {
@@ -20,24 +23,21 @@ export default function FriendsView({ setView, session }) {
   const fetchFriendsData = async () => {
     setLoading(true);
 
-    // Fetch friendships
+    // Fetch friendships with user profiles
     const { data: friendshipsRaw } = await supabase
       .from('friendships')
       .select('*, user1:user_id_1(id, username, avatar_url), user2:user_id_2(id, username, avatar_url)')
       .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
 
     if (friendshipsRaw) {
-      // Filter accepted friends
       const acceptedFriends = friendshipsRaw
         .filter(f => f.status === 'accepted')
         .map(f => f.user_id_1 === currentUserId ? f.user2 : f.user1);
 
-      // Filter pending requests (received)
       const pending = friendshipsRaw
         .filter(f => f.status === 'pending' && f.user_id_2 === currentUserId && f.action_user_id !== currentUserId)
         .map(f => ({ ...f.user1, friendship_id: f.id }));
 
-      // Filter sent requests
       const sent = friendshipsRaw
         .filter(f => f.status === 'pending' && f.action_user_id === currentUserId)
         .map(f => f.user2);
@@ -63,7 +63,6 @@ export default function FriendsView({ setView, session }) {
       .neq('id', currentUserId)
       .limit(10);
 
-    // Filter out existing friends and pending requests
     const friendIds = [...friends, ...sentRequests, ...pendingRequests].map(f => f.id);
     const filtered = data?.filter(user => !friendIds.includes(user.id)) || [];
     setSearchResults(filtered);
@@ -118,6 +117,17 @@ export default function FriendsView({ setView, session }) {
     }
   };
 
+  // If viewing a profile, show that instead
+  if (viewingProfile) {
+    return (
+      <UserProfileView
+        setView={setView}
+        userId={viewingProfile}
+        onBack={() => setViewingProfile(null)}
+      />
+    );
+  }
+
   return (
     <div
       className="min-h-screen relative"
@@ -130,7 +140,6 @@ export default function FriendsView({ setView, session }) {
         backgroundBlendMode: "overlay",
       }}
     >
-      {/* Metallic shine overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -139,7 +148,6 @@ export default function FriendsView({ setView, session }) {
           animation: "shine 12s linear infinite",
         }}
       />
-
       <style jsx>{`
         @keyframes shine {
           0% { background-position: 200% 0; }
@@ -147,7 +155,6 @@ export default function FriendsView({ setView, session }) {
         }
       `}</style>
 
-      {/* Header */}
       <header className="p-8 relative z-10">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <button
@@ -172,7 +179,6 @@ export default function FriendsView({ setView, session }) {
       <div className="px-8 pb-8 relative z-10">
         <div className="max-w-4xl mx-auto">
 
-          {/* Search Bar */}
           <div className="mb-8">
             <div className="backdrop-blur rounded-lg overflow-hidden"
                  style={{
@@ -186,18 +192,14 @@ export default function FriendsView({ setView, session }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-900 text-white rounded-md border border-gray-700/30 focus:border-yellow-500/50 focus:outline-none transition-all"
-                  style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
                 />
 
-                {/* Search Results */}
                 {searchResults.length > 0 && (
                   <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
                     {searchResults.map(user => (
                       <div key={user.id} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-md">
                         <div className="flex items-center gap-3">
-                          {user.avatar_url && (
-                            <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-                          )}
+                          <AvatarImage url={user.avatar_url} size="w-8 h-8" />
                           <span className="text-white font-medium">{user.username}</span>
                         </div>
                         <button
@@ -214,7 +216,6 @@ export default function FriendsView({ setView, session }) {
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="flex justify-center mb-6">
             <div className="backdrop-blur rounded-lg p-1.5"
                  style={{
@@ -242,7 +243,6 @@ export default function FriendsView({ setView, session }) {
             </div>
           </div>
 
-          {/* Content */}
           <div className="backdrop-blur rounded-lg overflow-hidden"
                style={{
                  backgroundColor: "rgba(0, 0, 0, 0.7)",
@@ -260,12 +260,15 @@ export default function FriendsView({ setView, session }) {
                       {friends.length > 0 ? (
                         friends.map(friend => (
                           <div key={friend.id} className="flex items-center justify-between p-4 bg-gray-900/30 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              {friend.avatar_url && (
-                                <img src={friend.avatar_url} alt="" className="w-10 h-10 rounded-full" />
-                              )}
-                              <span className="text-white font-medium">{friend.username}</span>
-                            </div>
+                            <button
+                              onClick={() => setViewingProfile(friend.id)}
+                              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                            >
+                              <AvatarImage url={friend.avatar_url} size="w-10 h-10" />
+                              <span className="text-white font-medium hover:text-yellow-400 transition-colors">
+                                {friend.username}
+                              </span>
+                            </button>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setView('challenge')}
@@ -296,9 +299,7 @@ export default function FriendsView({ setView, session }) {
                         pendingRequests.map(request => (
                           <div key={request.id} className="flex items-center justify-between p-4 bg-gray-900/30 rounded-lg">
                             <div className="flex items-center gap-3">
-                              {request.avatar_url && (
-                                <img src={request.avatar_url} alt="" className="w-10 h-10 rounded-full" />
-                              )}
+                              <AvatarImage url={request.avatar_url} size="w-10 h-10" />
                               <div>
                                 <div className="text-white font-medium">{request.username}</div>
                                 <div className="text-xs text-gray-400">Wants to be friends</div>

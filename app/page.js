@@ -37,6 +37,7 @@ const GameView = lazy(() => import("../components/GameView"));
 const DailyChallengeView = lazy(() => import("../components/DailyChallengeView"));
 const ProfileSettingsView = lazy(() => import("../components/ProfileSettingsView"));
 const LeaderboardView = lazy(() => import("../components/LeaderboardView"));
+const UserProfileView = lazy(() => import("../components/UserProfileView"));
 
 // Optimized loading component that matches your app's design
 const LoadingSpinner = ({ message = "Loading..." }) => (

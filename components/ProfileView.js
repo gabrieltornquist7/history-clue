@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabaseClient";
-import Image from "next/image";
+import { AvatarImage } from "../lib/avatarHelpers";
 import PageWrapper from "./ui/PageWrapper";
 import Card from "./ui/Card";
 
@@ -60,17 +60,33 @@ export default function ProfileView({ setView, session, userId = null }) {
     try {
       setUploading(true);
       if (!event.target.files?.length) throw new Error("You must select an image to upload.");
+
       const { data: { user } } = await supabase.auth.getUser();
       const file = event.target.files[0];
       const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}.${fileExt}`;
 
-      await supabase.storage.from("avatars").upload(filePath, file, { upsert: true });
-      await supabase.from("profiles").update({ avatar_url: filePath }).eq("id", user.id);
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
 
+      if (uploadError) throw uploadError;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: filePath })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      // Update local profile state
+      setProfile(prev => ({ ...prev, avatar_url: filePath }));
       setAvatarKey(Date.now()); // cache-bust avatar
+
+      alert('Avatar updated successfully!');
     } catch (error) {
-      alert(error.message);
+      console.error('Avatar upload error:', error);
+      alert(error.message || 'Failed to upload avatar');
     } finally {
       setUploading(false);
     }
@@ -98,13 +114,6 @@ export default function ProfileView({ setView, session, userId = null }) {
     };
   }, [profile?.xp, profile?.level]);
 
-  const avatarSrc = useMemo(() => {
-    if (!profile?.avatar_url) {
-      return "https://placehold.co/128x128/fcf8f0/5a4b41?text=??";
-    }
-    const { data } = supabase.storage.from("avatars").getPublicUrl(profile.avatar_url);
-    return `${data.publicUrl}?t=${avatarKey}`;
-  }, [profile?.avatar_url, avatarKey]);
 
   const mockBadges = useMemo(
     () => [
@@ -159,14 +168,11 @@ export default function ProfileView({ setView, session, userId = null }) {
           <div className="lg:col-span-1">
             <div className="backdrop-blur rounded-xl shadow-2xl border" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
               <div className="p-6 text-center">
-                <div className="w-32 h-32 rounded-full mx-auto mb-4 border-2 border-yellow-500 relative group">
-                  <Image
-                    key={avatarKey}
-                    src={avatarSrc}
-                    alt="Avatar"
-                    width={120}
-                    height={120}
-                    className="w-full h-full rounded-full object-cover"
+                <div className="w-32 h-32 mx-auto mb-4 relative group">
+                  <AvatarImage
+                    url={profile?.avatar_url}
+                    size="w-32 h-32"
+                    className="border-2 border-yellow-500"
                   />
                   {!userId && (
                     <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
