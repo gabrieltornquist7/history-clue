@@ -160,6 +160,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
           .eq('status', 'active')
           .single();
 
+        console.log('Checking for active round:', { battleId, existingRound, roundError });
+
         if (roundError && roundError.code !== 'PGRST116') { // PGRST116 = no rows found
           console.error('Error checking for rounds:', roundError);
         }
@@ -189,8 +191,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
               status: 'active',
               started_at: new Date().toISOString()
             })
-            .select()
+            .select('*')
             .single();
+
+          console.log('Creating new round:', { newRound, createError });
 
           if (createError) {
             console.error('Error creating round:', createError);
@@ -411,12 +415,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
     const isPlayer1 = session.user.id === battle.player1;
     const completionField = isPlayer1 ? 'player1_completed_at' : 'player2_completed_at';
 
-    await supabase
+    const { error: completionError } = await supabase
       .from('battle_rounds')
       .update({
         [completionField]: new Date().toISOString()
       })
       .eq('id', currentRoundId.current);
+
+    console.log('Updating round completion:', { currentRoundId: currentRoundId.current, completionField, completionError });
+
+    if (completionError) {
+      console.error('Error updating completion timestamp:', completionError);
+    }
 
     // Broadcast first guess event to trigger timer drop
     const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
@@ -477,6 +487,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
             .eq('id', round.id)
             .eq('status', 'active'); // Only update if still active (prevents race conditions)
 
+          console.log('Finishing round:', { roundId: round.id, finishError });
+
           if (finishError) {
             console.error('Error finishing round:', finishError);
             return;
@@ -509,8 +521,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   player1_completed_at: null,
                   player2_completed_at: null
                 })
-                .select()
+                .select('*')
                 .single();
+
+              console.log('Creating next round:', { newRound, createError });
 
               if (createError) {
                 console.error('Error creating next round:', createError);
