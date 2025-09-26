@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
 import { normalizeInvite, isValidInviteCode, safePlayAudio } from '../lib/shared';
+import { fetchJoinableMatchByInvite } from '../lib/liveApi';
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
   // Use profile cache for optimized profile fetching
@@ -276,19 +277,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       // Play join sound on user gesture
       await safePlayAudio('join-sound');
 
-      // Find the battle with proper authorization logic
-      // - Anyone can see waiting battles with no player2 (open invites)
-      // - Only player1 or player2 can see active battles (for rejoins)
-      const { data: battle, error: findError } = await supabase
-        .from("battles")
-        .select("*")
-        .eq("invite_code", code)
-        .or(`and(status.eq.waiting,player2.is.null),and(status.eq.active,or(player1.eq.${session.user.id},player2.eq.${session.user.id}))`)
-        .single();
+      // Use the new helper with fallback handling
+      const { data: battle, error: findError } = await fetchJoinableMatchByInvite(code, session?.user?.id);
 
       // Add detailed logging for debugging
       console.log('Battle lookup:', {
-        inviteCode: inviteCode.trim().toUpperCase(),
+        inviteCode: code,
         battle,
         findError,
         errorCode: findError?.code,
