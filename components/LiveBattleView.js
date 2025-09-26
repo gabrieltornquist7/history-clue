@@ -369,8 +369,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   const handleYearChange = (newYear) => {
     if (myGuess) return;
-    const year = Math.max(-1000, Math.min(2025, parseInt(newYear) || 1950));
-    setSelectedYear(year);
+    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 1950));
+    // Handle year 0 (doesn't exist in historical dating)
+    if (year === 0) {
+      setSelectedYear(1);
+    } else {
+      setSelectedYear(year);
+    }
   };
 
   const handleAutoSubmit = () => {
@@ -739,8 +744,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   const displayYear = (year) => {
     const yearNum = Number(year);
-    if (yearNum < 0) return `${Math.abs(yearNum)} BC`;
-    return yearNum;
+    if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
+    if (yearNum === 0) return '1 BCE'; // No year 0 in historical dating
+    return `${yearNum} CE`;
   };
 
   if (loading) {

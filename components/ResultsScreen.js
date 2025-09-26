@@ -1,5 +1,11 @@
 // components/ResultsScreen.js
 export default function ResultsScreen({ results, handlePlayAgain }) {
+  const displayYear = (year) => {
+    const yearNum = Number(year);
+    if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
+    if (yearNum === 0) return '1 BCE'; // No year 0 in historical dating
+    return `${yearNum} CE`;
+  };
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-parchment p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border border-sepia-dark/50 font-sans">
@@ -8,12 +14,12 @@ export default function ResultsScreen({ results, handlePlayAgain }) {
           <div className="text-left">
             <h4 className="text-lg font-serif font-bold text-sepia">Your Guess</h4>
             <p>{results.guess.city}, {results.guess.country}</p>
-            <p>{results.guess.year}</p>
+            <p>{displayYear(results.guess.year)}</p>
           </div>
           <div className="text-left">
             <h4 className="text-lg font-serif font-bold text-sepia">Correct Answer</h4>
             <p className="text-green-700 font-semibold">{results.answer.city}, {results.answer.country}</p>
-            <p className="text-green-700 font-semibold">{results.answer.year}</p>
+            <p className="text-green-700 font-semibold">{displayYear(results.answer.year)}</p>
           </div>
         </div>
         <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>

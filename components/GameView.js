@@ -177,13 +177,23 @@ export default function GameView({ setView, challenge = null, session, onChallen
   };
 
   const handleYearChange = (newYear) => {
-    const year = Math.max(-1000, Math.min(2025, parseInt(newYear) || 1950));
-    setSelectedYear(year);
+    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 1950));
+    // Handle year 0 (doesn't exist in historical dating)
+    if (year === 0) {
+      setSelectedYear(1);
+    } else {
+      setSelectedYear(year);
+    }
   };
 
   const adjustYear = (amount) => {
     const newYear = selectedYear + amount;
-    setSelectedYear(Math.max(-1000, Math.min(2025, newYear)));
+    let adjustedYear = Math.max(-3000, Math.min(2025, newYear));
+    // Handle year 0 (doesn't exist in historical dating)
+    if (adjustedYear === 0) {
+      adjustedYear = amount > 0 ? 1 : -1;
+    }
+    setSelectedYear(adjustedYear);
   };
 
   const handleGuessSubmit = async () => {
@@ -267,10 +277,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
     else { setGameKey(prevKey => prevKey + 1); } 
   };
   
-  const displayYear = (year) => { 
-    const yearNum = Number(year); 
-    if (yearNum < 0) return `${Math.abs(yearNum)} BC`; 
-    return yearNum; 
+  const displayYear = (year) => {
+    const yearNum = Number(year);
+    if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
+    if (yearNum === 0) return '1 BCE'; // No year 0 in historical dating
+    return `${yearNum} CE`;
   };
 
   const getClueText = (clueNumber) => {

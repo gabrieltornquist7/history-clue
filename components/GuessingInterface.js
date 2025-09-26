@@ -30,8 +30,8 @@ export default function GuessingInterface({
         </select>
       </div>
       <div className="flex flex-col gap-2 col-span-2">
-        <label htmlFor="year" className={labelClasses}>Year: {selectedYear}</label>
-        <input type="range" id="year" min="1800" max="2025" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full" />
+        <label htmlFor="year" className={labelClasses}>Year: {selectedYear < 0 ? `${Math.abs(selectedYear)} BCE` : selectedYear === 0 ? '1 BCE' : `${selectedYear} CE`}</label>
+        <input type="range" id="year" min="-3000" max="2025" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full" />
       </div>
       <div className="col-span-2 flex justify-center mt-4">
         <button
