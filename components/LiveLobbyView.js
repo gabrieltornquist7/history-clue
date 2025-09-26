@@ -305,25 +305,28 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       }
 
       // Use the new helper with fallback handling
+      console.log('[LiveLobby] Calling fetchJoinableMatchByInvite...');
       const { battle, path, error: findError } = await fetchJoinableMatchByInvite(code, session?.user?.id);
+      console.log('[LiveLobby] fetchJoinableMatchByInvite returned:', { battle, path, findError });
 
       // Add detailed logging for debugging
       console.log('[LiveLobby] Battle lookup result:', {
         inviteCode: code,
+        battle,
         path,
         hasBattle: !!battle,
         error: findError
       });
 
       if (findError) {
-        console.error('[LiveLobby] Query error:', findError);
+        console.error('[LiveLobby] Battle lookup error:', findError);
         alert('Failed to query matches. Check console for details.');
         setJoinLoading(false);
         return;
       }
 
       if (!battle) {
-        console.warn('[LiveLobby] No joinable match found for code:', code);
+        console.warn('[LiveLobby] No battle found for code:', code);
         alert('Invite not found');
         setJoinLoading(false);
         return;
@@ -339,7 +342,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       // Handle different scenarios
       if (battle.player1 === session.user.id) {
         // User is the inviter - just rejoin the existing battle
-        console.log('Rejoining battle as inviter');
+        console.log('[LiveLobby] Rejoining battle as inviter');
         setActiveLiveMatch(battle.id);
         setView('liveGame');
         setJoinLoading(false);
@@ -348,7 +351,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
       if (battle.player2 === session.user.id) {
         // User is already the joiner - just rejoin the existing battle
-        console.log('Rejoining battle as joiner');
+        console.log('[LiveLobby] Rejoining battle as joiner');
         setActiveLiveMatch(battle.id);
         setView('liveGame');
         setJoinLoading(false);
@@ -363,6 +366,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       }
 
       // Join the battle as player2
+      console.log('[LiveLobby] Joining battle as player2...');
       const { data: updatedBattle, error: updateError } = await supabase
         .from('battles')
         .update({
@@ -380,6 +384,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         return;
       }
 
+      console.log('[LiveLobby] Successfully joined battle:', updatedBattle);
       // Go to battle immediately
       setActiveLiveMatch(updatedBattle.id);
       setView('liveGame');
