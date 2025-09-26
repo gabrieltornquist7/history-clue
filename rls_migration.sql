@@ -157,6 +157,21 @@ EXCEPTION
         RAISE NOTICE 'Some tables do not exist, skipping index creation';
 END $$;
 
+-- Add completion timestamp columns to battle_rounds if they don't exist
+DO $$
+BEGIN
+    -- Add player1_completed_at column
+    ALTER TABLE battle_rounds ADD COLUMN IF NOT EXISTS player1_completed_at TIMESTAMPTZ;
+
+    -- Add player2_completed_at column
+    ALTER TABLE battle_rounds ADD COLUMN IF NOT EXISTS player2_completed_at TIMESTAMPTZ;
+
+    RAISE NOTICE 'Added completion timestamp columns to battle_rounds';
+EXCEPTION
+    WHEN undefined_table THEN
+        RAISE NOTICE 'battle_rounds table does not exist, skipping column addition';
+END $$;
+
 -- Instructions:
 -- 1. Run this script in your Supabase SQL editor
 -- 2. Verify that the policies are created by checking the "Policies" tab in your Supabase dashboard

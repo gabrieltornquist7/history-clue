@@ -407,6 +407,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
       payload: guessData
     });
 
+    // Update battle_rounds with completion timestamp
+    const isPlayer1 = session.user.id === battle.player1;
+    const completionField = isPlayer1 ? 'player1_completed_at' : 'player2_completed_at';
+
+    await supabase
+      .from('battle_rounds')
+      .update({
+        [completionField]: new Date().toISOString()
+      })
+      .eq('id', currentRoundId.current);
+
     // Broadcast first guess event to trigger timer drop
     const battleChannel = supabase.getChannels().find(c => c.topic === `live_battle:${battleId}`);
     if (battleChannel) {
@@ -448,31 +459,28 @@ export default function LiveBattleView({ session, battleId, setView }) {
     console.log('Processing round update:', round);
     setCurrentRound(round);
 
-    // Check if both players have submitted guesses in this round
-    const checkBothPlayersGuessed = async () => {
-      try {
-        const { data: allMoves, error } = await supabase
-          .from('battle_moves')
-          .select('player, action')
-          .eq('round_id', round.id)
-          .eq('action', 'guess');
+    // Check if both players have completed (using completion timestamps)
+    const bothCompleted = round.player1_completed_at && round.player2_completed_at;
 
-        if (error) {
-          console.error('Error checking moves:', error);
-          return;
-        }
+    if (bothCompleted && round.status === 'active') {
+      console.log('Both players have completed, finishing round and starting next');
 
-        const uniquePlayers = new Set(allMoves?.map(move => move.player) || []);
-        console.log('Players who have guessed:', uniquePlayers.size, 'out of 2');
-
-        if (uniquePlayers.size >= 2 && round.status === 'active') {
-          console.log('Both players have guessed, finishing round and starting next');
-
-          // Mark current round as finished
-          await supabase
+      // Mark current round as finished (only one client should do this)
+      const finishRound = async () => {
+        try {
+          const { error: finishError } = await supabase
             .from('battle_rounds')
-            .update({ status: 'finished', finished_at: new Date().toISOString() })
-            .eq('id', round.id);
+            .update({
+              status: 'finished',
+              finished_at: new Date().toISOString()
+            })
+            .eq('id', round.id)
+            .eq('status', 'active'); // Only update if still active (prevents race conditions)
+
+          if (finishError) {
+            console.error('Error finishing round:', finishError);
+            return;
+          }
 
           // Create next round after a short delay
           setTimeout(async () => {
@@ -497,7 +505,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   round_no: (round.round_no || 1) + 1,
                   puzzle_id: randomPuzzle.id,
                   status: 'active',
-                  started_at: new Date().toISOString()
+                  started_at: new Date().toISOString(),
+                  player1_completed_at: null,
+                  player2_completed_at: null
                 })
                 .select()
                 .single();
@@ -509,47 +519,61 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
               console.log('Created next round:', newRound);
 
-              // Reset game state for new round
-              currentRoundId.current = newRound.id;
-              setMyTimer(180); // Reset to 3 minutes
-              setMyClues([1]);
-              setMyScore(10000);
-              setMyGuess(null);
-              setOppGuess(null);
-              setGuessCoords(null);
-              setSelectedYear(1950);
-              setGameFinished(false);
-              setRoundResult(null);
-              setFirstGuessSubmitted(false);
-
-              // Load new puzzle
-              const { data: newPuzzleData, error: newPuzzleError } = await supabase
-                .from('puzzles')
-                .select('*, puzzle_translations(*)')
-                .eq('id', newRound.puzzle_id)
-                .single();
-
-              if (!newPuzzleError && newPuzzleData) {
-                setPuzzle(newPuzzleData);
-                console.log('Loaded new puzzle for round', newRound.round_no);
-              }
-
-              // Restart timer
-              startTimer();
-
             } catch (err) {
               console.error('Error setting up next round:', err);
             }
           }, 3000); // 3 second delay to show results
-        }
-      } catch (err) {
-        console.error('Error in round progression:', err);
-      }
-    };
 
-    // Only check for round progression if the round just became active or got updated
-    if (round.status === 'active') {
-      checkBothPlayersGuessed();
+        } catch (err) {
+          console.error('Error finishing round:', err);
+        }
+      };
+
+      finishRound();
+    }
+
+    // If this is a new active round, reset game state
+    if (round.status === 'active' && round.id !== currentRoundId.current) {
+      console.log('New active round detected, resetting game state');
+
+      currentRoundId.current = round.id;
+      setMyTimer(180);
+      setMyClues([1]);
+      setMyScore(10000);
+      setMyGuess(null);
+      setOppGuess(null);
+      setGuessCoords(null);
+      setSelectedYear(1950);
+      setGameFinished(false);
+      setRoundResult(null);
+      setFirstGuessSubmitted(false);
+
+      // Load new puzzle
+      const loadNewPuzzle = async () => {
+        try {
+          const { data: newPuzzleData, error: newPuzzleError } = await supabase
+            .from('puzzles')
+            .select('*, puzzle_translations(*)')
+            .eq('id', round.puzzle_id)
+            .single();
+
+          if (!newPuzzleError && newPuzzleData) {
+            setPuzzle(newPuzzleData);
+            console.log('Loaded new puzzle for round', round.round_no);
+          }
+
+          // Restart timer
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+          }
+          startTimer();
+
+        } catch (err) {
+          console.error('Error loading new puzzle:', err);
+        }
+      };
+
+      loadNewPuzzle();
     }
   };
 
