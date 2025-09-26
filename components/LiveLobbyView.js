@@ -265,6 +265,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   };
 
   const handleJoinByCode = async () => {
+    // Normalize and validate code
     const code = normalizeInvite(inviteCode);
     if (!isValidInviteCode(code)) {
       alert('Please enter a valid 6-character invite code');
@@ -278,28 +279,25 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       await safePlayAudio('join-sound');
 
       // Use the new helper with fallback handling
-      const { data: battle, error: findError } = await fetchJoinableMatchByInvite(code, session?.user?.id);
+      const { battle, path, error: findError } = await fetchJoinableMatchByInvite(code, session?.user?.id);
 
       // Add detailed logging for debugging
-      console.log('Battle lookup:', {
+      console.log('[LiveLobby] Battle lookup result:', {
         inviteCode: code,
-        battle,
-        findError,
-        errorCode: findError?.code,
-        errorMessage: findError?.message
+        path,
+        hasBattle: !!battle,
+        error: findError
       });
 
-      if (findError || !battle) {
-        console.error('Battle lookup error:', findError);
-        if (findError?.code === 'PGRST116') {
-          alert('Invite not found');
-        } else if (findError?.code === 'PGRST301') {
-          alert('Not authorized');
-        } else if (findError) {
-          alert('Failed to find battle. Please check your invite code and try again.');
-        } else {
-          alert('Invite not found');
-        }
+      if (findError) {
+        console.error('[LiveLobby] Query error:', findError);
+        alert('Failed to query matches. Check console for details.');
+        return;
+      }
+
+      if (!battle) {
+        console.warn('[LiveLobby] No joinable match found for code:', code);
+        alert('Invite not found');
         return;
       }
 
