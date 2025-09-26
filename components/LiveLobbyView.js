@@ -239,12 +239,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     if (!inviteCode.trim()) return;
 
     try {
-      // Find the battle - allow both 'waiting' and 'active' status for invite lookup
+      // Find the battle - waiting battles must have no player2, active battles can have player2 (for rejoins)
       const { data: battle, error: findError } = await supabase
         .from('battles')
         .select('*')
         .eq('invite_code', inviteCode.trim().toUpperCase())
-        .in('status', ['waiting', 'active'])
+        .or("and(status.eq.waiting,player2.is.null),and(status.eq.active)")
         .single();
 
       // Add detailed logging for debugging
