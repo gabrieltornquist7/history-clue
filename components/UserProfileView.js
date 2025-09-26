@@ -28,24 +28,33 @@ export default function UserProfileView({ setView, userId, onBack }) {
       if (profile) {
         setUserProfile(profile);
 
-        // Fetch user stats
-        const { data: stats } = await supabase
-          .from('user_stats')
-          .select('total_score, games_played')
+        // Fetch user scores (using 'scores' table)
+        const { data: scoresData } = await supabase
+          .from('scores')
+          .select('score, created_at')
           .eq('user_id', userId)
-          .single();
+          .order('created_at', { ascending: false });
 
-        setUserStats(stats || { total_score: 0, games_played: 0 });
+        if (scoresData) {
+          // Calculate stats from scores
+          const totalScore = scoresData.reduce((sum, s) => sum + s.score, 0);
+          const gamesPlayed = scoresData.length;
+          const recentGames = scoresData.slice(0, 5).map(score => ({
+            id: `score_${score.created_at}`,
+            score: score.score,
+            created_at: score.created_at,
+            mode: 'endless' // Default mode since we don't have mode in scores table
+          }));
 
-        // Fetch recent games
-        const { data: games } = await supabase
-          .from('game_results')
-          .select('id, score, created_at, mode')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        setRecentGames(games || []);
+          setUserStats({
+            total_score: totalScore,
+            games_played: gamesPlayed
+          });
+          setRecentGames(recentGames);
+        } else {
+          setUserStats({ total_score: 0, games_played: 0 });
+          setRecentGames([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
