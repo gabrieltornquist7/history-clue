@@ -36,6 +36,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [currentRound, setCurrentRound] = useState(null);
   const [firstGuessSubmitted, setFirstGuessSubmitted] = useState(false);
 
+  const [roundNumber, setRoundNumber] = useState(1);
+  const [totalScores, setTotalScores] = useState({ me: 0, opponent: 0 });
+  const [matchWinner, setMatchWinner] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -134,7 +138,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
                 // Check if both players done
                 if (myGuess) {
-                  showResults(myGuess, payload.guess);
+                  // Add delay to ensure both sides are synced
+                  setTimeout(() => {
+                    showResults(myGuess, payload.guess);
+                  }, 500);
                 }
               }
               break;
@@ -150,6 +157,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
               if (payload.playerId !== session.user.id) {
                 console.log('Opponent revealed clue:', payload.clueIndex);
               }
+              break;
+
+            case 'round_complete':
+              console.log('Round complete event received:', payload);
+              // Ensure both sides see the results
               break;
 
             default:
@@ -511,7 +523,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
     // Check if opponent already finished
     if (oppGuess) {
-      showResults(guessData, oppGuess);
+      // Delay to ensure both sides are ready
+      setTimeout(() => {
+        showResults(guessData, oppGuess);
+      }, 500);
     }
   };
 
@@ -532,6 +547,69 @@ export default function LiveBattleView({ session, battleId, setView }) {
     // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
+    }
+
+    // Broadcast round complete to ensure sync
+    broadcastBattleEvent(battleId, 'round_complete', {
+      playerId: session.user.id,
+      roundNumber,
+      scores: { my: myFinalScore, opp: oppFinalScore }
+    });
+
+    // Update total scores
+    const newTotalScores = {
+      me: totalScores.me + myFinalScore,
+      opponent: totalScores.opponent + oppFinalScore
+    };
+    setTotalScores(newTotalScores);
+
+    // Check if match is over (best of 3)
+    if (roundNumber >= 3) {
+      // Match complete
+      if (newTotalScores.me > newTotalScores.opponent) {
+        setMatchWinner('me');
+      } else if (newTotalScores.opponent > newTotalScores.me) {
+        setMatchWinner('opponent');
+      } else {
+        setMatchWinner('tie');
+      }
+    }
+  };
+
+  const startNextRound = async () => {
+    // Reset round state
+    setMyTimer(180);
+    setMyClues([1]);
+    setMyScore(10000);
+    setMyGuess(null);
+    setOppGuess(null);
+    setGuessCoords(null);
+    setSelectedYear(1950);
+    setGameFinished(false);
+    setRoundResult(null);
+    setFirstGuessSubmitted(false);
+    setRoundNumber(roundNumber + 1);
+
+    // Load new puzzle
+    try {
+      // Get random puzzle
+      const { data: puzzles } = await supabase
+        .from('puzzles')
+        .select('id')
+        .limit(100);
+
+      const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+
+      const { data: newPuzzle } = await supabase
+        .from('puzzles')
+        .select('*, puzzle_translations(*)')
+        .eq('id', randomPuzzle.id)
+        .single();
+
+      setPuzzle(newPuzzle);
+      startTimer();
+    } catch (err) {
+      console.error('Error loading next round:', err);
     }
   };
 
@@ -783,7 +861,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
           
           <div className="text-center">
             <h1 className="text-2xl font-serif font-bold text-yellow-400">Live Battle</h1>
-            <p className="text-sm text-gray-300">vs {opponent?.username || 'Loading...'}</p>
+            <p className="text-sm text-gray-300">
+              vs {opponent?.username || 'Loading...'}
+              <span className="ml-2">• Round {roundNumber}/3</span>
+            </p>
           </div>
           
           <div className="text-center">
@@ -939,10 +1020,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
       {/* Results Modal */}
       {gameFinished && roundResult && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="bg-gray-900 rounded-xl p-8 max-w-md w-full text-center border-2 border-yellow-500">
             <h3 className="text-2xl font-serif font-bold text-yellow-400 mb-6">
-              Round Complete!
+              Round {roundNumber} Complete!
             </h3>
             
             <div className="space-y-4 mb-6">
@@ -964,19 +1045,46 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   <span className="font-bold">{roundResult.oppScore.toLocaleString()}</span>
                 </div>
               </div>
-              
+
+              <div className="bg-gray-800 rounded-lg p-4 mt-4">
+                <h4 className="text-sm text-gray-400 mb-2">Total Match Score</h4>
+                <div className="flex justify-between">
+                  <span>You: <span className="font-bold text-green-400">{totalScores.me.toLocaleString()}</span></span>
+                  <span>Opponent: <span className="font-bold text-red-400">{totalScores.opponent.toLocaleString()}</span></span>
+                </div>
+                <div className="mt-2 text-sm text-gray-400">
+                  {roundNumber < 3 ? `Round ${roundNumber} of 3` : 'Final Round'}
+                </div>
+              </div>
+
               <div className="text-green-400">
                 <p className="font-bold">Answer: {puzzle?.city_name}</p>
                 <p>{displayYear(puzzle?.year)}</p>
               </div>
             </div>
-            
-            <button 
-              onClick={() => setView('menu')}
-              className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
-            >
-              Back to Menu
-            </button>
+
+            {roundNumber < 3 && !matchWinner ? (
+              <button
+                onClick={startNextRound}
+                className="w-full px-6 py-3 bg-green-700 text-white font-bold rounded hover:bg-green-600"
+              >
+                Start Round {roundNumber + 1}
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="text-3xl font-bold mb-4">
+                  {matchWinner === 'me' ? '🏆 You Win the Match!' :
+                   matchWinner === 'opponent' ? '💔 You Lost the Match' :
+                   '🤝 Match Tied!'}
+                </div>
+                <button
+                  onClick={() => setView('menu')}
+                  className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
+                >
+                  Back to Menu
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
