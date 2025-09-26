@@ -162,6 +162,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
           });
 
         // 4. Check if there's an active round
+        console.log('DEBUG session before battle_rounds query:', authSession?.user?.id);
+        console.log('Battle data for context:', { battleId, player1: battleData.player1, player2: battleData.player2 });
+
         let { data: existingRound, error: roundError } = await supabase
           .from('battle_rounds')
           .select('*')
@@ -169,7 +172,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
           .eq('status', 'active')
           .single();
 
-        console.log('Checking for active round:', { battleId, existingRound, roundError });
+        console.log('Active round fetch result:', {
+          battleId,
+          existingRound,
+          roundError,
+          sessionUserId: authSession?.user?.id,
+          errorCode: roundError?.code,
+          errorMessage: roundError?.message
+        });
 
         if (roundError && roundError.code !== 'PGRST116') { // PGRST116 = no rows found
           console.error('Error checking for rounds:', roundError);
@@ -190,6 +200,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }
 
           const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+
+          const authSession = await supabase.auth.getSession();
+          console.log('DEBUG session before battle_rounds insert (initial):', authSession?.data?.session?.user?.id);
+          console.log('Battle data for context:', { battleId, player1: battleData.player1, player2: battleData.player2 });
 
           const { data: newRound, error: createError } = await supabase
             .from('battle_rounds')
@@ -424,6 +438,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
     const isPlayer1 = session.user.id === battle.player1;
     const completionField = isPlayer1 ? 'player1_completed_at' : 'player2_completed_at';
 
+    // Debug session before update
+    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+    console.log('DEBUG session before completion update:', {
+      sessionUserId: currentSession?.user?.id,
+      sessionError,
+      isPlayer1,
+      completionField,
+      roundId: currentRoundId.current,
+      battlePlayers: { player1: battle.player1, player2: battle.player2 }
+    });
+
     const { error: completionError } = await supabase
       .from('battle_rounds')
       .update({
@@ -431,7 +456,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
       })
       .eq('id', currentRoundId.current);
 
-    console.log('Updating round completion:', { currentRoundId: currentRoundId.current, completionField, completionError });
+    console.log('Completion update result:', {
+      currentRoundId: currentRoundId.current,
+      completionField,
+      completionError,
+      errorCode: completionError?.code,
+      errorMessage: completionError?.message
+    });
 
     if (completionError) {
       console.error('Error updating completion timestamp:', completionError);
@@ -487,6 +518,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
       // Mark current round as finished (only one client should do this)
       const finishRound = async () => {
         try {
+          const authSession = await supabase.auth.getSession();
+          console.log('DEBUG session before battle_rounds update (finish):', authSession?.data?.session?.user?.id);
+          console.log('Round data for context:', { roundId: round.id, status: round.status });
+
           const { error: finishError } = await supabase
             .from('battle_rounds')
             .update({
@@ -518,6 +553,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
               }
 
               const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+
+              const authSession = await supabase.auth.getSession();
+              console.log('DEBUG session before battle_rounds insert (next round):', authSession?.data?.session?.user?.id);
+              console.log('Round data for context:', { battleId: round.battle_id, nextRoundNo: (round.round_no || 1) + 1 });
 
               const { data: newRound, error: createError } = await supabase
                 .from('battle_rounds')
