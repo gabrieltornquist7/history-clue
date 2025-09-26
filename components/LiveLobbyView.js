@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
-import { isValidInviteCode, safePlayAudio } from '../lib/shared';
+import { safePlayAudio } from '../lib/shared';
 import { fetchJoinableMatchByInvite, normalizeInvite } from '../lib/liveApi';
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
@@ -14,6 +14,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   const [inviteCode, setInviteCode] = useState('');
   const [generatedInvite, setGeneratedInvite] = useState(null);
   const [friends, setFriends] = useState([]);
+  const [joinLoading, setJoinLoading] = useState(false);
 
   const pollIntervalRef = useRef(null);
 
@@ -265,18 +266,43 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   };
 
   const handleJoinByCode = async () => {
-    // Normalize and validate code
-    const code = normalizeInvite(inviteCode);
-    if (!isValidInviteCode(code)) {
-      alert('Please enter a valid 6-character invite code');
+    console.log('[LiveLobby] Join button clicked', { inviteCode, sessionUserId: session?.user?.id });
+
+    if (joinLoading) {
+      console.log('[LiveLobby] Already joining, ignoring click');
       return;
     }
 
+    setJoinLoading(true);
+
     try {
+      // Validate invite code locally
+      const code = normalizeInvite(inviteCode);
+      console.log('[LiveLobby] Normalized code:', code);
+
+      // Simple validation - 6 alphanumeric characters
+      const isValidCode = /^[A-Z0-9]{6}$/.test(code);
+      console.log('[LiveLobby] Code validation:', { code, isValid: isValidCode });
+
+      if (!isValidCode) {
+        alert('Please enter a valid 6-character invite code');
+        setJoinLoading(false);
+        return;
+      }
+
+      if (!session?.user?.id) {
+        console.error('[LiveLobby] No session user ID');
+        alert('You must be signed in to join a battle');
+        setJoinLoading(false);
+        return;
+      }
+
       console.debug('[LiveLobby] Joining battle with invite code:', code);
 
       // Play join sound on user gesture
-      await safePlayAudio('join-sound');
+      if (typeof safePlayAudio === 'function') {
+        await safePlayAudio('join-sound');
+      }
 
       // Use the new helper with fallback handling
       const { battle, path, error: findError } = await fetchJoinableMatchByInvite(code, session?.user?.id);
@@ -292,18 +318,21 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       if (findError) {
         console.error('[LiveLobby] Query error:', findError);
         alert('Failed to query matches. Check console for details.');
+        setJoinLoading(false);
         return;
       }
 
       if (!battle) {
         console.warn('[LiveLobby] No joinable match found for code:', code);
         alert('Invite not found');
+        setJoinLoading(false);
         return;
       }
 
       // Check if battle already has both players (fully occupied)
       if (battle.player2 && battle.player1 !== session.user.id && battle.player2 !== session.user.id) {
         alert('This battle is already full');
+        setJoinLoading(false);
         return;
       }
 
@@ -313,6 +342,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         console.log('Rejoining battle as inviter');
         setActiveLiveMatch(battle.id);
         setView('liveGame');
+        setJoinLoading(false);
         return;
       }
 
@@ -321,12 +351,14 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         console.log('Rejoining battle as joiner');
         setActiveLiveMatch(battle.id);
         setView('liveGame');
+        setJoinLoading(false);
         return;
       }
 
       // New player joining - must be empty player2 slot
       if (battle.player2) {
         alert('This battle is already full');
+        setJoinLoading(false);
         return;
       }
 
@@ -344,6 +376,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       if (updateError) {
         console.error('Error joining battle:', updateError);
         alert('Failed to join battle');
+        setJoinLoading(false);
         return;
       }
 
@@ -352,8 +385,10 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       setView('liveGame');
 
     } catch (error) {
-      console.error('Error joining battle:', error);
+      console.error('[LiveLobby] Error in handleJoinByCode:', error);
       alert('Failed to join battle');
+    } finally {
+      setJoinLoading(false);
     }
   };
 
@@ -444,12 +479,13 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
                   />
                   <button
                     onClick={handleJoinByCode}
-                    disabled={!inviteCode.trim()}
-                    className="px-6 py-3 bg-green-700 text-white font-medium rounded-md hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    disabled={!inviteCode.trim() || joinLoading}
+                    className="px-6 py-3 bg-green-700 text-white font-medium rounded-md hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
                   >
-                    Join
+                    {joinLoading ? 'Joining...' : 'Join'}
                   </button>
                 </div>
+                {joinLoading && <p className="text-yellow-400 mt-2">Connecting to battle...</p>}
               </div>
 
               {/* Create Invite */}
