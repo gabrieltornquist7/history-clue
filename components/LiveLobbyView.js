@@ -19,7 +19,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         .from('friendships')
         .select('*')
         .eq('status', 'accepted')
-        .or(`requester_id.eq.${session.user.id},friend_id.eq.${session.user.id}`);
+        .or(`user_id_1.eq.${session.user.id},user_id_2.eq.${session.user.id}`);
 
       console.log('Friendships fetched:', { friendships, error });
 
@@ -32,7 +32,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       let friendsList = [];
       if (friendships && friendships.length > 0) {
         // Get unique friend IDs
-        const friendIds = [...new Set(friendships.flatMap(f => [f.requester_id, f.friend_id]))].filter(id => id !== session.user.id);
+        const friendIds = [...new Set(friendships.flatMap(f => [f.user_id_1, f.user_id_2]))].filter(id => id !== session.user.id);
 
         if (friendIds.length > 0) {
           const { data: profiles, error: profilesError } = await supabase
