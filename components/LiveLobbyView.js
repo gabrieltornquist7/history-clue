@@ -3,22 +3,48 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
-import { safePlayAudio } from '../lib/shared';
-import { fetchJoinableMatchByInvite, normalizeInvite } from '../lib/liveApi';
 
-// Debug: Check if imports loaded
-console.log('🔴 [DEBUG] LiveLobbyView loaded');
-console.log('🔴 [DEBUG] fetchJoinableMatchByInvite imported?', typeof fetchJoinableMatchByInvite);
-console.log('🔴 [DEBUG] normalizeInvite imported?', typeof normalizeInvite);
-console.log('🔴 [DEBUG] safePlayAudio imported?', typeof safePlayAudio);
-console.log('🔴 [DEBUG] supabase imported?', typeof supabase);
-
-// Error boundary for imports
-if (typeof fetchJoinableMatchByInvite !== 'function') {
-  console.error('🔴 [CRITICAL] fetchJoinableMatchByInvite is not a function at module load!');
+// Inline implementations to avoid import errors
+function normalizeInvite(code) {
+  return String(code || '').trim().toUpperCase();
 }
-if (typeof normalizeInvite !== 'function') {
-  console.error('🔴 [CRITICAL] normalizeInvite is not a function at module load!');
+
+function safePlayAudio(elementId) {
+  try {
+    const audio = document.getElementById(elementId);
+    if (audio && typeof audio.play === 'function') {
+      audio.play().catch(() => {});
+    }
+  } catch (e) {
+    console.debug('Audio play failed (non-critical):', e);
+  }
+}
+
+async function fetchJoinableMatchByInvite(inviteCode, uid) {
+  const code = normalizeInvite(inviteCode);
+  console.log('[liveApi] Finding match for code:', code);
+
+  try {
+    // Look for waiting battles with this code
+    const { data: battles, error } = await supabase
+      .from('battles')
+      .select('*')
+      .eq('invite_code', code);
+
+    if (error) {
+      console.error('[liveApi] Query error:', error);
+      return { battle: null, path: 'none', error };
+    }
+
+    if (battles && battles.length > 0) {
+      console.log('[liveApi] Found battle:', battles[0]);
+      return { battle: battles[0], path: 'found', error: null };
+    }
+
+    return { battle: null, path: 'none', error: null };
+  } catch (err) {
+    return { battle: null, path: 'none', error: err };
+  }
 }
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
@@ -307,7 +333,6 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   };
 
   const handleJoinByCode = async () => {
-    console.log('🔴 [DEBUG] handleJoinByCode STARTED - button was clicked!');
     console.log('[LiveLobby] Join button clicked', { inviteCode, sessionUserId: session?.user?.id });
 
     if (joinLoading) {
@@ -318,8 +343,6 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     setJoinLoading(true);
 
     try {
-      console.log('🔴 [DEBUG] Inside try block');
-
       // Validate invite code locally
       const code = normalizeInvite(inviteCode);
       console.log('[LiveLobby] Normalized code:', code);
@@ -341,53 +364,23 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         return;
       }
 
-      console.log('🔴 [DEBUG] About to check if fetchJoinableMatchByInvite exists');
-      console.log('🔴 [DEBUG] Type of fetchJoinableMatchByInvite:', typeof fetchJoinableMatchByInvite);
-
-      if (typeof fetchJoinableMatchByInvite !== 'function') {
-        console.error('🔴 [DEBUG] fetchJoinableMatchByInvite is not a function!');
-        alert('System error: Join function not found. Please refresh the page.');
-        setJoinLoading(false);
-        return;
-      }
-
       console.debug('[LiveLobby] Joining battle with invite code:', code);
 
       // Play join sound on user gesture
-      if (typeof safePlayAudio === 'function') {
-        await safePlayAudio('join-sound');
-      }
+      safePlayAudio('join-sound');
 
-      // Call with timeout to prevent hanging
+      // Call the function
       console.log('[LiveLobby] Calling fetchJoinableMatchByInvite...');
-      console.log('🔴 [DEBUG] Creating promise for fetch...');
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timeout')), 10000)
-      );
-
-      console.log('🔴 [DEBUG] About to call fetchJoinableMatchByInvite with:', { code, userId: session?.user?.id });
-      const fetchPromise = fetchJoinableMatchByInvite(code, session?.user?.id);
-      console.log('🔴 [DEBUG] fetchJoinableMatchByInvite call completed, returned promise');
-
-      console.log('🔴 [DEBUG] About to race promises...');
-      console.log('🔴 [DEBUG] fetchPromise type:', typeof fetchPromise);
-      console.log('🔴 [DEBUG] timeoutPromise type:', typeof timeoutPromise);
-
       let result;
       try {
-        console.log('🔴 [DEBUG] Entering Promise.race...');
-        result = await Promise.race([fetchPromise, timeoutPromise]);
-        console.log('🔴 [DEBUG] Promise.race completed successfully');
-      } catch (timeoutError) {
-        console.error('🔴 [DEBUG] Promise.race threw error:', timeoutError);
-        console.error('[LiveLobby] Request timed out');
-        alert('Request timed out. Please try again.');
+        result = await fetchJoinableMatchByInvite(code, session?.user?.id);
+      } catch (err) {
+        console.error('[LiveLobby] Fetch error:', err);
+        alert('Failed to search for battle. Please try again.');
         setJoinLoading(false);
         return;
       }
 
-      console.log('🔴 [DEBUG] Got result from fetchJoinableMatchByInvite');
       const { battle, path, error: findError } = result;
       console.log('[LiveLobby] fetchJoinableMatchByInvite returned:', { battle, path, findError });
 
@@ -497,7 +490,6 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
     } catch (error) {
       console.error('[LiveLobby] Error in handleJoinByCode:', error);
-      console.error('🔴 [DEBUG] Full error:', error.stack);
       alert('Failed to join battle. Please try again.');
     } finally {
       setJoinLoading(false);
