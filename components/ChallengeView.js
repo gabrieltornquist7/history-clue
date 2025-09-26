@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
+import PageWrapper from './ui/PageWrapper';
+import Card from './ui/Card';
 
 export default function ChallengeView({ setView, session, setActiveChallenge, setActiveLiveMatch }) {
   const [tab, setTab] = useState('challenges');
@@ -99,50 +101,43 @@ useEffect(() => {
   fetchData();
 
   const channel = supabase.channel('online-users');
-  let isMounted = true;  // ADD THIS - prevents memory leaks
+  let isMounted = true;  // Prevents memory leaks
+
+  // Add real-time subscription for challenges
+  const challengesChannel = supabase
+    .channel(`challenges-refresh-${currentUserId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'challenges',
+      filter: `or(challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId})`
+    }, (payload) => {
+      console.log('[ChallengeView] Challenge updated via realtime:', payload);
+      refetchData();
+    })
+    .subscribe();
 
   channel.on('presence', { event: 'sync' }, () => {
-      if (!isMounted) return;  // ADD THIS - prevents updates after unmount
-      
+      if (!isMounted) return;  // Prevents updates after unmount
+
       const presenceState = channel.presenceState();
       const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
       setOnlineFriends(onlineUserIds);
   }).subscribe(async (status) => {
-    if (status === 'SUBSCRIBED' && isMounted) {  // ADD isMounted check
+    if (status === 'SUBSCRIBED' && isMounted) {
       await channel.track({ user_id: session.user.id });
     }
   });
 
   return () => {
-    isMounted = false;  // ADD THIS - marks component as unmounted
-    if (channel.state === 'joined') {  // ADD THIS - proper cleanup
+    isMounted = false;  // Marks component as unmounted
+    if (channel.state === 'joined') {
       channel.untrack();
     }
     supabase.removeChannel(channel);
+    supabase.removeChannel(challengesChannel);
   };
-}, [currentUserId, dataVersion, session?.user?.id]);
-
-// Auto-refresh challenges when updated
-useEffect(() => {
-  if (!currentUserId) return;
-
-  const challengesSubscription = supabase
-    .channel('challenges-updates')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'challenges',
-      filter: `challenger_id=eq.${currentUserId},opponent_id=eq.${currentUserId}`
-    }, (payload) => {
-      console.log('[ChallengeView] Challenge updated:', payload);
-      refetchData();
-    })
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(challengesSubscription);
-  };
-}, [currentUserId, refetchData]);
+}, [currentUserId, dataVersion, session?.user?.id, refetchData]);
 
   const startLiveMatch = async (opponentId) => {
     const { data: matchId, error } = await supabase.rpc('create_live_match', { opponent_id: opponentId });
@@ -352,32 +347,8 @@ useEffect(() => {
   }
 
   return (
-    <div 
-      className="min-h-screen relative"
-      style={{
-        background: `
-          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
-          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
-          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
-        `,
-        backgroundBlendMode: "overlay",
-      }}
-    >
-      {/* Metallic shine overlay */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
-          backgroundSize: "200% 200%",
-          animation: "shine 12s linear infinite",
-        }}
-      ></div>
-
+    <PageWrapper>
       <style jsx>{`
-        @keyframes shine {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
         @keyframes slideUp {
           0% { opacity: 0; transform: translateY(20px); }
           100% { opacity: 1; transform: translateY(0); }
@@ -942,6 +913,6 @@ useEffect(() => {
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }

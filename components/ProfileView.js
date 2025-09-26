@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
+import PageWrapper from "./ui/PageWrapper";
+import Card from "./ui/Card";
 
 export default function ProfileView({ setView, session, userId = null }) {
   const [loading, setLoading] = useState(true);

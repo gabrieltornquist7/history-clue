@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Image from 'next/image';
+import PageWrapper from './ui/PageWrapper';
+import Card from './ui/Card';
 
 export default function DailyChallengeView({
   setView,
@@ -175,17 +177,7 @@ export default function DailyChallengeView({
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen relative"
-        style={{
-          background: `
-            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
-            radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
-            radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
-            radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
-          `
-        }}
-      >
+      <PageWrapper>
         {/* Metallic shine overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -247,23 +239,13 @@ export default function DailyChallengeView({
             <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
   if (error) {
     return (
-      <div 
-        className="min-h-screen relative"
-        style={{
-          background: `
-            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
-            radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
-            radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
-            radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
-          `
-        }}
-      >
+      <PageWrapper>
         {/* Metallic shine overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -329,22 +311,12 @@ export default function DailyChallengeView({
             </button>
           </div>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
   return (
-    <div 
-      className="min-h-screen relative"
-      style={{
-        background: `
-          linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
-          radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
-          radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
-          radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
-        `
-      }}
-    >
+    <PageWrapper>
       {/* Metallic shine overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -652,6 +624,6 @@ export default function DailyChallengeView({
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }

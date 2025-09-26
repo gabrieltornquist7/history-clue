@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { fetchTopScores } from '../lib/leaderboardApi';
 import Image from 'next/image';
+import PageWrapper from './ui/PageWrapper';
+import Card from './ui/Card';
 
 export default function LeaderboardView({ setView }) {
   const [loading, setLoading] = useState(true);
@@ -65,17 +67,7 @@ export default function LeaderboardView({ setView }) {
   }, []);
 
   return (
-    <div 
-      className="min-h-screen relative"
-      style={{
-        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)',
-        backgroundImage: `
-          radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
-          radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
-          radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
-        `
-      }}
-    >
+    <PageWrapper>
       {/* Header */}
       <header className="flex items-center justify-between p-8">
         <button
@@ -188,6 +180,6 @@ export default function LeaderboardView({ setView }) {
           </div>
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }
