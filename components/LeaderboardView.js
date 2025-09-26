@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { fetchTopScores } from '../lib/leaderboardApi';
 import Image from 'next/image';
 
 export default function LeaderboardView({ setView }) {
@@ -19,86 +20,48 @@ export default function LeaderboardView({ setView }) {
   };
 
   useEffect(() => {
+    let ignore = false;
+
     async function fetchLeaderboard() {
       setLoading(true);
       setError(null);
 
       try {
-        // Try multiple approaches to get leaderboard data
-        let endlessScores = null;
-        let fetchError = null;
+        const { rows, error } = await fetchTopScores(10);
 
-        // First, try the direct query with proper join
-        console.debug('[Leaderboard] Loading top scores via Supabase client');
-        const { data: directScores, error: directError } = await supabase
-          .from('scores')
-          .select(`
-            score,
-            profiles!inner (
-              username,
-              avatar_url
-            )
-          `)
-          .order('score', { ascending: false })
-          .limit(10);
+        if (ignore) return;
 
-        if (!directError && directScores) {
-          endlessScores = directScores;
-        } else {
-          console.log('Direct query failed:', directError);
-          fetchError = directError;
+        if (error) {
+          console.error('[LeaderboardView] fetchTopScores error', error);
+          setError('Failed to load leaderboard');
+          return;
+        }
 
-          // Fallback: Try getting scores and profiles separately
-          const { data: scoresOnly, error: scoresError } = await supabase
-            .from('scores')
-            .select('user_id, score')
-            .order('score', { ascending: false })
-            .limit(10);
-
-          if (!scoresError && scoresOnly && scoresOnly.length > 0) {
-            const userIds = scoresOnly.map(s => s.user_id);
-            
-            const { data: profilesData, error: profilesError } = await supabase
-              .from('profiles')
-              .select('id, username, avatar_url')
-              .in('id', userIds);
-
-            if (!profilesError && profilesData) {
-              // Combine the data
-              endlessScores = scoresOnly.map(score => {
-                const profile = profilesData.find(p => p.id === score.user_id);
-                return {
-                  score: score.score,
-                  profiles: profile || { username: 'Unknown Player', avatar_url: null }
-                };
-              });
-            } else {
-              console.log('Profiles query failed:', profilesError);
-              fetchError = profilesError;
-            }
-          } else {
-            console.log('Scores query failed:', scoresError);
-            fetchError = scoresError;
+        // Convert API format to component format
+        const endlessScores = rows.map(row => ({
+          score: row.score,
+          profiles: {
+            username: row.username,
+            avatar_url: row.avatar_url
           }
-        }
+        }));
 
-        if (endlessScores) {
-          console.log('Successfully fetched leaderboard:', endlessScores);
-          setEndlessLeaderboard(endlessScores);
-        } else {
-          console.error("All leaderboard fetch attempts failed:", fetchError);
-          setError("Unable to load leaderboard data. Please try again later.");
-        }
+        console.log('Successfully fetched leaderboard:', endlessScores);
+        setEndlessLeaderboard(endlessScores);
 
       } catch (err) {
+        if (ignore) return;
         console.error("Unexpected error fetching leaderboard:", err);
         setError("An unexpected error occurred while loading the leaderboard.");
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     }
 
     fetchLeaderboard();
+    return () => { ignore = true; };
   }, []);
 
   return (

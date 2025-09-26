@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
-import { normalizeInvite, isValidInviteCode, safePlayAudio } from '../lib/shared';
-import { fetchJoinableMatchByInvite } from '../lib/liveApi';
+import { isValidInviteCode, safePlayAudio } from '../lib/shared';
+import { fetchJoinableMatchByInvite, normalizeInvite } from '../lib/liveApi';
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
   // Use profile cache for optimized profile fetching
