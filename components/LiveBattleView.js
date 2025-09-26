@@ -51,6 +51,15 @@ export default function LiveBattleView({ session, battleId, setView }) {
       try {
         console.log('Initializing battle:', battleId);
 
+        // 0. Verify authentication session
+        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+        if (authError || !authSession) {
+          console.error('No active session for RLS queries:', authError);
+          setError('Authentication required. Please sign in again.');
+          return;
+        }
+        console.log('Authenticated session verified:', authSession.user.id);
+
         // 1. Load battle info
         const { data: battleData, error: battleError } = await supabase
           .from('battles')

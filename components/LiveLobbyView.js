@@ -14,6 +14,14 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   useEffect(() => {
     // Load friends list
     const loadFriends = async () => {
+      // Step 0: Verify authentication session
+      const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+      if (authError || !authSession) {
+        console.error('No active session for friendships query:', authError);
+        return;
+      }
+      console.log('Auth session verified for friendships:', authSession.user.id);
+
       // Step 1: Get friendships
       const { data: friendships, error } = await supabase
         .from('friendships')
