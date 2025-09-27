@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 
 export default function GlassBackButton({ onClick, fallbackUrl, className = '' }) {
+  console.log('[GlassBackButton] Rendered with onClick:', !!onClick);
+  console.log('[GlassBackButton] onClick type:', typeof onClick);
+  console.log('[GlassBackButton] fallbackUrl:', fallbackUrl);
+
   const [isPressed, setIsPressed] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -11,18 +15,27 @@ export default function GlassBackButton({ onClick, fallbackUrl, className = '' }
   }, []);
 
   const handleClick = (e) => {
-    console.log('[GlassBackButton] Clicked!');
+    console.log('[GlassBackButton] Button clicked!');
+    console.log('[GlassBackButton] Event target:', e.target);
+    console.log('[GlassBackButton] onClick exists:', !!onClick);
+    console.log('[GlassBackButton] onClick type:', typeof onClick);
+
     e.preventDefault();
     e.stopPropagation();
 
-    if (onClick && typeof onClick === 'function') {
-      console.log('[GlassBackButton] Calling onClick');
-      onClick();
-    } else if (fallbackUrl) {
-      console.log('[GlassBackButton] Using fallback URL:', fallbackUrl);
-      window.location.href = fallbackUrl;
-    } else {
-      console.error('[GlassBackButton] No onClick handler or fallback URL provided');
+    try {
+      if (onClick && typeof onClick === 'function') {
+        console.log('[GlassBackButton] Calling onClick function...');
+        const result = onClick();
+        console.log('[GlassBackButton] onClick result:', result);
+      } else if (fallbackUrl) {
+        console.log('[GlassBackButton] Using fallback URL:', fallbackUrl);
+        window.location.href = fallbackUrl;
+      } else {
+        console.error('[GlassBackButton] No onClick handler or fallback URL provided');
+      }
+    } catch (error) {
+      console.error('[GlassBackButton] Error calling onClick:', error);
     }
   };
 
@@ -34,12 +47,14 @@ export default function GlassBackButton({ onClick, fallbackUrl, className = '' }
       onMouseLeave={() => setIsPressed(false)}
       onTouchStart={() => setIsPressed(true)}
       onTouchEnd={() => setIsPressed(false)}
-      className={`fixed top-4 left-4 z-[9999] ${className}`}
+      className={`fixed top-4 left-4 ${className}`}
       style={{
         // Safe area positioning for notch/status bar
         top: 'max(1rem, env(safe-area-inset-top, 1rem))',
         left: 'max(1rem, env(safe-area-inset-left, 1rem))',
+        zIndex: 99999,
         pointerEvents: 'auto',
+        position: 'fixed',
       }}
     >
       <div
@@ -56,6 +71,7 @@ export default function GlassBackButton({ onClick, fallbackUrl, className = '' }
           WebkitBackdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)',
+          pointerEvents: 'none', // Allow clicks to pass through to button
         }}
       >
         {/* Chevron Icon */}
@@ -67,6 +83,7 @@ export default function GlassBackButton({ onClick, fallbackUrl, className = '' }
           viewBox="0 0 24 24"
           stroke="white"
           strokeWidth={2.5}
+          style={{ pointerEvents: 'none' }} // Allow clicks to pass through to button
         >
           <path
             strokeLinecap="round"
@@ -82,6 +99,7 @@ export default function GlassBackButton({ onClick, fallbackUrl, className = '' }
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.2)',
               animationDuration: '400ms',
+              pointerEvents: 'none', // Allow clicks to pass through to button
             }}
           />
         )}

@@ -97,6 +97,8 @@ export default function Page() {
       hasSession: !!session,
       userId: session?.user?.id
     });
+    console.log('[Main] handleSetView function type:', typeof handleSetView);
+    console.log('[Main] setView function type:', typeof setView);
     setView(newView);
     setViewPayload(payload);
   };
