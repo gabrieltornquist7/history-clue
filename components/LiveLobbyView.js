@@ -301,10 +301,10 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
 
-          // Update battle to active
+          // Update battle to ready (both players present)
           await supabase
             .from('battles')
-            .update({ status: 'active' })
+            .update({ status: 'ready' })
             .eq('id', battle.id);
 
           // Both players found, start battle
@@ -471,7 +471,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         .from('battles')
         .update({
           player2: session.user.id,
-          status: 'active'
+          status: 'ready'  // Set to ready when both players present
         })
         .eq('id', battle.id)
         .is('player2', null)  // Only update if player2 is still null (prevent race conditions)

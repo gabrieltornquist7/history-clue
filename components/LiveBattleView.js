@@ -74,20 +74,25 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Debug state for mobile issues
-  const [debugInfo, setDebugInfo] = useState({
-    connectionStatus: 'initializing',
-    lastEventReceived: null,
-    realtimeEvents: [],
-    isMobile: navigator.userAgent.includes('Mobile'),
-    userAgent: navigator.userAgent
-  });
+  // Server-synced timer state
+  const [serverRoundStartTime, setServerRoundStartTime] = useState(null);
+  const [battleGameState, setBattleGameState] = useState('waiting'); // waiting, ready, active, round_complete, transitioning, completed
 
   const timerRef = useRef(null);
   const currentRoundId = useRef(null);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
   const SCORING_POINTS = [5000, 3500, 2500, 1500, 800];
+
+  // Server-synced timer calculation
+  const calculateTimeRemaining = (roundStartedAt) => {
+    if (!roundStartedAt) return 180;
+    const now = new Date();
+    const started = new Date(roundStartedAt);
+    const elapsed = Math.floor((now - started) / 1000);
+    const remaining = Math.max(0, 180 - elapsed); // 180 seconds = 3 minutes
+    return remaining;
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -118,14 +123,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
           throw new Error('Battle not found');
         }
 
-        // If battle is waiting and both players present, activate it
+        // If battle is waiting and both players present, mark as ready
         if (battleData.status === 'waiting' && battleData.player1 && battleData.player2) {
-          console.log('Activating waiting battle');
+          console.log('Both players present, marking battle as ready');
           await supabase
             .from('battles')
-            .update({ status: 'active' })
+            .update({ status: 'ready' })
             .eq('id', battleId);
-          battleData.status = 'active';
+          battleData.status = 'ready';
         }
 
         if (!isMounted) return;
@@ -170,31 +175,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
         unsubscribe = subscribeToBattle(battleId, ({ event, payload }) => {
           if (!isMounted) return;
 
-          const eventInfo = {
-            event,
-            payload,
-            timestamp: new Date().toISOString(),
-            isMobile: navigator.userAgent.includes('Mobile')
-          };
-
-          console.log('[LiveBattle] Realtime event received:', eventInfo);
-
-          // Update debug info
-          setDebugInfo(prev => ({
-            ...prev,
-            lastEventReceived: eventInfo,
-            realtimeEvents: [...prev.realtimeEvents.slice(-9), eventInfo] // Keep last 10 events
-          }));
-
           switch (event) {
             case 'guess_submitted':
               if (payload.playerId !== session.user.id) {
-                console.log('[LiveBattle] Opponent submitted guess:', payload);
                 setOppGuess(payload.guess);
-
                 // Check if both players done
                 if (myGuess) {
-                  console.log('[LiveBattle] Both players have guessed, showing results');
                   showResults(myGuess, payload.guess);
                 }
               }
@@ -202,27 +188,31 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
             case 'first_guess':
               if (payload.playerId !== session.user.id && !firstGuessSubmitted) {
-                console.log('[LiveBattle] Opponent made first guess, dropping timer to 45s');
-                setMyTimer(45);
+                // Opponent made first guess, reduce remaining time to 45s max
+                setMyTimer(prev => Math.min(prev, 45));
               }
               break;
 
             case 'clue_revealed':
-              if (payload.playerId !== session.user.id) {
-                console.log('[LiveBattle] Opponent revealed clue:', payload.clueIndex);
-              }
+              // Just for logging opponent moves, no action needed
               break;
 
             case 'battle_complete':
               if (payload.playerId !== session.user.id) {
-                console.log('[LiveBattle] Opponent finished battle:', payload);
                 setBattleState(prev => ({ ...prev, battleFinished: true }));
               }
               break;
 
+            case 'round_started':
+              // New round started with server timestamp
+              if (payload.roundStartTime) {
+                setServerRoundStartTime(payload.roundStartTime);
+                setBattleGameState('active');
+              }
+              break;
+
             case 'round_transition':
-              console.log('[LiveBattle] Round transition event received:', payload);
-              // Instead of reload, fetch the new round data
+              // Load new round data
               setTimeout(async () => {
                 try {
                   const { data: newRound } = await supabase
@@ -232,23 +222,21 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     .single();
 
                   if (newRound) {
-                    console.log('[LiveBattle] Transitioning to new round:', newRound.id);
                     handleRoundUpdate(newRound);
                   }
                 } catch (err) {
-                  console.error('[LiveBattle] Error fetching new round:', err);
-                  // Fallback to reload
+                  console.error('Error fetching new round:', err);
                   window.location.reload();
                 }
               }, 1000);
               break;
 
-            case 'player_ready':
-              console.log('[LiveBattle] Player ready:', payload);
+            case 'battle_state_change':
+              setBattleGameState(payload.newState);
               break;
 
             default:
-              console.log('[LiveBattle] Unknown event:', event, payload);
+              console.log('Unknown event:', event, payload);
           }
         });
 
@@ -258,7 +246,6 @@ export default function LiveBattleView({ session, battleId, setView }) {
         }, 1000);
 
         setConnectionStatus('connected');
-        setDebugInfo(prev => ({ ...prev, connectionStatus: 'connected' }));
 
         // 3. Check if there's an active round
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -298,9 +285,15 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }
         }
 
-        // 5. Create round if none exists
-        if (!existingRound) {
-          console.log('No active round found, creating one...');
+        // 5. Create round if none exists and battle is ready
+        if (!existingRound && battleData.status === 'ready') {
+          console.log('No active round found and battle is ready, creating one...');
+
+          // Mark battle as active now that we're starting the game
+          await supabase
+            .from('battles')
+            .update({ status: 'active' })
+            .eq('id', battleId);
 
           // Get random puzzle
           const { data: puzzles, error: puzzleError } = await supabase
@@ -318,6 +311,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
           console.log('DEBUG session before battle_rounds insert (initial):', authSession?.data?.session?.user?.id);
           console.log('Battle data for context:', { battleId, player1: battleData.player1, player2: battleData.player2 });
 
+          const initialRoundStartTime = new Date().toISOString();
           const { data: newRound, error: createError } = await supabase
             .from('battle_rounds')
             .insert({
@@ -325,7 +319,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
               round_no: 1,
               puzzle_id: randomPuzzle.id,
               status: 'active',
-              started_at: new Date().toISOString()
+              started_at: initialRoundStartTime
             })
             .select('*')
             .single();
@@ -360,12 +354,28 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
           existingRound = newRound;
           console.log('Created new round:', newRound);
+
+          // Broadcast initial round start
+          setTimeout(() => {
+            broadcastBattleEvent(battleId, 'round_started', {
+              newRoundId: newRound.id,
+              roundNumber: 1,
+              roundStartTime: initialRoundStartTime
+            });
+          }, 1000);
         }
 
         if (!isMounted) return;
 
-        currentRoundId.current = existingRound.id;
-        setCurrentRound(existingRound);
+        if (existingRound) {
+          currentRoundId.current = existingRound.id;
+          setCurrentRound(existingRound);
+        } else if (battleData.status === 'ready') {
+          // Battle is ready but no round exists yet - show waiting state
+          setBattleGameState('ready');
+          console.log('Battle ready, waiting for round to be created...');
+          return;
+        }
 
         // 6. Load puzzle
         const { data: puzzleData, error: puzzleError } = await supabase
@@ -385,7 +395,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
 
         setLoading(false);
-        startTimer();
+
+        // Set server round start time for timer sync
+        if (existingRound.started_at) {
+          setServerRoundStartTime(existingRound.started_at);
+          setBattleGameState('active');
+        }
 
       } catch (err) {
         setConnectionStatus('error');
@@ -418,50 +433,47 @@ export default function LiveBattleView({ session, battleId, setView }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
 
-  const startTimer = () => {
-    console.log('[Timer] Starting timer for round:', currentRound?.id);
+  // Timer synchronization effect - starts timer when server time is available
+  useEffect(() => {
+    const initTimer = () => {
+      if (!serverRoundStartTime) {
+        console.warn('No server round start time available');
+        return;
+      }
 
-    // Use server timestamp from round start for synchronization
-    const roundStartTime = currentRound?.started_at ? new Date(currentRound.started_at).getTime() : Date.now();
-    const totalRoundTime = 180000; // 3 minutes in milliseconds
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
 
-    console.log('[Timer] Round started at:', new Date(roundStartTime).toISOString());
+      // Immediately sync timer with server time
+      const remaining = calculateTimeRemaining(serverRoundStartTime);
+      setMyTimer(remaining);
 
-    timerRef.current = setInterval(() => {
-      setMyTimer(prev => {
-        // Calculate elapsed time from server timestamp
-        const now = Date.now();
-        const elapsedMs = now - roundStartTime;
-        const remainingMs = Math.max(0, totalRoundTime - elapsedMs);
-        const remainingSeconds = Math.ceil(remainingMs / 1000);
+      // Update timer every second based on server timestamp
+      timerRef.current = setInterval(() => {
+        const newRemaining = calculateTimeRemaining(serverRoundStartTime);
+        setMyTimer(newRemaining);
 
-        console.log('[Timer] Update:', {
-          elapsed: Math.floor(elapsedMs / 1000),
-          remaining: remainingSeconds,
-          roundId: currentRound?.id,
-          isMobile: navigator.userAgent.includes('Mobile')
-        });
-
-        if (remainingSeconds <= 0) {
-          console.log('[Timer] Time expired, auto-submitting...');
+        if (newRemaining <= 0) {
           clearInterval(timerRef.current);
           if (!myGuess) {
             handleAutoSubmit();
           }
-          return 0;
         }
+      }, 1000);
+    };
 
-        return remainingSeconds;
-      });
-    }, 1000);
+    if (serverRoundStartTime && battleGameState === 'active') {
+      initTimer();
+    }
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [serverRoundStartTime, battleGameState, myGuess]); // Added myGuess to dependencies
 
-    // Sync timer on first start
-    const now = Date.now();
-    const elapsedMs = now - roundStartTime;
-    const remainingMs = Math.max(0, totalRoundTime - elapsedMs);
-    const remainingSeconds = Math.ceil(remainingMs / 1000);
-    setMyTimer(remainingSeconds);
-  };
 
   const handleRevealClue = async (clueIndex) => {
     if (myClues.includes(clueIndex) || myScore < CLUE_COSTS[clueIndex] || myGuess) return;
@@ -820,6 +832,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   return;
                 }
 
+                const roundStartTime = new Date().toISOString();
                 const { data: newRound, error: createError } = await supabase
                   .from('battle_rounds')
                   .insert({
@@ -827,7 +840,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     round_no: nextRoundNo,
                     puzzle_id: randomPuzzle.id,
                     status: 'active',
-                    started_at: new Date().toISOString(),
+                    started_at: roundStartTime,
                     player1_completed_at: null,
                     player2_completed_at: null
                   })
@@ -887,11 +900,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
               console.log('Created next round:', newRound);
 
-              // Broadcast successful round creation
+              // Broadcast round start with server timestamp
               setTimeout(() => {
-                broadcastBattleEvent(round.battle_id, 'round_transition', {
+                broadcastBattleEvent(round.battle_id, 'round_started', {
                   newRoundId: newRound.id,
-                  roundNumber: nextRoundNo
+                  roundNumber: nextRoundNo,
+                  roundStartTime: roundStartTime
                 });
               }, 500);
 
@@ -930,7 +944,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
         currentRoundNum: round.round_no || 1
       }));
 
-      setMyTimer(180);
+      // Set server round start time for timer sync
+      if (round.started_at) {
+        setServerRoundStartTime(round.started_at);
+        setBattleGameState('active');
+      }
+
+      // Reset game state for new round
       setMyClues([1]);
       setMyScore(10000);
       setMyGuess(null);
@@ -955,11 +975,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
             console.log('Loaded new puzzle for round', round.round_no);
           }
 
-          // Restart timer
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-          }
-          startTimer();
+          // Timer will restart automatically via useEffect when serverRoundStartTime updates
 
         } catch (err) {
           console.error('Error loading new puzzle:', err);
@@ -994,6 +1010,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
           <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <div className="text-xl">Connecting to Battle...</div>
           <div className="text-sm text-gray-400 mt-2">Status: {connectionStatus}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (battleGameState === 'ready') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-xl">Both Players Ready!</div>
+          <div className="text-sm text-gray-400 mt-2">Starting battle...</div>
         </div>
       </div>
     );
@@ -1043,17 +1071,6 @@ export default function LiveBattleView({ session, battleId, setView }) {
       `}</style>
 
       <div className="relative z-10">
-      {/* Debug Panel for Mobile Testing */}
-      {debugInfo.isMobile && (
-        <div className="fixed top-2 right-2 bg-black/80 text-white text-xs p-2 rounded z-50 max-w-xs">
-          <div>📱 Mobile Debug</div>
-          <div>Status: {debugInfo.connectionStatus}</div>
-          <div>Last Event: {debugInfo.lastEventReceived?.event || 'None'}</div>
-          <div>Events: {debugInfo.realtimeEvents.length}</div>
-          <div>Timer: {myTimer}s</div>
-          <div>Round: {currentRound?.round_no || '?'}</div>
-        </div>
-      )}
 
       <GlassBackButton
         onClick={() => {
