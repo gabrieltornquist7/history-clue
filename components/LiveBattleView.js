@@ -18,6 +18,16 @@ const historicalEras = [
   { label: 'Contemporary', value: 2010, tooltip: '~2000 - Present' },
 ];
 
+// Continent center coordinates for quick navigation
+const CONTINENTS = [
+  { label: 'N.America', lat: 45.0, lng: -100.0 },
+  { label: 'S.America', lat: -15.0, lng: -60.0 },
+  { label: 'Europe', lat: 50.0, lng: 10.0 },
+  { label: 'Africa', lat: 0.0, lng: 20.0 },
+  { label: 'Asia', lat: 35.0, lng: 90.0 },
+  { label: 'Oceania', lat: -25.0, lng: 135.0 },
+];
+
 const Map = dynamic(() => import('./Map'), { ssr: false });
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -931,7 +941,104 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   <Map onGuess={handleMapGuess} />
                 </div>
               </div>
-              
+
+              {/* Continent Quick Jump */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="text-xs text-gray-400 text-center font-medium uppercase tracking-wide mb-2">
+                  Jump to Continent
+                </div>
+
+                {/* Desktop: Continent buttons in compact grid */}
+                <div className="hidden sm:block">
+                  <div className="grid grid-cols-3 gap-1 mb-1">
+                    {CONTINENTS.slice(0, 3).map((continent) => (
+                      <button
+                        key={continent.label}
+                        onClick={() => handleMapGuess({ lat: continent.lat, lng: continent.lng })}
+                        disabled={!!myGuess}
+                        className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          color: '#9ca3af',
+                          border: '1px solid rgba(156, 163, 175, 0.15)',
+                          backdropFilter: 'blur(4px)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!e.currentTarget.disabled) {
+                            e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.color = '#d4af37';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(156, 163, 175, 0.15)';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.color = '#9ca3af';
+                        }}
+                      >
+                        {continent.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    {CONTINENTS.slice(3).map((continent) => (
+                      <button
+                        key={continent.label}
+                        onClick={() => handleMapGuess({ lat: continent.lat, lng: continent.lng })}
+                        disabled={!!myGuess}
+                        className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          color: '#9ca3af',
+                          border: '1px solid rgba(156, 163, 175, 0.15)',
+                          backdropFilter: 'blur(4px)',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!e.currentTarget.disabled) {
+                            e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.color = '#d4af37';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(156, 163, 175, 0.15)';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.color = '#9ca3af';
+                        }}
+                      >
+                        {continent.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mobile: Dropdown selector */}
+                <div className="sm:hidden">
+                  <select
+                    onChange={(e) => {
+                      const selected = CONTINENTS.find(c => c.label === e.target.value);
+                      if (selected) {
+                        handleMapGuess({ lat: selected.lat, lng: selected.lng });
+                      }
+                    }}
+                    disabled={!!myGuess}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    defaultValue=""
+                  >
+                    <option value="">Jump to Continent...</option>
+                    {CONTINENTS.map(continent => (
+                      <option key={continent.label} value={continent.label}>
+                        {continent.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Year Selector */}
               <div className="bg-gray-800 rounded-lg p-4">
                 <h3 className="text-lg font-bold text-white mb-2">Year Guess</h3>
