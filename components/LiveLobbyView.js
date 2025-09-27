@@ -107,7 +107,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
           // Auto-rejoin the active battle
           setActiveLiveMatch(battle.id);
-          setView('liveBattle');
+          setView('liveGame');
           return;
         }
 
@@ -141,7 +141,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
               console.log('[LiveLobby] Opponent joined waiting battle!');
               clearInterval(pollIntervalRef.current);
               setActiveLiveMatch(battle.id);
-              setView('liveBattle');
+              setView('liveGame');
             }
           }, 2000);
         }
@@ -211,7 +211,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     };
 
     console.log('[LiveLobby] About to run checkForActiveBattles and loadFriends');
-    checkForActiveBattles();
+    // checkForActiveBattles(); // TEMPORARILY DISABLED - was causing immediate redirects
     loadFriends();
 
     return () => {
@@ -270,7 +270,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
             console.log('[LiveLobby] Opponent joined! Starting battle.');
             clearInterval(pollIntervalRef.current);
             setActiveLiveMatch(result.battle_id);
-            setView('liveBattle');
+            setView('liveGame');
           }
         }, 2000);
 
@@ -286,7 +286,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         // We joined an existing battle
         console.log('[LiveLobby] Joined existing battle, starting immediately.');
         setActiveLiveMatch(result.battle_id);
-        setView('liveBattle');
+        setView('liveGame');
       }
 
     } catch (error) {
