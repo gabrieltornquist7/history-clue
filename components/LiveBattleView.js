@@ -27,7 +27,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [myTimer, setMyTimer] = useState(180);
   const [myClues, setMyClues] = useState([1]);
   const [myScore, setMyScore] = useState(10000);
-  const [selectedYear, setSelectedYear] = useState(1950);
+  const [selectedYear, setSelectedYear] = useState(0);
   const [guessCoords, setGuessCoords] = useState(null);
   const [myGuess, setMyGuess] = useState(null);
   const [oppGuess, setOppGuess] = useState(null);
@@ -369,7 +369,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   const handleYearChange = (newYear) => {
     if (myGuess) return;
-    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 1950));
+    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 0));
     setSelectedYear(year);
   };
 
@@ -693,7 +693,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       setMyGuess(null);
       setOppGuess(null);
       setGuessCoords(null);
-      setSelectedYear(1950);
+      setSelectedYear(0);
       setGameFinished(false);
       setRoundResult(null);
       setFirstGuessSubmitted(false);

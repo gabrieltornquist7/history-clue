@@ -19,7 +19,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
-  const [selectedYear, setSelectedYear] = useState(1950);
+  const [selectedYear, setSelectedYear] = useState(0);
   const [guessCoords, setGuessCoords] = useState(null);
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +61,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
       setXpResults(null);
       setUnlockedClues([1]);
       setScore(10000);
-      setSelectedYear(1950);
+      setSelectedYear(0);
       setGuessCoords(null);
       setError(null);
       setIsLoading(true);
@@ -177,7 +177,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   };
 
   const handleYearChange = (newYear) => {
-    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 1950));
+    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 0));
     setSelectedYear(year);
   };
 

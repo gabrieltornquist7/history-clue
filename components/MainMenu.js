@@ -220,7 +220,13 @@ export default function MainMenu({ setView, session, onSignOut }) {
             {/* Account Section */}
             <div className="p-7 pt-5">
               {session ? (
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => setView("leaderboard")}
+                    className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
+                  >
+                    Leaderboard
+                  </button>
                   <button
                     onClick={() => setView("friends")}
                     className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
@@ -255,14 +261,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
 
       {/* Footer Bar */}
       <footer className="border-t border-gray-800/30 bg-black/20 backdrop-blur relative z-10">
-        <div className="flex items-center justify-center gap-6 py-4">
-          <button
-            onClick={() => setView("leaderboard")}
-            className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm"
-          >
-            Leaderboard
-          </button>
-          <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
+        <div className="flex items-center justify-center py-4">
           <button
             onClick={handleContactClick}
             className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm"

@@ -2,7 +2,6 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { fetchTopScores } from '../lib/leaderboardApi';
 import { AvatarImage } from '../lib/avatarHelpers';
 
 export default function LeaderboardView({ setView }) {
@@ -19,27 +18,61 @@ export default function LeaderboardView({ setView }) {
       setError(null);
 
       try {
-        const { rows, error } = await fetchTopScores(10);
+        // Get all scores grouped by user with total
+        const { data: scoresData, error: scoresError } = await supabase
+          .from('scores')
+          .select('user_id, score');
 
         if (ignore) return;
 
-        if (error) {
-          console.error('[LeaderboardView] fetchTopScores error', error);
+        if (scoresError) {
+          console.error('[LeaderboardView] scores error', scoresError);
           setError('Failed to load leaderboard');
           return;
         }
 
-        // Convert API format to component format
-        const endlessScores = rows.map(row => ({
-          score: row.score,
+        // Group by user and calculate totals
+        const userTotals = {};
+        scoresData?.forEach(entry => {
+          if (!userTotals[entry.user_id]) {
+            userTotals[entry.user_id] = 0;
+          }
+          userTotals[entry.user_id] += entry.score;
+        });
+
+        // Get user profiles for all users with scores
+        const userIds = Object.keys(userTotals);
+        if (userIds.length === 0) {
+          setEndlessLeaderboard([]);
+          return;
+        }
+
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.error('[LeaderboardView] profiles error', profilesError);
+          setError('Failed to load user profiles');
+          return;
+        }
+
+        // Combine data and sort
+        const leaderboardData = profiles?.map(profile => ({
+          user_id: profile.id,
+          score: userTotals[profile.id] || 0,
           profiles: {
-            username: row.username,
-            avatar_url: row.avatar_url
+            username: profile.username,
+            avatar_url: profile.avatar_url
           }
         }));
 
-        console.log('Successfully fetched leaderboard:', endlessScores);
-        setEndlessLeaderboard(endlessScores);
+        // Sort by total score descending
+        leaderboardData?.sort((a, b) => b.score - a.score);
+
+        console.log('Successfully fetched leaderboard:', leaderboardData);
+        setEndlessLeaderboard(leaderboardData || []);
 
       } catch (err) {
         if (ignore) return;
@@ -157,7 +190,7 @@ export default function LeaderboardView({ setView }) {
                         />
                         <div>
                           <span className="font-bold text-white text-lg">{entry.profiles?.username ?? 'Traveler'}</span>
-                          <div className="text-sm" style={{ color: '#9ca3af' }}>Endless Mode</div>
+                          <div className="text-sm" style={{ color: '#9ca3af' }}>Total Score</div>
                         </div>
                       </div>
                       <div className="text-right">
