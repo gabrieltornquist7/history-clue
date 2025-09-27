@@ -153,6 +153,12 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     // Load friends list
     const loadFriends = async () => {
       try {
+        // ADD REQUEST LIMITING - Don't reload if already have friends
+        if (friends.length > 0) {
+          console.log('[LiveLobby] Friends already loaded, skipping...');
+          return;
+        }
+
         console.log('[LiveLobby] Checking auth session...');
         // Step 0: Verify authentication session
         const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
@@ -210,8 +216,8 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       }
     };
 
-    console.log('[LiveLobby] About to run checkForActiveBattles and loadFriends');
-    // checkForActiveBattles(); // TEMPORARILY DISABLED - was causing immediate redirects
+    console.log('[LiveLobby] About to run loadFriends only - checkForActiveBattles DISABLED');
+    // checkForActiveBattles(); // DISABLED - was causing infinite loops and immediate redirects
     loadFriends();
 
     return () => {
@@ -219,7 +225,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [session.user.id, setActiveLiveMatch, setView]);
+  }, [session.user.id]);
 
 
   const handleRandomMatch = async () => {
