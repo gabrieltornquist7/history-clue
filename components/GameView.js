@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { SILENT_AUDIO_URL } from '../public/sounds/silence.js';
 import dynamic from 'next/dynamic';
+import GlassBackButton from './GlassBackButton';
 
 // Historical eras with representative years
 const historicalEras = [
@@ -365,7 +366,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
           <p className="text-red-400 font-bold mb-4 text-2xl font-serif">An Error Occurred</p>
           <p className="text-gray-300 mb-6">{error || "Could not load the puzzle."}</p>
           <button 
-            onClick={() => setView('menu')} 
+            onClick={() => setView('menu')}
             className="px-6 py-3 bg-gray-800 text-white font-medium rounded-md hover:bg-gray-700 transition-all duration-300 border border-gray-700/30"
             style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
           >
@@ -435,21 +436,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
         }
       `}</style>
 
+      <GlassBackButton onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} />
+
       {/* Header */}
       <header className="p-8 relative z-10">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <button 
-            onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} 
-            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
-            style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
-          >
-            ← Back
-            <div 
-              className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-              style={{ backgroundColor: '#d4af37' }}
-            ></div>
-          </button>
-          <div className="text-center flex-1 mx-8">
+        <div className="text-center max-w-7xl mx-auto">
             <h1 
               className="text-3xl sm:text-4xl font-serif font-bold text-white mb-2" 
               style={{ 
@@ -479,7 +470,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
               </p>
             )}
           </div>
-          <div className="w-24"></div>
         </div>
       </header>
 

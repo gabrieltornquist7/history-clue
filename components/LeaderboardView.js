@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { AvatarImage } from '../lib/avatarHelpers';
+import GlassBackButton from './GlassBackButton';
 
 export default function LeaderboardView({ setView }) {
   const [loading, setLoading] = useState(true);
@@ -116,24 +117,17 @@ export default function LeaderboardView({ setView }) {
         }
       `}</style>
 
+      <GlassBackButton onClick={() => setView('menu')} />
+
       <header className="p-4 sm:p-8 relative z-10">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <button
-            onClick={() => setView('menu')}
-            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
-          >
-            ← Back
-          </button>
-          <div className="text-center flex-1 px-2 sm:px-4">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-white mb-2"
-                style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
-              Leaderboard
-            </h1>
-            <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
-              Top players across all modes
-            </p>
-          </div>
-          <div className="w-24"></div>
+        <div className="text-center max-w-4xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-white mb-2"
+              style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
+            Leaderboard
+          </h1>
+          <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
+            Top players across all modes
+          </p>
         </div>
       </header>
 

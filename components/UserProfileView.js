@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { AvatarImage } from '../lib/avatarHelpers';
+import GlassBackButton from './GlassBackButton';
 
 export default function UserProfileView({ setView, userId, onBack }) {
   const [userProfile, setUserProfile] = useState(null);
@@ -169,24 +170,17 @@ export default function UserProfileView({ setView, userId, onBack }) {
         }
       `}</style>
 
+      <GlassBackButton onClick={onBack} />
+
       <header className="p-8 relative z-10">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <button
-            onClick={onBack}
-            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
-          >
-            ← Back
-          </button>
-          <div className="text-center flex-1 px-4">
-            <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2"
-                style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
-              Player Profile
-            </h1>
-            <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
-              View player statistics
-            </p>
-          </div>
-          <div className="w-24"></div>
+        <div className="text-center max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2"
+              style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
+            Player Profile
+          </h1>
+          <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
+            View player statistics
+          </p>
         </div>
       </header>
 

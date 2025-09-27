@@ -11,3 +11,19 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-playfair), serif;
 }
+
+/* Ensure proper spacing on devices with notches */
+@supports (padding: env(safe-area-inset-top)) {
+  .fixed {
+    /* Automatically handled by the env() in component */
+  }
+}
+
+/* Ensure button is always tappable on mobile */
+@media (max-width: 640px) {
+  /* Minimum 44px tap target for iOS compliance */
+  button[class*="w-12"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

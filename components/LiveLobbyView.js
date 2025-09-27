@@ -3,6 +3,7 @@
 console.log('LiveLobbyView.js file is loading');
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import GlassBackButton from './GlassBackButton';
 
 console.log('LiveLobbyView.js imports successful');
 
@@ -544,22 +545,15 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       {/* Audio element for join sound */}
       <audio id="join-sound" preload="none">
       </audio>
+      <GlassBackButton onClick={() => setView('menu')} />
+
       {/* Header */}
-      <header className="p-4 sm:p-8 relative z-10">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <button 
-            onClick={() => setView('menu')} 
-            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
-          >
-            ← Back to Menu
-          </button>
-          <div className="text-center">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
-              Live Battle
-            </h1>
-            <p className="text-sm text-gray-300">Real-time multiplayer</p>
-          </div>
-          <div className="w-32"></div>
+      <header className="p-4 sm:p-6 lg:p-8 relative z-10">
+        <div className="text-center">
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
+            Live Battle
+          </h1>
+          <p className="text-sm text-gray-300">Real-time multiplayer</p>
         </div>
       </header>
 
