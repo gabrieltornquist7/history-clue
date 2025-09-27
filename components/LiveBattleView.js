@@ -827,11 +827,39 @@ export default function LiveBattleView({ session, battleId, setView }) {
             <p className="text-sm text-gray-300">vs {opponent?.username || 'Loading...'}</p>
           </div>
           
-          <div className="text-center">
-            <p className="text-sm text-gray-400">Your Timer</p>
-            <p className={`text-2xl font-bold ${myTimer <= 30 ? 'text-red-400' : 'text-white'}`}>
-              {formatTime(myTimer)}
-            </p>
+          <div className="text-right">
+            {/* Invite Code Display */}
+            {battle?.invite_code && (
+              <div className="mb-2">
+                <p className="text-xs text-gray-400 uppercase tracking-wide">Invite Code</p>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-sm font-mono font-bold text-yellow-400 px-2 py-1 bg-black/30 rounded border border-yellow-500/30"
+                    style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
+                  >
+                    {battle.invite_code}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(battle.invite_code);
+                      // Optional: Add a temporary "Copied!" feedback
+                    }}
+                    className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors"
+                    title="Copy invite code"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Timer */}
+            <div className="text-center">
+              <p className="text-sm text-gray-400">Your Timer</p>
+              <p className={`text-2xl font-bold ${myTimer <= 30 ? 'text-red-400' : 'text-white'}`}>
+                {formatTime(myTimer)}
+              </p>
+            </div>
           </div>
         </div>
       </div>

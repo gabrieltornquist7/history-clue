@@ -61,6 +61,61 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   const pollIntervalRef = useRef(null);
 
   useEffect(() => {
+    // Check for existing active battles
+    const checkForActiveBattles = async () => {
+      console.log('[LiveLobby] Checking for active battles...');
+
+      const { data: activeBattles, error } = await supabase
+        .from('battles')
+        .select('*')
+        .or(`player1.eq.${session.user.id},player2.eq.${session.user.id}`)
+        .eq('status', 'active')
+        .limit(1);
+
+      if (!error && activeBattles && activeBattles.length > 0) {
+        const battle = activeBattles[0];
+        console.log('[LiveLobby] Found active battle:', battle.id);
+
+        // Auto-rejoin the active battle
+        setActiveLiveMatch(battle.id);
+        setView('liveBattle');
+        return;
+      }
+
+      // Also check for waiting battles we created
+      const { data: waitingBattles, error: waitingError } = await supabase
+        .from('battles')
+        .select('*')
+        .eq('player1', session.user.id)
+        .eq('status', 'waiting')
+        .limit(1);
+
+      if (!waitingError && waitingBattles && waitingBattles.length > 0) {
+        const battle = waitingBattles[0];
+        console.log('[LiveLobby] Found waiting battle:', battle.id, battle.invite_code);
+
+        // Resume waiting for this battle
+        setMode('waiting');
+        setGeneratedInvite(battle.invite_code);
+
+        // Poll for player2 to join
+        pollIntervalRef.current = setInterval(async () => {
+          const { data: updatedBattle, error: battleError } = await supabase
+            .from('battles')
+            .select('*')
+            .eq('id', battle.id)
+            .single();
+
+          if (!battleError && updatedBattle.player2) {
+            console.log('[LiveLobby] Opponent joined waiting battle!');
+            clearInterval(pollIntervalRef.current);
+            setActiveLiveMatch(battle.id);
+            setView('liveBattle');
+          }
+        }, 2000);
+      }
+    };
+
     // Load friends list
     const loadFriends = async () => {
       // Step 0: Verify authentication session
@@ -105,6 +160,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       setFriends(friendsList);
     };
 
+    checkForActiveBattles();
     loadFriends();
 
     return () => {
@@ -119,113 +175,71 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     setMode('searching');
 
     try {
-      // Check if someone is already waiting
-      const { data: waiting, error: waitingError } = await supabase
-        .from('match_queue')
-        .select('user_id')
-        .neq('user_id', session.user.id)
-        .limit(1);
+      console.log('[LiveLobby] Starting quick match...');
 
-      if (waitingError) {
-        console.error('Error checking queue:', waitingError);
-        alert('Failed to search for opponents');
+      // Use the quick_match_player function
+      const { data, error } = await supabase.rpc('quick_match_player', {
+        player_id: session.user.id
+      });
+
+      if (error) {
+        console.error('[LiveLobby] Quick match error:', error);
+        alert('Failed to start quick match');
         setMode(null);
         return;
       }
 
-      if (waiting && waiting.length > 0) {
-        // Found someone waiting, create battle immediately
-        const opponentId = waiting[0].user_id;
-        
-        const { data: battle, error: battleError } = await supabase
-          .from('battles')
-          .insert({
-            player1: session.user.id,
-            player2: opponentId,
-            status: 'active'
-          })
-          .select()
-          .single();
-
-        if (battleError) {
-          console.error('Error creating battle:', battleError);
-          alert('Failed to create battle');
-          setMode(null);
-          return;
-        }
-
-        // Remove both players from queue
-        await supabase
-          .from('match_queue')
-          .delete()
-          .in('user_id', [session.user.id, opponentId]);
-
-        // Go to battle
-        setActiveLiveMatch(battle.id);
-        setView('liveGame');
-        return;
-      }
-
-      // No one waiting, add myself to queue and poll
-      const { error: queueError } = await supabase
-        .from('match_queue')
-        .insert({ user_id: session.user.id });
-
-      if (queueError) {
-        console.error('Error joining queue:', queueError);
-        alert('Failed to join matchmaking');
+      if (!data || data.length === 0) {
+        console.error('[LiveLobby] No data returned from quick match');
+        alert('Failed to start quick match');
         setMode(null);
         return;
       }
 
-      // Poll every 2 seconds for opponents
-      pollIntervalRef.current = setInterval(async () => {
-        const { data: opponents, error } = await supabase
-          .from('match_queue')
-          .select('user_id')
-          .neq('user_id', session.user.id)
-          .limit(1);
+      const result = data[0];
+      console.log('[LiveLobby] Quick match result:', result);
 
-        if (!error && opponents && opponents.length > 0) {
-          clearInterval(pollIntervalRef.current);
-          
-          const opponentId = opponents[0].user_id;
-          
-          // Create battle
+      if (result.is_new) {
+        // We created a new battle and are waiting
+        console.log('[LiveLobby] Created new battle, waiting for opponent...');
+        setMode('waiting');
+        setGeneratedInvite(result.invite_code);
+
+        // Poll for player2 to join
+        pollIntervalRef.current = setInterval(async () => {
+          console.log('[LiveLobby] Polling for opponent...');
+
           const { data: battle, error: battleError } = await supabase
             .from('battles')
-            .insert({
-              player1: session.user.id,
-              player2: opponentId,
-              status: 'active'
-            })
-            .select()
+            .select('*')
+            .eq('id', result.battle_id)
             .single();
 
-          if (!battleError) {
-            // Remove both from queue
-            await supabase
-              .from('match_queue')
-              .delete()
-              .in('user_id', [session.user.id, opponentId]);
-
-            // Go to battle
-            setActiveLiveMatch(battle.id);
-            setView('liveGame');
+          if (!battleError && battle.player2) {
+            console.log('[LiveLobby] Opponent joined! Starting battle.');
+            clearInterval(pollIntervalRef.current);
+            setActiveLiveMatch(result.battle_id);
+            setView('liveBattle');
           }
-        }
-      }, 2000);
+        }, 2000);
 
-      // Stop searching after 30 seconds
-      setTimeout(() => {
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          handleCancelSearch();
-        }
-      }, 30000);
+        // Stop waiting after 30 seconds
+        setTimeout(() => {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            handleCancelSearch();
+          }
+        }, 30000);
+
+      } else {
+        // We joined an existing battle
+        console.log('[LiveLobby] Joined existing battle, starting immediately.');
+        setActiveLiveMatch(result.battle_id);
+        setView('liveBattle');
+      }
 
     } catch (error) {
-      console.error('Error in random match:', error);
+      console.error('[LiveLobby] Error in quick match:', error);
       setMode(null);
     }
   };
@@ -234,13 +248,18 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
     }
-    
-    await supabase
-      .from('match_queue')
-      .delete()
-      .eq('user_id', session.user.id);
+
+    // Cancel any waiting battles we created
+    if (mode === 'waiting' && generatedInvite) {
+      await supabase
+        .from('battles')
+        .delete()
+        .eq('player1', session.user.id)
+        .eq('status', 'waiting');
+    }
 
     setMode(null);
+    setGeneratedInvite(null);
   };
 
   const handleCreateInvite = async () => {
