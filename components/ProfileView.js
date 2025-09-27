@@ -63,24 +63,36 @@ export default function ProfileView({ setView, session, userId = null }) {
 
       const { data: { user } } = await supabase.auth.getUser();
       const file = event.target.files[0];
+
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('File size must be less than 5MB');
+      }
+
       const fileExt = file.name.split(".").pop();
-      const filePath = `${user.id}.${fileExt}`;
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, { upsert: true });
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
       if (uploadError) throw uploadError;
 
+      // IMPORTANT: Build the correct URL with /public/
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bisjnzssegpfhkxaayuz.supabase.co';
+      const correctUrl = `${supabaseUrl}/storage/v1/object/public/avatars/${fileName}`;
+
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ avatar_url: filePath })
+        .update({ avatar_url: correctUrl })
         .eq("id", user.id);
 
       if (updateError) throw updateError;
 
       // Update local profile state
-      setProfile(prev => ({ ...prev, avatar_url: filePath }));
+      setProfile(prev => ({ ...prev, avatar_url: correctUrl }));
       setAvatarKey(Date.now()); // cache-bust avatar
 
       alert('Avatar updated successfully!');

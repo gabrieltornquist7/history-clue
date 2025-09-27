@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { AvatarImage } from '../lib/avatarHelpers';
 import Image from 'next/image';
 import PageWrapper from './ui/PageWrapper';
 import Card from './ui/Card';
@@ -21,15 +22,6 @@ export default function DailyChallengeView({
   const SCORE_TARGETS = [3000, 3500, 5000, 7500, 10000];
   const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
 
-  // Helper function to get public URL for avatars
-  const getAvatarUrl = (avatar_url) => {
-    if (!avatar_url) return 'https://placehold.co/40x40/fcf8f0/5a4b41?text=?';
-    const { data, error } = supabase.storage.from('avatars').getPublicUrl(avatar_url);
-    if (error || !data?.publicUrl) {
-      return 'https://placehold.co/40x40/fcf8f0/5a4b41?text=?';
-    }
-    return data.publicUrl;
-  };
 
   useEffect(() => {
     async function fetchData() {
@@ -584,12 +576,10 @@ export default function DailyChallengeView({
                                 padding: '2px'
                               }}
                             >
-                              <Image
-                                src={getAvatarUrl(entry.profiles?.avatar_url)}
+                              <AvatarImage
+                                url={entry.profiles?.avatar_url}
                                 alt={`${entry.profiles?.username ?? 'Traveler'}'s avatar`}
-                                width={32}
-                                height={32}
-                                className="w-8 h-8 rounded-full object-cover"
+                                size="w-8 h-8"
                               />
                             </div>
                             <div className="flex flex-col">
