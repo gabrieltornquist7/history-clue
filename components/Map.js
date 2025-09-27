@@ -39,12 +39,19 @@ function MapEvents({ onMapClick, position }) {
   return position ? <Marker position={position} icon={playerIcon} /> : null;
 }
 
-export default function Map({ onGuess, opponentPosition = null, initialPosition = null }) {
+export default function Map({ onGuess, opponentPosition = null, initialPosition = null, guessCoords = null }) {
   const [position, setPosition] = useState(initialPosition);
 
   useEffect(() => {
     setPosition(initialPosition);
   }, [initialPosition]);
+
+  // Update position when guessCoords prop changes (for continent buttons)
+  useEffect(() => {
+    if (guessCoords) {
+      setPosition(guessCoords);
+    }
+  }, [guessCoords]);
 
   const handleMapClick = (latlng) => {
     setPosition(latlng);

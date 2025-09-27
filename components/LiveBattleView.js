@@ -938,7 +938,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
               
               <div className="bg-gray-800 rounded-lg p-4">
                 <div className="h-64 sm:h-80 rounded-lg overflow-hidden border border-gray-600">
-                  <Map onGuess={handleMapGuess} />
+                  <Map onGuess={handleMapGuess} guessCoords={guessCoords} />
                 </div>
               </div>
 
