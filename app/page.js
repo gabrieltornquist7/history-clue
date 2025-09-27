@@ -238,10 +238,22 @@ export default function Page() {
               fallback={
                 <div className="min-h-screen flex items-center justify-center bg-black text-white">
                   <div className="text-center">
-                    <p className="text-red-400 mb-4">Failed to load battle</p>
-                    <button onClick={() => setView('menu')} className="px-4 py-2 bg-gray-700 rounded">
-                      Back to Menu
-                    </button>
+                    <h2 className="text-2xl font-serif font-bold text-red-400 mb-4">Battle Error</h2>
+                    <p className="text-gray-300 mb-6">Something went wrong with the live battle.</p>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="block w-full px-6 py-3 bg-yellow-600 text-black font-bold rounded hover:bg-yellow-500"
+                      >
+                        Reload Battle
+                      </button>
+                      <button
+                        onClick={() => setView('menu')}
+                        className="block w-full px-6 py-3 bg-gray-700 text-white rounded hover:bg-gray-600"
+                      >
+                        Back to Menu
+                      </button>
+                    </div>
                   </div>
                 </div>
               }

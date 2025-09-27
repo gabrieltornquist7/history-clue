@@ -42,9 +42,21 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 export default function LiveBattleView({ session, battleId, setView }) {
   console.log('[LiveBattleView] Rendered with setView:', typeof setView);
 
-  const [battle, setBattle] = useState(null);
-  const [puzzle, setPuzzle] = useState(null);
-  const [opponent, setOpponent] = useState(null);
+  // Separate loading states for better error handling
+  const [loadingStates, setLoadingStates] = useState({
+    battle: true,
+    currentRound: true,
+    puzzle: true,
+    opponent: true
+  });
+
+  // Game data with proper null initialization
+  const [gameData, setGameData] = useState({
+    battle: null,
+    currentRound: null,
+    puzzle: null,
+    opponent: null
+  });
 
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   // Game state
@@ -57,7 +69,6 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [oppGuess, setOppGuess] = useState(null);
   const [gameFinished, setGameFinished] = useState(false);
   const [roundResult, setRoundResult] = useState(null);
-  const [currentRound, setCurrentRound] = useState(null);
   const [firstGuessSubmitted, setFirstGuessSubmitted] = useState(false);
 
   // Battle state for 3-round system
@@ -112,7 +123,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         }
         console.log('Authenticated session verified:', authSession.user.id);
 
-        // 1. Load battle info
+        // 1. Load battle info with null safety
         const { data: battleData, error: battleError } = await supabase
           .from('battles')
           .select('*')
@@ -120,8 +131,15 @@ export default function LiveBattleView({ session, battleId, setView }) {
           .single();
 
         if (battleError || !battleData) {
-          throw new Error('Battle not found');
+          console.error('Failed to load battle:', battleError);
+          setError('Battle not found');
+          return;
         }
+
+        // Safely update battle data
+        setGameData(prev => ({ ...prev, battle: battleData }));
+        setLoadingStates(prev => ({ ...prev, battle: false }));
+        console.log('Battle data loaded:', battleData.id);
 
         // If battle is waiting and both players present, mark as ready
         if (battleData.status === 'waiting' && battleData.player1 && battleData.player2) {
@@ -135,7 +153,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         if (!isMounted) return;
 
-        // 2. Load player profiles directly
+        // 2. Load player profiles with null safety
         try {
           if (battleData.player1) {
             const { data: p1 } = await supabase
@@ -160,16 +178,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
           battleData.player2_profile = null;
         }
 
-        setBattle(battleData);
-        console.log('Battle loaded:', battleData);
-
-        // Set opponent
+        // Set opponent with null safety
         const isPlayer1 = session.user.id === battleData.player1;
         const oppProfile = isPlayer1 ? battleData.player2_profile : battleData.player1_profile;
-        setOpponent({
+        const opponentData = {
           id: isPlayer1 ? battleData.player2 : battleData.player1,
           username: oppProfile?.username || oppProfile?.user_metadata?.username || 'Opponent'
-        });
+        };
+
+        setGameData(prev => ({ ...prev, opponent: opponentData }));
+        setLoadingStates(prev => ({ ...prev, opponent: false }));
+        console.log('Opponent loaded:', opponentData.username);
 
         // Setup realtime subscription
         unsubscribe = subscribeToBattle(battleId, ({ event, payload }) => {
@@ -285,9 +304,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }
         }
 
-        // 5. Create round if none exists and battle is ready
+        // 5. Create round if none exists and battle is ready (only Player 1)
         if (!existingRound && battleData.status === 'ready') {
-          console.log('No active round found and battle is ready, creating one...');
+          console.log('No active round found and battle is ready');
+
+          // Only Player 1 creates rounds
+          if (session.user.id !== battleData.player1) {
+            console.log('Player 2 waiting for Player 1 to create round...');
+            setLoadingStates(prev => ({ ...prev, currentRound: true }));
+            return; // Exit and wait for round creation broadcast
+          }
+
+          console.log('Player 1 creating initial round...');
 
           // Mark battle as active now that we're starting the game
           await supabase
@@ -295,21 +323,27 @@ export default function LiveBattleView({ session, battleId, setView }) {
             .update({ status: 'active' })
             .eq('id', battleId);
 
-          // Get random puzzle
+          // Get random puzzle with null safety
           const { data: puzzles, error: puzzleError } = await supabase
             .from('puzzles')
-            .select('id')
+            .select('*') // Get full puzzle data for immediate use
             .limit(100);
 
-          if (puzzleError || !puzzles || puzzles.length === 0) {
-            throw new Error('No puzzles available');
+          if (puzzleError) {
+            console.error('Puzzle query error:', puzzleError);
+            throw new Error('Failed to load puzzles');
+          }
+
+          if (!puzzles || puzzles.length === 0) {
+            console.error('No puzzles found in database');
+            throw new Error('No puzzles available - database may be empty');
           }
 
           const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
 
-          const authSession = await supabase.auth.getSession();
-          console.log('DEBUG session before battle_rounds insert (initial):', authSession?.data?.session?.user?.id);
-          console.log('Battle data for context:', { battleId, player1: battleData.player1, player2: battleData.player2 });
+          if (!randomPuzzle || !randomPuzzle.id) {
+            throw new Error('Invalid puzzle data');
+          }
 
           const initialRoundStartTime = new Date().toISOString();
           const { data: newRound, error: createError } = await supabase
@@ -355,6 +389,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
           existingRound = newRound;
           console.log('Created new round:', newRound);
 
+          // Set puzzle data immediately from creation
+          setGameData(prev => ({ ...prev, puzzle: randomPuzzle }));
+          setLoadingStates(prev => ({ ...prev, puzzle: false }));
+
           // Broadcast initial round start
           setTimeout(() => {
             broadcastBattleEvent(battleId, 'round_started', {
@@ -367,9 +405,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         if (!isMounted) return;
 
+        // Handle existing round data
         if (existingRound) {
           currentRoundId.current = existingRound.id;
-          setCurrentRound(existingRound);
+          setGameData(prev => ({ ...prev, currentRound: existingRound }));
+          setLoadingStates(prev => ({ ...prev, currentRound: false }));
+
+          // Set server round start time for timer sync
+          if (existingRound.started_at) {
+            setServerRoundStartTime(existingRound.started_at);
+            setBattleGameState('active');
+          }
+
         } else if (battleData.status === 'ready') {
           // Battle is ready but no round exists yet - show waiting state
           setBattleGameState('ready');
@@ -377,30 +424,30 @@ export default function LiveBattleView({ session, battleId, setView }) {
           return;
         }
 
-        // 6. Load puzzle
-        const { data: puzzleData, error: puzzleError } = await supabase
-          .from('puzzles')
-          .select('*, puzzle_translations(*)')
-          .eq('id', existingRound.puzzle_id)
-          .single();
+        // 6. Load puzzle if not already loaded
+        if (existingRound && (!gameData.puzzle || gameData.puzzle.id !== existingRound.puzzle_id)) {
+          console.log('Loading puzzle for existing round:', existingRound.puzzle_id);
 
-        if (puzzleError || !puzzleData) {
-          throw new Error('Failed to load puzzle');
+          const { data: puzzleData, error: puzzleError } = await supabase
+            .from('puzzles')
+            .select('*, puzzle_translations(*)')
+            .eq('id', existingRound.puzzle_id)
+            .single();
+
+          if (puzzleError || !puzzleData) {
+            console.error('Failed to load puzzle:', puzzleError);
+            setError('Failed to load puzzle data');
+            return;
+          }
+
+          if (isMounted) {
+            setGameData(prev => ({ ...prev, puzzle: puzzleData }));
+            setLoadingStates(prev => ({ ...prev, puzzle: false }));
+            console.log('Puzzle loaded:', puzzleData.id);
+          }
         }
-
-        if (!isMounted) return;
-
-        setPuzzle(puzzleData);
-        console.log('Puzzle loaded:', puzzleData.id);
-
 
         setLoading(false);
-
-        // Set server round start time for timer sync
-        if (existingRound.started_at) {
-          setServerRoundStartTime(existingRound.started_at);
-          setBattleGameState('active');
-        }
 
       } catch (err) {
         setConnectionStatus('error');
@@ -527,14 +574,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
     const distance = getDistance(
       coords.lat,
       coords.lng,
-      parseFloat(puzzle.latitude),
-      parseFloat(puzzle.longitude)
+      parseFloat(gameData.puzzle?.latitude || 0),
+      parseFloat(gameData.puzzle?.longitude || 0)
     );
 
     const clueCount = myClues.length;
     const baseScore = SCORING_POINTS[clueCount - 1] || 0;
     const distancePenalty = Math.min(baseScore * 0.5, (distance / 1000) * 10);
-    const yearDiff = Math.abs(selectedYear - puzzle.year);
+    const yearDiff = Math.abs(selectedYear - (gameData.puzzle?.year || 0));
     const timePenalty = Math.min(baseScore * 0.3, yearDiff * 5);
 
     let finalScore = Math.max(0, baseScore - distancePenalty - timePenalty);
@@ -714,7 +761,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
     if (!round) return;
 
     console.log('Processing round update:', round);
-    setCurrentRound(round);
+    setGameData(prev => ({ ...prev, currentRound: round }));
 
     // Check if both players have completed (using completion timestamps)
     const bothCompleted = round.player1_completed_at && round.player2_completed_at;
@@ -742,7 +789,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
           // CRITICAL: Only player1 (battle creator) should manage round transitions
           // This prevents race conditions and 409 conflicts
-          if (session.user.id !== battle?.player1) {
+          if (session.user.id !== gameData.battle?.player1) {
             console.log('Only player1 manages round transitions, skipping...');
             return;
           }
@@ -1003,13 +1050,40 @@ export default function LiveBattleView({ session, battleId, setView }) {
     return `${yearNum} CE`;
   };
 
-  if (loading) {
+  // Show loading screen with detailed status
+  if (loading || loadingStates.battle || loadingStates.currentRound) {
+    let statusMessage = 'Connecting to Battle...';
+    if (loadingStates.battle) statusMessage = 'Loading battle data...';
+    else if (loadingStates.currentRound) statusMessage = 'Waiting for round to start...';
+    else if (loadingStates.puzzle) statusMessage = 'Loading puzzle...';
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-xl">Connecting to Battle...</div>
+          <div className="text-xl">{statusMessage}</div>
           <div className="text-sm text-gray-400 mt-2">Status: {connectionStatus}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check for critical missing data
+  if (!gameData.battle || !gameData.currentRound) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <div className="text-xl text-red-400">Battle Data Missing</div>
+          <div className="text-sm text-gray-400 mt-2">
+            {!gameData.battle && "Battle not found"}
+            {!gameData.currentRound && "No active round"}
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-yellow-600 text-black rounded"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -1089,7 +1163,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="text-center flex-1">
             <h1 className="text-2xl font-serif font-bold text-yellow-400">Live Battle</h1>
-            <p className="text-sm text-gray-300">vs {opponent?.username || 'Loading...'}</p>
+            <p className="text-sm text-gray-300">vs {gameData.opponent?.username || 'Loading...'}</p>
             <div className="text-xs text-gray-400 mt-1">
               Round {battleState.currentRoundNum} of {battleState.totalRounds}
             </div>
@@ -1101,7 +1175,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
           <div className="text-right">
             {/* Invite Code Display */}
-            {battle?.invite_code && (
+            {gameData.battle?.invite_code && (
               <div className="mb-2">
                 <p className="text-xs text-gray-400 uppercase tracking-wide">Invite Code</p>
                 <div className="flex items-center gap-2">
@@ -1109,11 +1183,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     className="text-sm font-mono font-bold text-yellow-400 px-2 py-1 bg-black/30 rounded border border-yellow-500/30"
                     style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
                   >
-                    {battle.invite_code}
+                    {gameData.battle.invite_code}
                   </span>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(battle.invite_code);
+                      navigator.clipboard.writeText(gameData.battle.invite_code);
                       // Optional: Add a temporary "Copied!" feedback
                     }}
                     className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors"
@@ -1521,8 +1595,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   </div>
 
                   <div className="text-green-400">
-                    <p className="font-bold">Answer: {puzzle?.city_name}</p>
-                    <p>{displayYear(puzzle?.year)}</p>
+                    <p className="font-bold">Answer: {gameData.puzzle?.city_name}</p>
+                    <p>{displayYear(gameData.puzzle?.year)}</p>
                   </div>
 
                   <div className="text-yellow-400 text-sm">
