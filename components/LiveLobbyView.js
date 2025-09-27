@@ -1,7 +1,10 @@
 // components/LiveLobbyView.js - OPTIMIZED VERSION WITH PROFILE CACHE
 "use client";
+console.log('LiveLobbyView.js file is loading');
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+
+console.log('LiveLobbyView.js imports successful');
 
 // Inline implementations to avoid import errors
 function normalizeInvite(code) {
@@ -69,12 +72,23 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   const [joinLoading, setJoinLoading] = useState(false);
 
   const pollIntervalRef = useRef(null);
+  const hasCheckedForBattles = useRef(false);
 
   useEffect(() => {
-    console.log('[LiveLobby] Friends loading useEffect starting');
+    console.log('[LiveLobby] Friends loading useEffect starting', {
+      sessionUserId: session?.user?.id,
+      setActiveLiveMatchType: typeof setActiveLiveMatch,
+      setViewType: typeof setView
+    });
 
     // Check for existing active battles
     const checkForActiveBattles = async () => {
+      if (hasCheckedForBattles.current) {
+        console.log('[LiveLobby] Already checked for battles, skipping...');
+        return;
+      }
+      hasCheckedForBattles.current = true;
+
       try {
         console.log('[LiveLobby] Checking for active battles...');
 
@@ -205,7 +219,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [session.user.id]);
+  }, [session.user.id, setActiveLiveMatch, setView]);
 
 
   const handleRandomMatch = async () => {
