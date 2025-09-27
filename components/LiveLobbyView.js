@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useProfileCache } from '../lib/useProfileCache';
+import { SILENT_AUDIO_URL } from '../public/sounds/silence.js';
 
 // Inline implementations to avoid import errors
 function normalizeInvite(code) {
@@ -554,9 +555,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
       <div className="relative z-10">
       {/* Audio element for join sound */}
-      <audio id="join-sound" preload="none">
-        <source src="/sounds/join.mp3" type="audio/mpeg" />
-        <source src="/sounds/join.ogg" type="audio/ogg" />
+      <audio id="join-sound" preload="none" src={SILENT_AUDIO_URL}>
       </audio>
       {/* Header */}
       <header className="p-8 relative z-10">

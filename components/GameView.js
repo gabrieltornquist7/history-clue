@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { SILENT_AUDIO_URL } from '../public/sounds/silence.js';
 import dynamic from 'next/dynamic';
 
 const Map = dynamic(() => import('./Map'), { ssr: false });
@@ -35,19 +36,9 @@ export default function GameView({ setView, challenge = null, session, onChallen
   // Sound effects
   useEffect(() => {
     if (results) {
-      const isLevelUp = xpResults?.new_level > xpResults?.old_level;
-      let soundFile;
-
-      if (isLevelUp) {
-        soundFile = '/sounds/levelup.mp3';
-      } else if (results.finalScore >= 5000) {
-        soundFile = '/sounds/high_score.mp3';
-      } else {
-        soundFile = '/sounds/low_score.mp3';
-      }
-      
       try {
-        const audio = new Audio(soundFile);
+        // Use silent audio for development - all sound effects use the same placeholder
+        const audio = new Audio(SILENT_AUDIO_URL);
         audio.play().catch(e => console.error("Audio playback failed:", e));
       } catch (e) {
         console.error("Failed to create audio object:", e);
