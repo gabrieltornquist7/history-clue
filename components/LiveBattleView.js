@@ -74,6 +74,15 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Debug state for mobile issues
+  const [debugInfo, setDebugInfo] = useState({
+    connectionStatus: 'initializing',
+    lastEventReceived: null,
+    realtimeEvents: [],
+    isMobile: navigator.userAgent.includes('Mobile'),
+    userAgent: navigator.userAgent
+  });
+
   const timerRef = useRef(null);
   const currentRoundId = useRef(null);
 
@@ -161,15 +170,31 @@ export default function LiveBattleView({ session, battleId, setView }) {
         unsubscribe = subscribeToBattle(battleId, ({ event, payload }) => {
           if (!isMounted) return;
 
+          const eventInfo = {
+            event,
+            payload,
+            timestamp: new Date().toISOString(),
+            isMobile: navigator.userAgent.includes('Mobile')
+          };
+
+          console.log('[LiveBattle] Realtime event received:', eventInfo);
+
+          // Update debug info
+          setDebugInfo(prev => ({
+            ...prev,
+            lastEventReceived: eventInfo,
+            realtimeEvents: [...prev.realtimeEvents.slice(-9), eventInfo] // Keep last 10 events
+          }));
+
           switch (event) {
             case 'guess_submitted':
               if (payload.playerId !== session.user.id) {
-                console.log('Opponent submitted guess:', payload);
+                console.log('[LiveBattle] Opponent submitted guess:', payload);
                 setOppGuess(payload.guess);
 
                 // Check if both players done
                 if (myGuess) {
-                  console.log('Both players have guessed, showing results');
+                  console.log('[LiveBattle] Both players have guessed, showing results');
                   showResults(myGuess, payload.guess);
                 }
               }
@@ -177,26 +202,53 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
             case 'first_guess':
               if (payload.playerId !== session.user.id && !firstGuessSubmitted) {
-                console.log('Opponent made first guess, dropping timer to 45s');
+                console.log('[LiveBattle] Opponent made first guess, dropping timer to 45s');
                 setMyTimer(45);
               }
               break;
 
             case 'clue_revealed':
               if (payload.playerId !== session.user.id) {
-                console.log('Opponent revealed clue:', payload.clueIndex);
+                console.log('[LiveBattle] Opponent revealed clue:', payload.clueIndex);
               }
               break;
 
             case 'battle_complete':
               if (payload.playerId !== session.user.id) {
-                console.log('Opponent finished battle:', payload);
+                console.log('[LiveBattle] Opponent finished battle:', payload);
                 setBattleState(prev => ({ ...prev, battleFinished: true }));
               }
               break;
 
+            case 'round_transition':
+              console.log('[LiveBattle] Round transition event received:', payload);
+              // Instead of reload, fetch the new round data
+              setTimeout(async () => {
+                try {
+                  const { data: newRound } = await supabase
+                    .from('battle_rounds')
+                    .select('*')
+                    .eq('id', payload.newRoundId)
+                    .single();
+
+                  if (newRound) {
+                    console.log('[LiveBattle] Transitioning to new round:', newRound.id);
+                    handleRoundUpdate(newRound);
+                  }
+                } catch (err) {
+                  console.error('[LiveBattle] Error fetching new round:', err);
+                  // Fallback to reload
+                  window.location.reload();
+                }
+              }, 1000);
+              break;
+
+            case 'player_ready':
+              console.log('[LiveBattle] Player ready:', payload);
+              break;
+
             default:
-              console.log('Unknown event:', event, payload);
+              console.log('[LiveBattle] Unknown event:', event, payload);
           }
         });
 
@@ -206,6 +258,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         }, 1000);
 
         setConnectionStatus('connected');
+        setDebugInfo(prev => ({ ...prev, connectionStatus: 'connected' }));
 
         // 3. Check if there's an active round
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -366,26 +419,48 @@ export default function LiveBattleView({ session, battleId, setView }) {
   }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
 
   const startTimer = () => {
-    // Store start time for mobile stability
-    const startTime = Date.now();
-    const initialTimer = myTimer;
+    console.log('[Timer] Starting timer for round:', currentRound?.id);
+
+    // Use server timestamp from round start for synchronization
+    const roundStartTime = currentRound?.started_at ? new Date(currentRound.started_at).getTime() : Date.now();
+    const totalRoundTime = 180000; // 3 minutes in milliseconds
+
+    console.log('[Timer] Round started at:', new Date(roundStartTime).toISOString());
 
     timerRef.current = setInterval(() => {
       setMyTimer(prev => {
-        // Calculate actual elapsed time (handles mobile background/foreground)
-        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-        const actualTimer = Math.max(0, initialTimer - elapsedSeconds);
+        // Calculate elapsed time from server timestamp
+        const now = Date.now();
+        const elapsedMs = now - roundStartTime;
+        const remainingMs = Math.max(0, totalRoundTime - elapsedMs);
+        const remainingSeconds = Math.ceil(remainingMs / 1000);
 
-        if (actualTimer <= 0) {
+        console.log('[Timer] Update:', {
+          elapsed: Math.floor(elapsedMs / 1000),
+          remaining: remainingSeconds,
+          roundId: currentRound?.id,
+          isMobile: navigator.userAgent.includes('Mobile')
+        });
+
+        if (remainingSeconds <= 0) {
+          console.log('[Timer] Time expired, auto-submitting...');
           clearInterval(timerRef.current);
           if (!myGuess) {
             handleAutoSubmit();
           }
           return 0;
         }
-        return actualTimer;
+
+        return remainingSeconds;
       });
     }, 1000);
+
+    // Sync timer on first start
+    const now = Date.now();
+    const elapsedMs = now - roundStartTime;
+    const remainingMs = Math.max(0, totalRoundTime - elapsedMs);
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    setMyTimer(remainingSeconds);
   };
 
   const handleRevealClue = async (clueIndex) => {
@@ -635,7 +710,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
     if (bothCompleted && round.status === 'active') {
       console.log('Both players have completed, finishing round and starting next');
 
-      // Mark current round as finished (only one client should do this)
+      // Mark current round as finished (only player1/battle creator should do this)
       const finishRound = async () => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -643,13 +718,24 @@ export default function LiveBattleView({ session, battleId, setView }) {
             id: round.battle_id,
             roundId: round.id,
             status: round.status,
-            userIsAuthenticated: !!session?.user?.id
+            userIsAuthenticated: !!session?.user?.id,
+            isPlayer1: session?.user?.id === battle?.player1,
+            battlePlayer1: battle?.player1
           });
 
           if (!session?.user?.id) {
             console.error('No authenticated session for round finish update');
             return;
           }
+
+          // CRITICAL: Only player1 (battle creator) should manage round transitions
+          // This prevents race conditions and 409 conflicts
+          if (session.user.id !== battle?.player1) {
+            console.log('Only player1 manages round transitions, skipping...');
+            return;
+          }
+
+          console.log('Player1 managing round transition...');
 
           const updatePayload = {
             status: 'finished',
@@ -714,6 +800,26 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 console.log('DEBUG session before battle_rounds insert (next round):', authSession?.data?.session?.user?.id);
                 console.log('Round data for context:', { battleId: round.battle_id, nextRoundNo });
 
+                // Check if round already exists (prevent 409 conflicts)
+                const { data: existingNextRound } = await supabase
+                  .from('battle_rounds')
+                  .select('*')
+                  .eq('battle_id', round.battle_id)
+                  .eq('round_no', nextRoundNo)
+                  .single();
+
+                if (existingNextRound) {
+                  console.log('Next round already exists, broadcasting transition...');
+                  // Broadcast round transition to notify all players
+                  setTimeout(() => {
+                    broadcastBattleEvent(round.battle_id, 'round_transition', {
+                      newRoundId: existingNextRound.id,
+                      roundNumber: nextRoundNo
+                    });
+                  }, 500);
+                  return;
+                }
+
                 const { data: newRound, error: createError } = await supabase
                   .from('battle_rounds')
                   .insert({
@@ -731,6 +837,29 @@ export default function LiveBattleView({ session, battleId, setView }) {
               console.log('Creating next round:', { newRound, createError });
 
               if (createError) {
+                if (createError.code === '23505') {
+                  // Unique constraint violation - round already exists
+                  console.log('Round already created by race condition, fetching existing...');
+                  const { data: existing } = await supabase
+                    .from('battle_rounds')
+                    .select('*')
+                    .eq('battle_id', round.battle_id)
+                    .eq('round_no', nextRoundNo)
+                    .single();
+
+                  if (existing) {
+                    console.log('Found existing round:', existing.id);
+                    // Broadcast round transition
+                    setTimeout(() => {
+                      broadcastBattleEvent(round.battle_id, 'round_transition', {
+                        newRoundId: existing.id,
+                        roundNumber: nextRoundNo
+                      });
+                    }, 500);
+                  }
+                  return;
+                }
+
                 console.error('Error creating next round:', createError);
 
                 if (createError.code === '406') {
@@ -743,7 +872,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   console.error('400 Bad Request - Invalid insert payload:', {
                     payload: {
                       battle_id: round.battle_id,
-                      round_no: (round.round_no || 1) + 1,
+                      round_no: nextRoundNo,
                       puzzle_id: randomPuzzle.id,
                       status: 'active',
                       started_at: new Date().toISOString(),
@@ -757,6 +886,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
               }
 
               console.log('Created next round:', newRound);
+
+              // Broadcast successful round creation
+              setTimeout(() => {
+                broadcastBattleEvent(round.battle_id, 'round_transition', {
+                  newRoundId: newRound.id,
+                  roundNumber: nextRoundNo
+                });
+              }, 500);
 
             } catch (err) {
               console.error('Error setting up next round:', err);
@@ -906,6 +1043,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
       `}</style>
 
       <div className="relative z-10">
+      {/* Debug Panel for Mobile Testing */}
+      {debugInfo.isMobile && (
+        <div className="fixed top-2 right-2 bg-black/80 text-white text-xs p-2 rounded z-50 max-w-xs">
+          <div>📱 Mobile Debug</div>
+          <div>Status: {debugInfo.connectionStatus}</div>
+          <div>Last Event: {debugInfo.lastEventReceived?.event || 'None'}</div>
+          <div>Events: {debugInfo.realtimeEvents.length}</div>
+          <div>Timer: {myTimer}s</div>
+          <div>Round: {currentRound?.round_no || '?'}</div>
+        </div>
+      )}
+
       <GlassBackButton
         onClick={() => {
           console.log('[LiveBattleView] Back button clicked');

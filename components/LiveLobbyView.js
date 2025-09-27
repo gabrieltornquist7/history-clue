@@ -503,7 +503,26 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       // Add delay before entering to ensure both sides are ready
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Go to battle immediately
+      console.log('[LiveLobby] Successfully joined battle, transitioning to game...');
+
+      // Add delay for mobile stability and ensure both players are synchronized
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Broadcast that we're ready to start
+      try {
+        const { data: battleChannel } = supabase.channel(`battle:${updatedBattle.id}`);
+        if (battleChannel) {
+          await battleChannel.send({
+            type: 'broadcast',
+            event: 'player_ready',
+            payload: { playerId: session.user.id, timestamp: Date.now() }
+          });
+        }
+      } catch (broadcastError) {
+        console.warn('[LiveLobby] Could not broadcast ready state:', broadcastError);
+      }
+
+      // Go to battle
       setActiveLiveMatch(updatedBattle.id);
       setView('liveGame');
 
