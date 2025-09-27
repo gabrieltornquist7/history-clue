@@ -470,7 +470,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
               </p>
             )}
           </div>
-        </div>
       </header>
 
       {/* Main Game Area */}
