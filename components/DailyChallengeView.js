@@ -6,12 +6,14 @@ import { AvatarImage } from '../lib/avatarHelpers';
 import Image from 'next/image';
 import PageWrapper from './ui/PageWrapper';
 import Card from './ui/Card';
+import GlassBackButton from './GlassBackButton';
 
 export default function DailyChallengeView({
   setView,
   session,
   setActiveDailyPuzzle,
 }) {
+  console.log('[DailyChallengeView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
   const [dailyPuzzleSet, setDailyPuzzleSet] = useState(null);
   const [userAttempt, setUserAttempt] = useState(null);
@@ -333,19 +335,20 @@ export default function DailyChallengeView({
         }
       `}</style>
 
-      <header className="flex items-center justify-between p-8 relative z-10">
-        <button
-          onClick={() => setView('menu')}
-          className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
-          style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
-        >
-          ← Menu
-          <div
-            className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-            style={{ backgroundColor: '#d4af37' }}
-          ></div>
-        </button>
-        <div className="flex-1 text-center">
+      <GlassBackButton
+        onClick={() => {
+          console.log('[DailyChallengeView] Back button clicked');
+          if (setView && typeof setView === 'function') {
+            setView('menu');
+          } else {
+            console.error('[DailyChallengeView] setView is not a function:', setView);
+          }
+        }}
+        fallbackUrl="/"
+      />
+
+      <header className="p-8 relative z-10">
+        <div className="text-center">
           <h1
             className="text-5xl font-serif font-bold text-white mb-2"
             style={{
@@ -366,7 +369,6 @@ export default function DailyChallengeView({
             Five puzzles • One chance • Pure glory
           </p>
         </div>
-        <div className="w-[120px]"></div>
       </header>
 
       <div className="px-8 pb-8 relative z-10">
