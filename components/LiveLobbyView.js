@@ -47,6 +47,21 @@ async function fetchJoinableMatchByInvite(inviteCode, uid) {
 }
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
+  console.log('[LiveLobby] Component mounting', {
+    hasSession: !!session,
+    userId: session?.user?.id,
+    hasSetView: !!setView,
+    hasSetActiveLiveMatch: !!setActiveLiveMatch
+  });
+
+  // Add this right at the start
+  useEffect(() => {
+    console.log('[LiveLobby] Initial useEffect running');
+    return () => {
+      console.log('[LiveLobby] Component unmounting');
+    };
+  }, []);
+
   const [mode, setMode] = useState(null); // null, 'searching', 'waiting'
   const [inviteCode, setInviteCode] = useState('');
   const [generatedInvite, setGeneratedInvite] = useState(null);
@@ -56,70 +71,88 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   const pollIntervalRef = useRef(null);
 
   useEffect(() => {
+    console.log('[LiveLobby] Friends loading useEffect starting');
+
     // Check for existing active battles
     const checkForActiveBattles = async () => {
-      console.log('[LiveLobby] Checking for active battles...');
+      try {
+        console.log('[LiveLobby] Checking for active battles...');
 
-      const { data: activeBattles, error } = await supabase
-        .from('battles')
-        .select('*')
-        .or(`player1.eq.${session.user.id},player2.eq.${session.user.id}`)
-        .eq('status', 'active')
-        .limit(1);
+        const { data: activeBattles, error } = await supabase
+          .from('battles')
+          .select('*')
+          .or(`player1.eq.${session.user.id},player2.eq.${session.user.id}`)
+          .eq('status', 'active')
+          .limit(1);
 
-      if (!error && activeBattles && activeBattles.length > 0) {
-        const battle = activeBattles[0];
-        console.log('[LiveLobby] Found active battle:', battle.id);
+        console.log('[LiveLobby] Active battles query result:', { activeBattles, error });
 
-        // Auto-rejoin the active battle
-        setActiveLiveMatch(battle.id);
-        setView('liveBattle');
-        return;
-      }
+        if (!error && activeBattles && activeBattles.length > 0) {
+          const battle = activeBattles[0];
+          console.log('[LiveLobby] Found active battle:', battle.id, 'redirecting to liveBattle');
 
-      // Also check for waiting battles we created
-      const { data: waitingBattles, error: waitingError } = await supabase
-        .from('battles')
-        .select('*')
-        .eq('player1', session.user.id)
-        .eq('status', 'waiting')
-        .limit(1);
+          // Auto-rejoin the active battle
+          setActiveLiveMatch(battle.id);
+          setView('liveBattle');
+          return;
+        }
 
-      if (!waitingError && waitingBattles && waitingBattles.length > 0) {
-        const battle = waitingBattles[0];
-        console.log('[LiveLobby] Found waiting battle:', battle.id, battle.invite_code);
+        // Also check for waiting battles we created
+        const { data: waitingBattles, error: waitingError } = await supabase
+          .from('battles')
+          .select('*')
+          .eq('player1', session.user.id)
+          .eq('status', 'waiting')
+          .limit(1);
 
-        // Resume waiting for this battle
-        setMode('waiting');
-        setGeneratedInvite(battle.invite_code);
+        console.log('[LiveLobby] Waiting battles query result:', { waitingBattles, waitingError });
 
-        // Poll for player2 to join
-        pollIntervalRef.current = setInterval(async () => {
-          const { data: updatedBattle, error: battleError } = await supabase
-            .from('battles')
-            .select('*')
-            .eq('id', battle.id)
-            .single();
+        if (!waitingError && waitingBattles && waitingBattles.length > 0) {
+          const battle = waitingBattles[0];
+          console.log('[LiveLobby] Found waiting battle:', battle.id, battle.invite_code);
 
-          if (!battleError && updatedBattle.player2) {
-            console.log('[LiveLobby] Opponent joined waiting battle!');
-            clearInterval(pollIntervalRef.current);
-            setActiveLiveMatch(battle.id);
-            setView('liveBattle');
-          }
-        }, 2000);
+          // Resume waiting for this battle
+          setMode('waiting');
+          setGeneratedInvite(battle.invite_code);
+
+          // Poll for player2 to join
+          pollIntervalRef.current = setInterval(async () => {
+            const { data: updatedBattle, error: battleError } = await supabase
+              .from('battles')
+              .select('*')
+              .eq('id', battle.id)
+              .single();
+
+            if (!battleError && updatedBattle.player2) {
+              console.log('[LiveLobby] Opponent joined waiting battle!');
+              clearInterval(pollIntervalRef.current);
+              setActiveLiveMatch(battle.id);
+              setView('liveBattle');
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('[LiveLobby] Error checking for battles:', error);
       }
     };
 
     // Load friends list
     const loadFriends = async () => {
-      // Step 0: Verify authentication session
-      const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
-      if (authError || !authSession) {
-        console.error('No active session for friendships query:', authError);
-        return;
-      }
-      console.log('Auth session verified for friendships:', authSession.user.id);
+      try {
+        console.log('[LiveLobby] Checking auth session...');
+        // Step 0: Verify authentication session
+        const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+
+        console.log('[LiveLobby] Auth check result:', {
+          hasAuth: !!authSession,
+          error: authError
+        });
+
+        if (authError || !authSession) {
+          console.error('[LiveLobby] No active session for friendships query:', authError);
+          return;
+        }
+        console.log('[LiveLobby] Auth session verified for friendships:', authSession.user.id);
 
       // Step 1: Get friendships
       const { data: friendships, error } = await supabase
@@ -156,9 +189,14 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         }
       }
 
-      setFriends(friendsList);
+        setFriends(friendsList);
+        console.log('[LiveLobby] Friends loading completed, set', friendsList.length, 'friends');
+      } catch (error) {
+        console.error('[LiveLobby] Error loading friends:', error);
+      }
     };
 
+    console.log('[LiveLobby] About to run checkForActiveBattles and loadFriends');
     checkForActiveBattles();
     loadFriends();
 

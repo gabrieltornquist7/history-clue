@@ -90,6 +90,13 @@ export default function Page() {
   const inviteChannelRef = useRef(null);
 
   const handleSetView = (newView, payload = null) => {
+    console.log('[Main] handleSetView called:', {
+      oldView: view,
+      newView: newView,
+      payload: payload,
+      hasSession: !!session,
+      userId: session?.user?.id
+    });
     setView(newView);
     setViewPayload(payload);
   };
@@ -194,6 +201,12 @@ export default function Page() {
   };
 
   const renderView = () => {
+    console.log('[Main] renderView called:', {
+      view: view,
+      hasSession: !!session,
+      userId: session?.user?.id
+    });
+
     if (
       (view === "endless" ||
         view === "profile" ||
@@ -206,6 +219,8 @@ export default function Page() {
         view === "liveGame") &&
       !session
     ) {
+      console.log('[Main] No session detected for protected view, redirecting to auth');
+      console.log('[Main] Session state:', session);
       return (
         <Suspense fallback={<LoadingSpinner message="Loading authentication..." />}>
           <Auth setView={handleSetView} />
@@ -238,6 +253,12 @@ export default function Page() {
           </Suspense>
         );
       case "liveLobby":
+        console.log('[Main] Rendering LiveLobby view', {
+          view: view,
+          hasSession: !!session,
+          userId: session?.user?.id,
+          activeLiveMatch: activeLiveMatch
+        });
         return (
           <Suspense fallback={<LoadingSpinner message="Loading battle lobby..." />}>
             <LiveLobbyView
