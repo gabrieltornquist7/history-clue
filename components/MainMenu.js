@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function MainMenu({ setView, session, onSignOut }) {
-  const [streak, setStreak] = useState(0); // stays 0 until streaks table exists
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
   useEffect(() => {
@@ -88,18 +87,6 @@ export default function MainMenu({ setView, session, onSignOut }) {
           </p>
         </div>
         <div className="flex-1 flex justify-end">
-          {session && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur border border-gray-700/40 rounded-full">
-              <div
-                className="w-1 h-1 rounded-full"
-                style={{ backgroundColor: "#d4af37" }}
-              ></div>
-              <span className="font-mono text-xs text-white font-medium">
-                {streak}
-              </span>
-              <span className="text-xs text-gray-400">streak</span>
-            </div>
-          )}
         </div>
       </header>
 

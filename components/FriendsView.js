@@ -155,7 +155,7 @@ export default function FriendsView({ setView, session }) {
         }
       `}</style>
 
-      <header className="p-8 relative z-10">
+      <header className="p-4 sm:p-8 relative z-10">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <button
             onClick={() => setView('menu')}
@@ -163,8 +163,8 @@ export default function FriendsView({ setView, session }) {
           >
             ← Back
           </button>
-          <div className="text-center flex-1 px-4">
-            <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2"
+          <div className="text-center flex-1 px-2 sm:px-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-white mb-2"
                 style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
               Friends
             </h1>
@@ -176,7 +176,7 @@ export default function FriendsView({ setView, session }) {
         </div>
       </header>
 
-      <div className="px-8 pb-8 relative z-10">
+      <div className="px-4 sm:px-8 pb-4 sm:pb-8 relative z-10">
         <div className="max-w-4xl mx-auto">
 
           <div className="mb-8">
@@ -185,7 +185,7 @@ export default function FriendsView({ setView, session }) {
                    backgroundColor: "rgba(0, 0, 0, 0.7)",
                    boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)"
                  }}>
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <input
                   type="text"
                   placeholder="Search for players..."
@@ -248,7 +248,7 @@ export default function FriendsView({ setView, session }) {
                  backgroundColor: "rgba(0, 0, 0, 0.7)",
                  boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)"
                }}>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {loading ? (
                 <div className="text-center py-12">
                   <div className="text-gray-400">Loading...</div>

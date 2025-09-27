@@ -885,16 +885,16 @@ export default function GameView({ setView, challenge = null, session, onChallen
       {/* Results Modal */}
       {results && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div 
-            className="backdrop-blur rounded-xl p-8 max-w-md w-full text-center shadow-2xl slide-up"
+          <div
+            className="backdrop-blur rounded-xl p-4 sm:p-8 max-w-sm sm:max-w-md w-full text-center shadow-2xl slide-up"
             style={{ 
               backgroundColor: 'rgba(0, 0, 0, 0.9)',
               border: '2px solid rgba(212, 175, 55, 0.3)',
               boxShadow: '0 0 80px rgba(0, 0, 0, 0.8)'
             }}
           >
-            <h2 
-              className="text-3xl font-serif font-bold text-white mb-6"
+            <h2
+              className="text-2xl sm:text-3xl font-serif font-bold text-white mb-4 sm:mb-6"
               style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.3)' }}
             >
               Round Complete
@@ -939,9 +939,9 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 boxShadow: '0 0 30px rgba(212, 175, 55, 0.1)'
               }}
             >
-              <h3 
-                className="text-3xl font-serif font-bold mb-2"
-                style={{ 
+              <h3
+                className="text-2xl sm:text-3xl font-serif font-bold mb-2"
+                style={{
                   color: '#d4af37',
                   textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
                 }}
@@ -965,7 +965,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                   +{xpResults.xp_gained.toLocaleString()} XP
                 </p>
                 {xpResults.new_level > xpResults.old_level && (
-                  <p className="font-bold text-2xl text-green-400 animate-pulse mt-2">
+                  <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
                     LEVEL UP! You are now Level {xpResults.new_level}!
                   </p>
                 )}

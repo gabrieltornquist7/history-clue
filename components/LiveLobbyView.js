@@ -228,96 +228,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
   }, [session.user.id]);
 
 
-  const handleRandomMatch = async () => {
-    setMode('searching');
-
-    try {
-      console.log('[LiveLobby] Starting quick match...');
-
-      // Use the quick_match_player function
-      const { data, error } = await supabase.rpc('quick_match_player', {
-        player_id: session.user.id
-      });
-
-      if (error) {
-        console.error('[LiveLobby] Quick match error:', error);
-        alert('Failed to start quick match');
-        setMode(null);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        console.error('[LiveLobby] No data returned from quick match');
-        alert('Failed to start quick match');
-        setMode(null);
-        return;
-      }
-
-      const result = data[0];
-      console.log('[LiveLobby] Quick match result:', result);
-
-      if (result.is_new) {
-        // We created a new battle and are waiting
-        console.log('[LiveLobby] Created new battle, waiting for opponent...');
-        setMode('waiting');
-        setGeneratedInvite(result.invite_code);
-
-        // Poll for player2 to join
-        pollIntervalRef.current = setInterval(async () => {
-          console.log('[LiveLobby] Polling for opponent...');
-
-          const { data: battle, error: battleError } = await supabase
-            .from('battles')
-            .select('*')
-            .eq('id', result.battle_id)
-            .single();
-
-          if (!battleError && battle.player2) {
-            console.log('[LiveLobby] Opponent joined! Starting battle.');
-            clearInterval(pollIntervalRef.current);
-            setActiveLiveMatch(result.battle_id);
-            setView('liveGame');
-          }
-        }, 2000);
-
-        // Stop waiting after 30 seconds
-        setTimeout(() => {
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            handleCancelSearch();
-          }
-        }, 30000);
-
-      } else {
-        // We joined an existing battle
-        console.log('[LiveLobby] Joined existing battle, starting immediately.');
-        setActiveLiveMatch(result.battle_id);
-        setView('liveGame');
-      }
-
-    } catch (error) {
-      console.error('[LiveLobby] Error in quick match:', error);
-      setMode(null);
-    }
-  };
-
-  const handleCancelSearch = async () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-    }
-
-    // Cancel any waiting battles we created
-    if (mode === 'waiting' && generatedInvite) {
-      await supabase
-        .from('battles')
-        .delete()
-        .eq('player1', session.user.id)
-        .eq('status', 'waiting');
-    }
-
-    setMode(null);
-    setGeneratedInvite(null);
-  };
+  // REMOVED: handleRandomMatch and handleCancelSearch functions - Quick Match feature deleted
 
   const handleCreateInvite = async () => {
     try {
@@ -634,7 +545,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       <audio id="join-sound" preload="none">
       </audio>
       {/* Header */}
-      <header className="p-8 relative z-10">
+      <header className="p-4 sm:p-8 relative z-10">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <button 
             onClick={() => setView('menu')} 
@@ -643,7 +554,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
             ← Back to Menu
           </button>
           <div className="text-center">
-            <h1 className="text-3xl font-serif font-bold text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
               Live Battle
             </h1>
             <p className="text-sm text-gray-300">Real-time multiplayer</p>
@@ -652,35 +563,11 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         </div>
       </header>
 
-      <div className="px-8 pb-8 relative z-10">
+      <div className="px-4 sm:px-8 pb-4 sm:pb-8 relative z-10">
         <div className="max-w-2xl mx-auto">
           
           {!mode && (
             <div className="space-y-6">
-              {/* Random Match */}
-              <div 
-                className="backdrop-blur rounded-lg p-8 border transition-all duration-300 hover:border-yellow-500/20"
-                style={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}
-              >
-                <h2 className="text-2xl font-serif font-bold text-white mb-4">Quick Match</h2>
-                <p className="text-gray-300 mb-6">
-                  Get matched with a random opponent for instant battle action.
-                </p>
-                <button
-                  onClick={handleRandomMatch}
-                  className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300"
-                  style={{ 
-                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-                    fontFamily: 'system-ui, -apple-system, sans-serif'
-                  }}
-                >
-                  Find Random Opponent
-                </button>
-              </div>
-
               {/* Join by Code */}
               <div 
                 className="backdrop-blur rounded-lg p-8 border"
@@ -693,13 +580,13 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
                 <p className="text-gray-300 mb-6">
                   Enter a friend&apos;s invite code to join their battle.
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     placeholder="Enter invite code"
-                    className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
+                    className="w-full sm:flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
                     maxLength={6}
                   />
                   <button
@@ -732,27 +619,6 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
             </div>
           )}
 
-          {mode === 'searching' && (
-            <div 
-              className="backdrop-blur rounded-lg p-8 border text-center"
-              style={{ 
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.05)'
-              }}
-            >
-              <div className="mb-6">
-                <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <h2 className="text-2xl font-serif font-bold text-white mb-2">Searching for Opponent</h2>
-                <p className="text-gray-300">Looking for another player to battle...</p>
-              </div>
-              <button
-                onClick={handleCancelSearch}
-                className="px-6 py-3 bg-gray-700 text-white font-medium rounded-md hover:bg-gray-600"
-              >
-                Cancel Search
-              </button>
-            </div>
-          )}
 
           {mode === 'waiting' && generatedInvite && (
             <div 

@@ -116,7 +116,7 @@ export default function LeaderboardView({ setView }) {
         }
       `}</style>
 
-      <header className="p-8 relative z-10">
+      <header className="p-4 sm:p-8 relative z-10">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <button
             onClick={() => setView('menu')}
@@ -124,8 +124,8 @@ export default function LeaderboardView({ setView }) {
           >
             ← Back
           </button>
-          <div className="text-center flex-1 px-4">
-            <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2"
+          <div className="text-center flex-1 px-2 sm:px-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-white mb-2"
                 style={{ letterSpacing: '0.02em', textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}>
               Leaderboard
             </h1>
@@ -137,14 +137,14 @@ export default function LeaderboardView({ setView }) {
         </div>
       </header>
 
-      <div className="px-8 pb-8 relative z-10">
+      <div className="px-4 sm:px-8 pb-4 sm:pb-8 relative z-10">
         <div className="max-w-4xl mx-auto">
           <div className="backdrop-blur rounded-lg overflow-hidden"
                style={{
                  backgroundColor: "rgba(0, 0, 0, 0.7)",
                  boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)"
                }}>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
             {loading ? (
               <div className="text-center py-12">
                 <div className="text-xl text-gray-400 mb-4">Loading scores...</div>
