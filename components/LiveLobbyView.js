@@ -53,6 +53,7 @@ async function fetchJoinableMatchByInvite(inviteCode, uid) {
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
   console.log('[LiveLobby] Component mounting', {
     hasSession: !!session,
+    setViewType: typeof setView,
     userId: session?.user?.id,
     hasSetView: !!setView,
     hasSetActiveLiveMatch: !!setActiveLiveMatch
@@ -545,7 +546,17 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       {/* Audio element for join sound */}
       <audio id="join-sound" preload="none">
       </audio>
-      <GlassBackButton onClick={() => setView('menu')} />
+      <GlassBackButton
+        onClick={() => {
+          console.log('[LiveLobbyView] Back button clicked');
+          if (setView && typeof setView === 'function') {
+            setView('menu');
+          } else {
+            console.error('[LiveLobbyView] setView is not a function:', setView);
+          }
+        }}
+        fallbackUrl="/"
+      />
 
       {/* Header */}
       <header className="p-4 sm:p-6 lg:p-8 relative z-10">

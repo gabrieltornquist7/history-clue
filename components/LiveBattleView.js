@@ -30,6 +30,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 export default function LiveBattleView({ session, battleId, setView }) {
+  console.log('[LiveBattleView] Rendered with setView:', typeof setView);
 
   const [battle, setBattle] = useState(null);
   const [puzzle, setPuzzle] = useState(null);
@@ -813,7 +814,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
       `}</style>
 
       <div className="relative z-10">
-      <GlassBackButton onClick={() => setView('menu')} />
+      <GlassBackButton
+        onClick={() => {
+          console.log('[LiveBattleView] Back button clicked');
+          if (setView && typeof setView === 'function') {
+            setView('menu');
+          } else {
+            console.error('[LiveBattleView] setView is not a function:', setView);
+          }
+        }}
+        fallbackUrl="/"
+      />
 
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-700 p-4">

@@ -30,6 +30,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 export default function GameView({ setView, challenge = null, session, onChallengeComplete, dailyPuzzleInfo = null, onDailyStepComplete = null }) {
+  console.log('[GameView] Rendered with setView:', typeof setView);
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
@@ -436,7 +437,18 @@ export default function GameView({ setView, challenge = null, session, onChallen
         }
       `}</style>
 
-      <GlassBackButton onClick={() => setView(challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu')} />
+      <GlassBackButton
+        onClick={() => {
+          console.log('[GameView] Back button clicked');
+          const targetView = challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu';
+          if (setView && typeof setView === 'function') {
+            setView(targetView);
+          } else {
+            console.error('[GameView] setView is not a function:', setView);
+          }
+        }}
+        fallbackUrl="/"
+      />
 
       {/* Header */}
       <header className="p-8 relative z-10">

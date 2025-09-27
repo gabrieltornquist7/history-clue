@@ -2,8 +2,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
+import GlassBackButton from './GlassBackButton';
 
 export default function ProfileSettingsView({ setView, session }) {
+  console.log('[ProfileSettingsView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [selectedTitle, setSelectedTitle] = useState("");
@@ -120,31 +122,30 @@ export default function ProfileSettingsView({ setView, session }) {
         }
       `}</style>
 
+      <GlassBackButton
+        onClick={() => {
+          console.log('[ProfileSettingsView] Back button clicked');
+          if (setView && typeof setView === 'function') {
+            setView('profile');
+          } else {
+            console.error('[ProfileSettingsView] setView is not a function:', setView);
+          }
+        }}
+        fallbackUrl="/"
+      />
+
       {/* Header */}
       <header className="p-8 relative z-10">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <button
-            onClick={() => setView("profile")}
-            className="px-5 py-2.5 bg-gray-900 text-gray-300 font-medium rounded-md border border-gray-700/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300 relative group"
+        <div className="text-center max-w-7xl mx-auto">
+          <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2">
+            Profile Settings
+          </h1>
+          <p
+            className="text-sm italic font-light"
+            style={{ color: "#d4af37", opacity: 0.9 }}
           >
-            ← Back to Profile
-            <div
-              className="absolute bottom-0 left-5 right-5 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-              style={{ backgroundColor: "#d4af37" }}
-            ></div>
-          </button>
-          <div className="text-center flex-1 mx-8">
-            <h1 className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2">
-              Profile Settings
-            </h1>
-            <p
-              className="text-sm italic font-light"
-              style={{ color: "#d4af37", opacity: 0.9 }}
-            >
-              Customize your profile • Manage preferences
-            </p>
-          </div>
-          <div className="w-24"></div>
+            Customize your profile • Manage preferences
+          </p>
         </div>
       </header>
 

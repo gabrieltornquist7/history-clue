@@ -2,28 +2,44 @@
 "use client";
 import { useEffect, useState } from 'react';
 
-export default function GlassBackButton({ onClick, className = '' }) {
+export default function GlassBackButton({ onClick, fallbackUrl, className = '' }) {
   const [isPressed, setIsPressed] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Fade in animation on mount
     setIsVisible(true);
   }, []);
 
+  const handleClick = (e) => {
+    console.log('[GlassBackButton] Clicked!');
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (onClick && typeof onClick === 'function') {
+      console.log('[GlassBackButton] Calling onClick');
+      onClick();
+    } else if (fallbackUrl) {
+      console.log('[GlassBackButton] Using fallback URL:', fallbackUrl);
+      window.location.href = fallbackUrl;
+    } else {
+      console.error('[GlassBackButton] No onClick handler or fallback URL provided');
+    }
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
       onTouchStart={() => setIsPressed(true)}
       onTouchEnd={() => setIsPressed(false)}
-      className={`fixed top-4 left-4 z-40 ${className}`}
+      className={`fixed top-4 left-4 z-[9999] ${className}`}
       style={{
         // Safe area positioning for notch/status bar
         top: 'max(1rem, env(safe-area-inset-top, 1rem))',
         left: 'max(1rem, env(safe-area-inset-left, 1rem))',
+        pointerEvents: 'auto',
       }}
     >
       <div

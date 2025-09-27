@@ -5,6 +5,7 @@ import { AvatarImage } from '../lib/avatarHelpers';
 import GlassBackButton from './GlassBackButton';
 
 export default function UserProfileView({ setView, userId, onBack }) {
+  console.log('[UserProfileView] Rendered with onBack:', typeof onBack);
   const [userProfile, setUserProfile] = useState(null);
   const [userStats, setUserStats] = useState(null);
   const [recentGames, setRecentGames] = useState([]);
@@ -170,7 +171,17 @@ export default function UserProfileView({ setView, userId, onBack }) {
         }
       `}</style>
 
-      <GlassBackButton onClick={onBack} />
+      <GlassBackButton
+        onClick={() => {
+          console.log('[UserProfileView] Back button clicked');
+          if (onBack && typeof onBack === 'function') {
+            onBack();
+          } else {
+            console.error('[UserProfileView] onBack is not a function:', onBack);
+          }
+        }}
+        fallbackUrl="/"
+      />
 
       <header className="p-8 relative z-10">
         <div className="text-center max-w-4xl mx-auto">

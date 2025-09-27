@@ -6,6 +6,7 @@ import { AvatarImage } from '../lib/avatarHelpers';
 import GlassBackButton from './GlassBackButton';
 
 export default function LeaderboardView({ setView }) {
+  console.log('[LeaderboardView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
   const [endlessLeaderboard, setEndlessLeaderboard] = useState([]);
   const [error, setError] = useState(null);
@@ -117,7 +118,17 @@ export default function LeaderboardView({ setView }) {
         }
       `}</style>
 
-      <GlassBackButton onClick={() => setView('menu')} />
+      <GlassBackButton
+        onClick={() => {
+          console.log('[LeaderboardView] Back button clicked');
+          if (setView && typeof setView === 'function') {
+            setView('menu');
+          } else {
+            console.error('[LeaderboardView] setView is not a function:', setView);
+          }
+        }}
+        fallbackUrl="/"
+      />
 
       <header className="p-4 sm:p-8 relative z-10">
         <div className="text-center max-w-4xl mx-auto">
