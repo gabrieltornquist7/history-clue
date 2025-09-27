@@ -2,8 +2,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useProfileCache } from '../lib/useProfileCache';
-import { SILENT_AUDIO_URL } from '../public/sounds/silence.js';
 
 // Inline implementations to avoid import errors
 function normalizeInvite(code) {
@@ -49,9 +47,6 @@ async function fetchJoinableMatchByInvite(inviteCode, uid) {
 }
 
 export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) {
-  // Use profile cache for optimized profile fetching
-  const { fetchProfiles } = useProfileCache();
-
   const [mode, setMode] = useState(null); // null, 'searching', 'waiting'
   const [inviteCode, setInviteCode] = useState('');
   const [generatedInvite, setGeneratedInvite] = useState(null);
@@ -147,9 +142,13 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         const friendIds = [...new Set(friendships.flatMap(f => [f.user_id_1, f.user_id_2]))].filter(id => id !== session.user.id);
 
         if (friendIds.length > 0) {
-          // Use profile cache instead of direct DB query (much faster!)
-          const profiles = await fetchProfiles(friendIds);
-          console.log('Friend profiles loaded from cache:', profiles.length, 'profiles');
+          // Fetch friend profiles directly
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', friendIds);
+
+          console.log('Friend profiles loaded:', profiles?.length || 0, 'profiles');
 
           if (profiles) {
             friendsList = profiles;
@@ -574,7 +573,7 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
 
       <div className="relative z-10">
       {/* Audio element for join sound */}
-      <audio id="join-sound" preload="none" src={SILENT_AUDIO_URL}>
+      <audio id="join-sound" preload="none">
       </audio>
       {/* Header */}
       <header className="p-8 relative z-10">
