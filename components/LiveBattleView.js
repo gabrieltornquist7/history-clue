@@ -60,6 +60,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [currentRound, setCurrentRound] = useState(null);
   const [firstGuessSubmitted, setFirstGuessSubmitted] = useState(false);
 
+  // Battle state for 3-round system
+  const [battleState, setBattleState] = useState({
+    totalRounds: 3,
+    currentRoundNum: 1,
+    myTotalScore: 0,
+    oppTotalScore: 0,
+    roundScores: [],
+    battleFinished: false,
+    battleWinner: null
+  });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -174,6 +185,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
             case 'clue_revealed':
               if (payload.playerId !== session.user.id) {
                 console.log('Opponent revealed clue:', payload.clueIndex);
+              }
+              break;
+
+            case 'battle_complete':
+              if (payload.playerId !== session.user.id) {
+                console.log('Opponent finished battle:', payload);
+                setBattleState(prev => ({ ...prev, battleFinished: true }));
               }
               break;
 
@@ -348,16 +366,24 @@ export default function LiveBattleView({ session, battleId, setView }) {
   }, [battleId, session.user.id]); // Dependencies intentionally limited to prevent unnecessary re-initialization
 
   const startTimer = () => {
+    // Store start time for mobile stability
+    const startTime = Date.now();
+    const initialTimer = myTimer;
+
     timerRef.current = setInterval(() => {
       setMyTimer(prev => {
-        if (prev <= 1) {
+        // Calculate actual elapsed time (handles mobile background/foreground)
+        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        const actualTimer = Math.max(0, initialTimer - elapsedSeconds);
+
+        if (actualTimer <= 0) {
           clearInterval(timerRef.current);
           if (!myGuess) {
             handleAutoSubmit();
           }
           return 0;
         }
-        return prev - 1;
+        return actualTimer;
       });
     }, 1000);
   };
@@ -544,20 +570,56 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const showResults = (myGuessData, oppGuessData) => {
     console.log('Showing results:', { myGuessData, oppGuessData });
 
-    const myFinalScore = myGuessData.score || 0;
-    const oppFinalScore = oppGuessData.score || 0;
+    const myRoundScore = myGuessData.score || 0;
+    const oppRoundScore = oppGuessData.score || 0;
+    const currentRoundNum = currentRound?.round_no || 1;
+
+    // Update battle state with round results
+    setBattleState(prev => {
+      const newMyTotal = prev.myTotalScore + myRoundScore;
+      const newOppTotal = prev.oppTotalScore + oppRoundScore;
+      const newRoundScores = [...prev.roundScores, {
+        round: currentRoundNum,
+        myScore: myRoundScore,
+        oppScore: oppRoundScore,
+        winner: myRoundScore > oppRoundScore ? 'me' :
+               myRoundScore < oppRoundScore ? 'opponent' : 'tie'
+      }];
+
+      const isFinalRound = currentRoundNum >= 3;
+      const battleWinner = isFinalRound ?
+        (newMyTotal > newOppTotal ? 'me' :
+         newMyTotal < newOppTotal ? 'opponent' : 'tie') : null;
+
+      return {
+        ...prev,
+        myTotalScore: newMyTotal,
+        oppTotalScore: newOppTotal,
+        roundScores: newRoundScores,
+        battleFinished: isFinalRound,
+        battleWinner: battleWinner
+      };
+    });
 
     setRoundResult({
-      myScore: myFinalScore,
-      oppScore: oppFinalScore,
-      winner: myFinalScore > oppFinalScore ? 'me' :
-              myFinalScore < oppFinalScore ? 'opponent' : 'tie'
+      myScore: myRoundScore,
+      oppScore: oppRoundScore,
+      winner: myRoundScore > oppRoundScore ? 'me' :
+              myRoundScore < oppRoundScore ? 'opponent' : 'tie',
+      roundNumber: currentRoundNum
     });
     setGameFinished(true);
 
     // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
+    }
+
+    // If this was round 3, broadcast battle completion
+    if (currentRoundNum >= 3) {
+      broadcastBattleEvent(battleId, 'battle_complete', {
+        playerId: session.user.id
+      });
     }
   };
 
@@ -629,39 +691,42 @@ export default function LiveBattleView({ session, battleId, setView }) {
             return;
           }
 
-          // Create next round after a short delay
-          setTimeout(async () => {
-            try {
-              // Get random puzzle for next round
-              const { data: puzzles, error: puzzleError } = await supabase
-                .from('puzzles')
-                .select('id')
-                .limit(100);
+          // Only create next round if we haven't reached round 3
+          const nextRoundNo = (round.round_no || 1) + 1;
+          if (nextRoundNo <= 3) {
+            // Create next round after a short delay
+            setTimeout(async () => {
+              try {
+                // Get random puzzle for next round
+                const { data: puzzles, error: puzzleError } = await supabase
+                  .from('puzzles')
+                  .select('id')
+                  .limit(100);
 
-              if (puzzleError || !puzzles || puzzles.length === 0) {
-                console.error('Failed to get puzzles for next round');
-                return;
-              }
+                if (puzzleError || !puzzles || puzzles.length === 0) {
+                  console.error('Failed to get puzzles for next round');
+                  return;
+                }
 
-              const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+                const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
 
-              const authSession = await supabase.auth.getSession();
-              console.log('DEBUG session before battle_rounds insert (next round):', authSession?.data?.session?.user?.id);
-              console.log('Round data for context:', { battleId: round.battle_id, nextRoundNo: (round.round_no || 1) + 1 });
+                const authSession = await supabase.auth.getSession();
+                console.log('DEBUG session before battle_rounds insert (next round):', authSession?.data?.session?.user?.id);
+                console.log('Round data for context:', { battleId: round.battle_id, nextRoundNo });
 
-              const { data: newRound, error: createError } = await supabase
-                .from('battle_rounds')
-                .insert({
-                  battle_id: round.battle_id,
-                  round_no: (round.round_no || 1) + 1,
-                  puzzle_id: randomPuzzle.id,
-                  status: 'active',
-                  started_at: new Date().toISOString(),
-                  player1_completed_at: null,
-                  player2_completed_at: null
-                })
-                .select('*')
-                .single();
+                const { data: newRound, error: createError } = await supabase
+                  .from('battle_rounds')
+                  .insert({
+                    battle_id: round.battle_id,
+                    round_no: nextRoundNo,
+                    puzzle_id: randomPuzzle.id,
+                    status: 'active',
+                    started_at: new Date().toISOString(),
+                    player1_completed_at: null,
+                    player2_completed_at: null
+                  })
+                  .select('*')
+                  .single();
 
               console.log('Creating next round:', { newRound, createError });
 
@@ -697,6 +762,16 @@ export default function LiveBattleView({ session, battleId, setView }) {
               console.error('Error setting up next round:', err);
             }
           }, 3000); // 3 second delay to show results
+          } else {
+            console.log('Battle completed after 3 rounds, marking battle as finished');
+            // Mark battle as completed
+            setTimeout(async () => {
+              await supabase
+                .from('battles')
+                .update({ status: 'completed' })
+                .eq('id', round.battle_id);
+            }, 1000);
+          }
 
         } catch (err) {
           console.error('Error finishing round:', err);
@@ -711,6 +786,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
       console.log('New active round detected, resetting game state');
 
       currentRoundId.current = round.id;
+
+      // Update battle state with current round number
+      setBattleState(prev => ({
+        ...prev,
+        currentRoundNum: round.round_no || 1
+      }));
+
       setMyTimer(180);
       setMyClues([1]);
       setMyScore(10000);
@@ -842,6 +924,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
           <div className="text-center flex-1">
             <h1 className="text-2xl font-serif font-bold text-yellow-400">Live Battle</h1>
             <p className="text-sm text-gray-300">vs {opponent?.username || 'Loading...'}</p>
+            <div className="text-xs text-gray-400 mt-1">
+              Round {battleState.currentRoundNum} of {battleState.totalRounds}
+            </div>
+            <div className="flex justify-center gap-4 mt-2 text-sm">
+              <span className="text-green-400">You: {battleState.myTotalScore.toLocaleString()}</span>
+              <span className="text-blue-400">Them: {battleState.oppTotalScore.toLocaleString()}</span>
+            </div>
           </div>
 
           <div className="text-right">
@@ -1228,43 +1317,126 @@ export default function LiveBattleView({ session, battleId, setView }) {
       {/* Results Modal */}
       {gameFinished && roundResult && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-          <div className="bg-gray-900 rounded-xl p-8 max-w-md w-full text-center border-2 border-yellow-500">
-            <h3 className="text-2xl font-serif font-bold text-yellow-400 mb-6">
-              Round Complete!
-            </h3>
-            
-            <div className="space-y-4 mb-6">
-              <div className={`text-3xl font-bold ${
-                roundResult.winner === 'me' ? 'text-green-400' : 
-                roundResult.winner === 'opponent' ? 'text-red-400' : 'text-yellow-400'
-              }`}>
-                {roundResult.winner === 'me' ? '🏆 You Win!' : 
-                 roundResult.winner === 'opponent' ? '💔 You Lose' : '🤝 It\'s a Tie!'}
-              </div>
-              
-              <div className="bg-gray-800 rounded-lg p-4">
-                <div className="flex justify-between mb-2">
-                  <span>Your Score:</span>
-                  <span className="font-bold">{roundResult.myScore.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Opponent Score:</span>
-                  <span className="font-bold">{roundResult.oppScore.toLocaleString()}</span>
-                </div>
-              </div>
+          <div className="bg-gray-900 rounded-xl p-8 max-w-lg w-full text-center border-2 border-yellow-500">
+            {!battleState.battleFinished ? (
+              // Round Result
+              <>
+                <h3 className="text-2xl font-serif font-bold text-yellow-400 mb-6">
+                  Round {roundResult.roundNumber} Complete!
+                </h3>
 
-              <div className="text-green-400">
-                <p className="font-bold">Answer: {puzzle?.city_name}</p>
-                <p>{displayYear(puzzle?.year)}</p>
-              </div>
-            </div>
+                <div className="space-y-4 mb-6">
+                  <div className={`text-3xl font-bold ${
+                    roundResult.winner === 'me' ? 'text-green-400' :
+                    roundResult.winner === 'opponent' ? 'text-red-400' : 'text-yellow-400'
+                  }`}>
+                    {roundResult.winner === 'me' ? '🏆 You Win This Round!' :
+                     roundResult.winner === 'opponent' ? '💔 You Lose This Round' : '🤝 Round Tied!'}
+                  </div>
 
-            <button
-              onClick={() => setView('menu')}
-              className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
-            >
-              Back to Menu
-            </button>
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <div className="flex justify-between mb-2">
+                      <span>Your Round Score:</span>
+                      <span className="font-bold">{roundResult.myScore.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between mb-3">
+                      <span>Opponent Round Score:</span>
+                      <span className="font-bold">{roundResult.oppScore.toLocaleString()}</span>
+                    </div>
+                    <hr className="border-gray-600 my-3" />
+                    <div className="flex justify-between mb-2 text-lg font-bold">
+                      <span>Your Total:</span>
+                      <span className="text-green-400">{battleState.myTotalScore.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Their Total:</span>
+                      <span className="text-blue-400">{battleState.oppTotalScore.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-green-400">
+                    <p className="font-bold">Answer: {puzzle?.city_name}</p>
+                    <p>{displayYear(puzzle?.year)}</p>
+                  </div>
+
+                  <div className="text-yellow-400 text-sm">
+                    {roundResult.roundNumber < 3 ?
+                      `Next round starting soon... (${3 - roundResult.roundNumber} rounds remaining)` :
+                      'Calculating final results...'
+                    }
+                  </div>
+                </div>
+
+                {roundResult.roundNumber >= 3 && (
+                  <button
+                    onClick={() => setView('menu')}
+                    className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
+                  >
+                    View Final Results
+                  </button>
+                )}
+              </>
+            ) : (
+              // Final Battle Result
+              <>
+                <h3 className="text-3xl font-serif font-bold text-yellow-400 mb-6">
+                  Battle Complete!
+                </h3>
+
+                <div className="space-y-6 mb-8">
+                  <div className={`text-4xl font-bold ${
+                    battleState.battleWinner === 'me' ? 'text-green-400' :
+                    battleState.battleWinner === 'opponent' ? 'text-red-400' : 'text-yellow-400'
+                  }`}>
+                    {battleState.battleWinner === 'me' ? '🏆 Victory!' :
+                     battleState.battleWinner === 'opponent' ? '💔 Defeat' : '🤝 Tie Game!'}
+                  </div>
+
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h4 className="text-lg font-bold mb-4 text-yellow-400">Final Scores</h4>
+                    <div className="flex justify-between mb-2 text-xl font-bold">
+                      <span>You:</span>
+                      <span className="text-green-400">{battleState.myTotalScore.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between mb-4 text-xl font-bold">
+                      <span>Opponent:</span>
+                      <span className="text-blue-400">{battleState.oppTotalScore.toLocaleString()}</span>
+                    </div>
+
+                    <hr className="border-gray-600 my-4" />
+
+                    <h5 className="text-sm font-bold mb-3 text-gray-300">Round Breakdown</h5>
+                    {battleState.roundScores.map((round, idx) => (
+                      <div key={idx} className="flex justify-between text-sm mb-1">
+                        <span>Round {round.round}:</span>
+                        <span>{round.myScore.toLocaleString()} - {round.oppScore.toLocaleString()}</span>
+                        <span className={`ml-2 ${
+                          round.winner === 'me' ? 'text-green-400' :
+                          round.winner === 'opponent' ? 'text-red-400' : 'text-yellow-400'
+                        }`}>
+                          {round.winner === 'me' ? 'W' : round.winner === 'opponent' ? 'L' : 'T'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setView('liveLobby')}
+                    className="flex-1 px-6 py-3 bg-blue-700 text-white font-bold rounded hover:bg-blue-600"
+                  >
+                    Play Again
+                  </button>
+                  <button
+                    onClick={() => setView('menu')}
+                    className="flex-1 px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600"
+                  >
+                    Main Menu
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
