@@ -301,10 +301,10 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
 
-          // Update battle to ready (both players present)
+          // Update battle to active (both players present)
           await supabase
             .from('battles')
-            .update({ status: 'ready' })
+            .update({ status: 'active' })
             .eq('id', battle.id);
 
           // Both players found, start battle
@@ -471,29 +471,37 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
         .from('battles')
         .update({
           player2: session.user.id,
-          status: 'ready'  // Set to ready when both players present
+          status: 'active'  // Set to active when both players present
         })
         .eq('id', battle.id)
+        .eq('status', 'waiting')  // Only update if still waiting
         .is('player2', null)  // Only update if player2 is still null (prevent race conditions)
         .select()
         .single();
 
-      if (updateError) {
-        console.error('[LiveLobby] Error joining battle:', updateError);
-        if (updateError.code === '406') {
-          alert('Not authorized to join this battle. Please check you are signed in.');
-        } else if (updateError.code === 'PGRST116') {
-          alert('Battle was already joined by another player.');
-        } else {
-          alert('Failed to join battle. Please try again.');
-        }
-        setJoinLoading(false);
-        return;
-      }
+      if (updateError || !updatedBattle) {
+        console.error('[LiveLobby] Error joining battle:', updateError || 'No data returned');
 
-      if (!updatedBattle) {
-        console.error('[LiveLobby] No battle returned after update');
-        alert('Battle was already joined by another player.');
+        // Better error handling for empty error objects
+        if (!updatedBattle && !updateError) {
+          console.error('[LiveLobby] No battle returned and no error - likely RLS policy issue');
+          alert('Failed to join battle. It may already be full or started.');
+        } else if (updateError) {
+          if (updateError.code === '406') {
+            alert('Not authorized to join this battle. Please check you are signed in.');
+          } else if (updateError.code === 'PGRST116') {
+            alert('Battle was already joined by another player.');
+          } else if (updateError.code === '42501') {
+            alert('Permission denied. Database policy may be blocking the update.');
+          } else if (Object.keys(updateError).length === 0) {
+            // Handle empty error objects
+            alert('Failed to join battle. The battle may already be full or no longer available.');
+          } else {
+            alert(`Failed to join battle: ${updateError.message || updateError.code || 'Unknown error'}`);
+          }
+        } else {
+          alert('Failed to join battle. It may already be full or started.');
+        }
         setJoinLoading(false);
         return;
       }

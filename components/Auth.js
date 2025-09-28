@@ -161,6 +161,7 @@ export default function Auth({ setView }) {
                   className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700/30 rounded-md text-white placeholder-gray-500 focus:border-yellow-500/50 focus:outline-none transition-all"
                   style={{ backdropFilter: 'blur(4px)' }}
                   type="password"
+                  autoComplete="current-password"
                   placeholder="Enter your password"
                   value={password}
                   required

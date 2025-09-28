@@ -114,12 +114,18 @@ export default function Page() {
       setSession(session);
     });
 
-    // Setup invite channel for live battles
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Fixed: Empty dependency array to prevent infinite remounting
+
+  // Separate useEffect for invite channel to avoid remounting loops
+  useEffect(() => {
     let inviteChannel;
     if (session && session.user) {
       inviteChannel = supabase.channel(`invites:${session.user.id}`);
       inviteChannelRef.current = inviteChannel;
-      
+
       inviteChannel
         .on("broadcast", { event: "live_invite" }, ({ payload }) => {
           console.log('Received live invite:', payload);
@@ -132,12 +138,11 @@ export default function Page() {
     }
 
     return () => {
-      subscription.unsubscribe();
       if (inviteChannel) {
         supabase.removeChannel(inviteChannel);
       }
     };
-  }, [session]);
+  }, [session?.user?.id]); // Only depend on user ID, not entire session object
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

@@ -42,6 +42,18 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 export default function LiveBattleView({ session, battleId, setView }) {
   console.log('[LiveBattleView] Rendered with setView:', typeof setView);
 
+  // Debug function to check variable availability
+  const debugVariables = (location) => {
+    console.log(`DEBUG [${location}] Available variables:`, {
+      session: session ? 'exists' : 'undefined',
+      battleId: battleId ? 'exists' : 'undefined',
+      gameDataBattle: gameData?.battle ? 'exists' : 'undefined',
+      gameDataCurrentRound: gameData?.currentRound ? 'exists' : 'undefined',
+      gameDataPuzzle: gameData?.puzzle ? 'exists' : 'undefined',
+      battleState: battleState ? 'exists' : 'undefined'
+    });
+  };
+
   // Separate loading states for better error handling
   const [loadingStates, setLoadingStates] = useState({
     battle: true,
@@ -143,12 +155,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
         // If battle is waiting and both players present, mark as ready
         if (battleData.status === 'waiting' && battleData.player1 && battleData.player2) {
-          console.log('Both players present, marking battle as ready');
+          console.log('Both players present, marking battle as active');
           await supabase
             .from('battles')
-            .update({ status: 'ready' })
+            .update({ status: 'active' })
             .eq('id', battleId);
-          battleData.status = 'ready';
+          battleData.status = 'active';
         }
 
         if (!isMounted) return;
@@ -223,7 +235,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
               break;
 
             case 'round_started':
-              // New round started with server timestamp
+              // New round started - for player2 to receive new round data
+              console.log('Received round_started event:', payload);
+              if (payload.roundNumber && payload.roundId && payload.puzzleId) {
+                // Load the new round and puzzle data
+                loadNewRoundData(payload.roundId, payload.puzzleId, payload.roundNumber);
+              }
               if (payload.roundStartTime) {
                 setServerRoundStartTime(payload.roundStartTime);
                 setBattleGameState('active');
@@ -258,6 +275,42 @@ export default function LiveBattleView({ session, battleId, setView }) {
               console.log('Unknown event:', event, payload);
           }
         });
+
+        // Setup database subscription for round changes
+        const roundsChannel = supabase
+          .channel(`battle-rounds-${battleId}`)
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'battle_rounds',
+            filter: `battle_id=eq.${battleId}`
+          }, (payload) => {
+            console.log('Battle rounds database update:', payload);
+
+            if (payload.eventType === 'INSERT') {
+              // New round created
+              const newRound = payload.new;
+              console.log('New round inserted:', newRound);
+
+              // If this is not the current round, update it
+              if (newRound.id !== gameData.currentRound?.id) {
+                handleRoundUpdate(newRound);
+              }
+            } else if (payload.eventType === 'UPDATE') {
+              // Round updated (scores added)
+              const updatedRound = payload.new;
+              console.log('Round updated:', updatedRound);
+              handleRoundUpdate(updatedRound);
+            }
+          })
+          .subscribe();
+
+        // Store both subscriptions for cleanup
+        const originalUnsubscribe = unsubscribe;
+        unsubscribe = () => {
+          if (originalUnsubscribe) originalUnsubscribe();
+          supabase.removeChannel(roundsChannel);
+        };
 
         // Announce we joined
         setTimeout(() => {
@@ -304,9 +357,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }
         }
 
-        // 5. Create round if none exists and battle is ready (only Player 1)
-        if (!existingRound && battleData.status === 'ready') {
-          console.log('No active round found and battle is ready');
+        // 5. Create round if none exists and battle is active (only Player 1)
+        if (!existingRound && battleData.status === 'active') {
+          console.log('No active round found and battle is active');
 
           // Only Player 1 creates rounds
           if (session.user.id !== battleData.player1) {
@@ -353,7 +406,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
               round_no: 1,
               puzzle_id: randomPuzzle.id,
               status: 'active',
-              started_at: initialRoundStartTime
+              started_at: initialRoundStartTime,
+              p1_score: 0,
+              p2_score: 0
             })
             .select('*')
             .single();
@@ -417,10 +472,10 @@ export default function LiveBattleView({ session, battleId, setView }) {
             setBattleGameState('active');
           }
 
-        } else if (battleData.status === 'ready') {
-          // Battle is ready but no round exists yet - show waiting state
-          setBattleGameState('ready');
-          console.log('Battle ready, waiting for round to be created...');
+        } else if (battleData.status === 'active') {
+          // Battle is active but no round exists yet - show waiting state
+          setBattleGameState('active');
+          console.log('Battle active, waiting for round to be created...');
           return;
         }
 
@@ -521,6 +576,131 @@ export default function LiveBattleView({ session, battleId, setView }) {
     };
   }, [serverRoundStartTime, battleGameState, myGuess]); // Added myGuess to dependencies
 
+  // Battle updates subscription for Player 2 to detect new rounds
+  useEffect(() => {
+    if (!gameData.battle?.id) return;
+
+    console.log('Setting up battle updates subscription for round transitions');
+
+    const battleUpdatesChannel = supabase
+      .channel(`battle-updates-${gameData.battle.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'battles',
+        filter: `id=eq.${gameData.battle.id}`
+      }, async (payload) => {
+        console.log('Battle updated:', payload.new);
+
+        const newCurrentRound = payload.new.current_round;
+        const currentRoundNumber = gameData.currentRound?.round_no || 1;
+
+        if (newCurrentRound > currentRoundNumber) {
+          console.log(`New round detected via battle update! Round ${newCurrentRound}`);
+
+          // Fetch the new round data
+          const { data: newRound, error: roundError } = await supabase
+            .from('battle_rounds')
+            .select('*, puzzle:puzzles(*)')
+            .eq('battle_id', gameData.battle.id)
+            .eq('round_no', newCurrentRound)
+            .maybeSingle();
+
+          if (newRound && !roundError) {
+            console.log('Loading new round from battle update:', newRound);
+
+            // Reset round-specific states
+            setMyGuess(null);
+            setOppGuess(null);
+            setGameFinished(false);
+            setRoundResult(null);
+            setMyTimer(180);
+            setMyClues([1]);
+            setMyScore(10000);
+            setSelectedYear(0);
+            setGuessCoords(null);
+            setFirstGuessSubmitted(false);
+
+            // Update game data
+            setGameData(prev => ({
+              ...prev,
+              currentRound: newRound,
+              puzzle: newRound.puzzle
+            }));
+
+            // Update battle state
+            setBattleState(prev => ({
+              ...prev,
+              currentRoundNum: newCurrentRound
+            }));
+
+            // Set server round start time for timer sync
+            setServerRoundStartTime(new Date(newRound.started_at).getTime());
+
+            console.log(`Successfully loaded round ${newCurrentRound} from battle update`);
+          } else {
+            console.error('Failed to fetch new round from battle update:', roundError);
+
+            // RETRY FALLBACK: Try a different approach after delay
+            console.log('Attempting retry fetch with maybeSingle...');
+            setTimeout(async () => {
+              const { data: retryRound, error: retryError } = await supabase
+                .from('battle_rounds')
+                .select('*, puzzle:puzzles(*)')
+                .eq('battle_id', gameData.battle.id)
+                .eq('round_no', newCurrentRound)
+                .maybeSingle();  // Use maybeSingle instead of single
+
+              if (retryRound && !retryError) {
+                console.log('✅ Retry fetch succeeded:', retryRound);
+
+                // Reset round-specific states
+                setMyGuess(null);
+                setOppGuess(null);
+                setGameFinished(false);
+                setRoundResult(null);
+                setMyTimer(180);
+                setMyClues([1]);
+                setMyScore(10000);
+                setSelectedYear(0);
+                setGuessCoords(null);
+                setFirstGuessSubmitted(false);
+
+                // Update game data
+                setGameData(prev => ({
+                  ...prev,
+                  currentRound: retryRound,
+                  puzzle: retryRound.puzzle
+                }));
+
+                // Update battle state
+                setBattleState(prev => ({
+                  ...prev,
+                  currentRoundNum: newCurrentRound
+                }));
+
+                // Set server round start time for timer sync
+                setServerRoundStartTime(new Date(retryRound.started_at).getTime());
+
+                console.log(`✅ Successfully loaded round ${newCurrentRound} via retry`);
+              } else {
+                console.error('❌ Retry fetch also failed:', retryError);
+                console.log('🔄 Using force sync as last resort...');
+                // Trigger force sync as last resort
+                setTimeout(() => forceSyncRound(), 2000);
+              }
+            }, 1000); // Wait 1 second before retry
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up battle updates subscription');
+      supabase.removeChannel(battleUpdatesChannel);
+    };
+  }, [gameData.battle?.id, gameData.currentRound?.round_no]);
+
 
   const handleRevealClue = async (clueIndex) => {
     if (myClues.includes(clueIndex) || myScore < CLUE_COSTS[clueIndex] || myGuess) return;
@@ -564,6 +744,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   const handleGuessSubmit = async (isAutoSubmit = false) => {
     if (myGuess) return;
+
+    debugVariables('handleGuessSubmit');
 
     const coords = isAutoSubmit ? { lat: 0, lng: 0 } : guessCoords;
     if (!coords && !isAutoSubmit) {
@@ -614,18 +796,23 @@ export default function LiveBattleView({ session, battleId, setView }) {
     });
 
     // Update battle_rounds with completion timestamp
-    const isPlayer1 = session.user.id === battle.player1;
+    if (!gameData.battle) {
+      console.error('No battle data available for completion update');
+      return;
+    }
+
+    const isPlayer1 = session.user.id === gameData.battle.player1;
     const completionField = isPlayer1 ? 'player1_completed_at' : 'player2_completed_at';
 
     // Debug session before update
     const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
     console.log('DEBUG user:', currentSession?.user?.id, 'battle:', {
-      id: battle.id,
-      player1: battle.player1,
-      player2: battle.player2,
-      userIsPlayer1: currentSession?.user?.id === battle.player1,
-      userIsPlayer2: currentSession?.user?.id === battle.player2,
-      userIsAuthorized: currentSession?.user?.id === battle.player1 || currentSession?.user?.id === battle.player2,
+      id: gameData.battle.id,
+      player1: gameData.battle.player1,
+      player2: gameData.battle.player2,
+      userIsPlayer1: currentSession?.user?.id === gameData.battle.player1,
+      userIsPlayer2: currentSession?.user?.id === gameData.battle.player2,
+      userIsAuthorized: currentSession?.user?.id === gameData.battle.player1 || currentSession?.user?.id === gameData.battle.player2,
       sessionError,
       isPlayer1,
       completionField,
@@ -667,8 +854,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
       if (completionError.code === '406') {
         console.error('406 Not Acceptable - RLS authorization failed:', {
           userId: currentSession?.user?.id,
-          battlePlayers: { player1: battle.player1, player2: battle.player2 },
-          userAuthorized: currentSession?.user?.id === battle.player1 || currentSession?.user?.id === battle.player2,
+          battlePlayers: { player1: gameData.battle.player1, player2: gameData.battle.player2 },
+          userAuthorized: currentSession?.user?.id === gameData.battle.player1 || currentSession?.user?.id === gameData.battle.player2,
           message: 'Current session user is not authorized by RLS policy'
         });
       } else if (completionError.code === '400') {
@@ -677,6 +864,21 @@ export default function LiveBattleView({ session, battleId, setView }) {
           conditions: { id: currentRoundId.current },
           message: 'Update call has missing/invalid payload or conditions'
         });
+      }
+    } else {
+      // Successfully updated completion - refetch the round to ensure sync
+      console.log('Completion update successful, refetching round data...');
+      const { data: updatedRound, error: refetchError } = await supabase
+        .from('battle_rounds')
+        .select('*')
+        .eq('id', currentRoundId.current)
+        .maybeSingle();
+
+      if (updatedRound && !refetchError) {
+        console.log('Round data refetched:', updatedRound);
+        setGameData(prev => ({ ...prev, currentRound: updatedRound }));
+      } else {
+        console.error('Error refetching round data:', refetchError);
       }
     }
 
@@ -706,7 +908,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
     const myRoundScore = myGuessData.score || 0;
     const oppRoundScore = oppGuessData.score || 0;
-    const currentRoundNum = currentRound?.round_no || 1;
+    const currentRoundNum = gameData.currentRound?.round_no || 1;
 
     // Update battle state with round results
     setBattleState(prev => {
@@ -754,6 +956,444 @@ export default function LiveBattleView({ session, battleId, setView }) {
       broadcastBattleEvent(battleId, 'battle_complete', {
         playerId: session.user.id
       });
+    } else {
+      // Not the final round - schedule progression to next round
+      console.log(`Round ${currentRoundNum} completed, scheduling next round...`);
+
+      // Check if this is Player 2 and we're going to Round 3
+      const nextRoundNum = currentRoundNum + 1;
+      const isPlayer2 = session.user.id !== gameData.battle?.player1;
+
+      if (isPlayer2 && nextRoundNum === 3) {
+        // Player 2 special polling for Round 3 detection
+        console.log('Player 2 setting up Round 3 detection polling...');
+
+        setTimeout(() => {
+          let pollCount = 0;
+          const maxPolls = 20; // 40 seconds total
+
+          const pollForRound3 = async () => {
+            pollCount++;
+            console.log(`Player2 polling for Round 3 (attempt ${pollCount}/${maxPolls})`);
+
+            const { data: round3, error } = await supabase
+              .from('battle_rounds')
+              .select('*, puzzle:puzzles(*)')
+              .eq('battle_id', gameData.battle.id)
+              .eq('round_no', 3)
+              .maybeSingle();
+
+            if (round3 && !error) {
+              console.log('Player2 found Round 3!', round3);
+
+              // Reset round-specific states
+              setMyGuess(null);
+              setOppGuess(null);
+              setGameFinished(false);
+              setRoundResult(null);
+              setMyTimer(180);
+              setMyClues([1]);
+              setMyScore(10000);
+              setSelectedYear(0);
+              setGuessCoords(null);
+              setFirstGuessSubmitted(false);
+
+              // Update game data with Round 3
+              setGameData(prev => ({
+                ...prev,
+                currentRound: round3,
+                puzzle: round3.puzzle
+              }));
+
+              // Update battle state
+              setBattleState(prev => ({
+                ...prev,
+                currentRoundNum: 3
+              }));
+
+              // Set server round start time for timer sync
+              setServerRoundStartTime(new Date(round3.started_at).getTime());
+
+              console.log('Player2 successfully loaded Round 3');
+              return;
+            }
+
+            if (pollCount < maxPolls) {
+              setTimeout(pollForRound3, 2000);
+            } else {
+              console.error('Player2 timed out waiting for Round 3');
+            }
+          };
+
+          pollForRound3();
+        }, 3000); // Start polling after showing results
+
+      } else {
+        // Original logic for Player 1 or other rounds
+        setTimeout(() => {
+          console.log(`Starting round ${currentRoundNum + 1}`);
+          startNextRound(currentRoundNum + 1);
+        }, 3000); // Show results for 3 seconds before next round
+      }
+    }
+  };
+
+  const startNextRound = async (nextRoundNumber) => {
+    try {
+      console.log(`Creating round ${nextRoundNumber}`);
+      debugVariables('startNextRound');
+
+      // Reset round-specific states
+      setMyGuess(null);
+      setOppGuess(null);
+      setGameFinished(false);
+      setRoundResult(null);
+      setMyTimer(180);
+      setMyClues([1]);
+      setMyScore(10000);
+      setSelectedYear(0);
+      setGuessCoords(null);
+      setFirstGuessSubmitted(false);
+
+      // Update battle state for new round
+      setBattleState(prev => ({
+        ...prev,
+        currentRoundNum: nextRoundNumber
+      }));
+
+      // Only player1 creates the next round in database
+      if (session.user.id === gameData.battle?.player1) {
+        console.log('Player1 creating new round...');
+        console.log('Round creation details:', {
+          userId: session.user.id,
+          battlePlayer1: gameData.battle?.player1,
+          isPlayer1: session.user.id === gameData.battle?.player1,
+          battleId: gameData.battle?.id,
+          nextRoundNumber: nextRoundNumber,
+          currentRound: gameData.currentRound?.round_no
+        });
+
+        // Get a new puzzle (different from current one)
+        const { data: puzzles, error: puzzleError } = await supabase
+          .from('puzzles')
+          .select('*')
+          .neq('id', gameData.puzzle?.id || 0) // Don't repeat puzzles
+          .limit(50);
+
+        if (puzzleError || !puzzles?.length) {
+          console.error('Error fetching new puzzle:', puzzleError);
+          console.log('Available puzzles count:', puzzles?.length);
+          return;
+        }
+
+        console.log(`Found ${puzzles.length} available puzzles`);
+
+        // Pick a random puzzle
+        const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+        console.log('Selected puzzle:', { id: randomPuzzle.id, title: randomPuzzle.title });
+
+        // Check if round already exists
+        const { data: existingRounds } = await supabase
+          .from('battle_rounds')
+          .select('*')
+          .eq('battle_id', gameData.battle.id)
+          .eq('round_no', nextRoundNumber);
+
+        if (existingRounds?.length > 0) {
+          console.log('Round already exists!', existingRounds[0]);
+          setGameData(prev => ({ ...prev, currentRound: existingRounds[0] }));
+          return;
+        }
+
+        // Prepare round data
+        const roundData = {
+          battle_id: gameData.battle.id,
+          round_no: nextRoundNumber,
+          puzzle_id: randomPuzzle.id,
+          started_at: new Date().toISOString(),
+          status: 'active',
+          p1_score: 0,
+          p2_score: 0
+        };
+
+        console.log('Creating round with data:', roundData);
+
+        // Create new round
+        const { data: newRound, error: roundError } = await supabase
+          .from('battle_rounds')
+          .insert(roundData)
+          .select('*, puzzle:puzzles(*)')
+          .single();
+
+        if (roundError?.code === 'PGRST204' || (!roundError && !newRound)) {
+          // Insert succeeded but didn't return data (PGRST204) - fetch it manually
+          console.log('Round created (PGRST204), fetching manually...');
+          console.log('Insert result analysis:', {
+            hasError: !!roundError,
+            errorCode: roundError?.code,
+            errorMessage: roundError?.message,
+            hasData: !!newRound,
+            dataValue: newRound
+          });
+
+          console.log('Attempting manual fetch with:', {
+            battle_id: gameData.battle.id,
+            round_no: nextRoundNumber,
+            table: 'battle_rounds'
+          });
+
+          const { data: fetchedRound, error: fetchError } = await supabase
+            .from('battle_rounds')
+            .select('*, puzzle:puzzles(*)')
+            .eq('battle_id', gameData.battle.id)
+            .eq('round_no', nextRoundNumber)
+            .maybeSingle();
+
+          console.log('Fetch result:', {
+            hasData: !!fetchedRound,
+            dataCount: fetchedRound ? 1 : 0,
+            hasError: !!fetchError,
+            errorDetails: fetchError ? {
+              code: fetchError.code,
+              message: fetchError.message,
+              details: fetchError.details,
+              hint: fetchError.hint,
+              fullError: fetchError
+            } : null
+          });
+
+          if (fetchedRound && !fetchError) {
+            console.log('✅ Fetched new round successfully:', fetchedRound);
+
+            // Update game data
+            setGameData(prev => ({
+              ...prev,
+              currentRound: fetchedRound,
+              puzzle: fetchedRound.puzzle
+            }));
+
+            // Update battle to trigger Player 2 sync
+            await supabase
+              .from('battles')
+              .update({
+                current_round: nextRoundNumber,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', gameData.battle.id);
+
+            // Set server round start time for timer sync
+            setServerRoundStartTime(new Date(fetchedRound.started_at).getTime());
+
+            // Broadcast new round to opponent
+            broadcastBattleEvent(battleId, 'round_started', {
+              roundNumber: nextRoundNumber,
+              roundId: fetchedRound.id,
+              puzzleId: fetchedRound.puzzle_id,
+              roundStartTime: new Date(fetchedRound.started_at).getTime()
+            });
+
+          } else {
+            console.error('❌ Failed to fetch created round:', fetchError);
+            console.error('Fetch error details:', {
+              code: fetchError?.code,
+              message: fetchError?.message,
+              details: fetchError?.details,
+              hint: fetchError?.hint
+            });
+
+            // OPTIMISTIC FALLBACK: Proceed with assumed round data
+            console.log('🔄 Using optimistic fallback approach...');
+
+            const optimisticRound = {
+              id: `temp-${Date.now()}`, // Temporary ID
+              battle_id: gameData.battle.id,
+              round_no: nextRoundNumber,
+              puzzle_id: randomPuzzle.id,
+              puzzle: randomPuzzle,
+              started_at: new Date().toISOString(),
+              p1_score: null,
+              p2_score: null,
+              player1_completed_at: null,
+              player2_completed_at: null
+            };
+
+            console.log('Using optimistic round data:', optimisticRound);
+
+            // Update game data with optimistic round
+            setGameData(prev => ({
+              ...prev,
+              currentRound: optimisticRound,
+              puzzle: randomPuzzle
+            }));
+
+            // Update battle to trigger Player 2 sync (they'll fetch real data)
+            await supabase
+              .from('battles')
+              .update({
+                current_round: nextRoundNumber,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', gameData.battle.id);
+
+            // Set server round start time for timer sync
+            setServerRoundStartTime(new Date(optimisticRound.started_at).getTime());
+
+            // Broadcast new round to opponent
+            broadcastBattleEvent(battleId, 'round_started', {
+              roundNumber: nextRoundNumber,
+              roundId: optimisticRound.id,
+              puzzleId: optimisticRound.puzzle_id,
+              roundStartTime: new Date(optimisticRound.started_at).getTime()
+            });
+
+            console.log('✅ Optimistic fallback completed - round should progress');
+            return;
+          }
+
+        } else if (roundError) {
+          console.error('Round creation failed!');
+          console.error('Error details:', JSON.stringify(roundError, null, 2));
+          console.error('Error code:', roundError.code);
+          console.error('Error message:', roundError.message);
+
+          // Check current session
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          console.log('Current session:', currentSession?.user?.id);
+
+          return;
+
+        } else if (newRound) {
+          console.log('✅ Round created with data:', newRound);
+
+          // Update game data
+          setGameData(prev => ({
+            ...prev,
+            currentRound: newRound,
+            puzzle: newRound.puzzle
+          }));
+
+          // Update battle to trigger Player 2 sync
+          await supabase
+            .from('battles')
+            .update({
+              current_round: nextRoundNumber,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', gameData.battle.id);
+
+          // Set server round start time for timer sync
+          setServerRoundStartTime(new Date(newRound.started_at).getTime());
+
+          // Broadcast new round to opponent
+          broadcastBattleEvent(battleId, 'round_started', {
+            roundNumber: nextRoundNumber,
+            roundId: newRound.id,
+            puzzleId: newRound.puzzle_id,
+            roundStartTime: new Date(newRound.started_at).getTime()
+          });
+        }
+
+      } else {
+        console.log('Player2 waiting for new round...');
+        // Player2 waits for round_started event
+
+        // Failsafe: Poll for new rounds every 2 seconds
+        let pollCount = 0;
+        const maxPolls = 15; // 30 seconds total
+
+        const pollForNewRound = async () => {
+          pollCount++;
+          console.log(`Player2 polling for round ${nextRoundNumber} (attempt ${pollCount}/${maxPolls})`);
+
+          const { data: rounds } = await supabase
+            .from('battle_rounds')
+            .select('*, puzzles(*)')
+            .eq('battle_id', gameData.battle.id)
+            .eq('round_no', nextRoundNumber)
+            .maybeSingle();
+
+          if (rounds) {
+            console.log('Player2 found new round via polling!', rounds);
+            loadNewRoundData(rounds.id, rounds.puzzle_id, nextRoundNumber);
+            return;
+          }
+
+          if (pollCount < maxPolls) {
+            setTimeout(pollForNewRound, 2000);
+          } else {
+            console.error('Player2 timed out waiting for new round');
+          }
+        };
+
+        // Start polling after a short delay
+        setTimeout(pollForNewRound, 2000);
+      }
+
+    } catch (error) {
+      console.error('Error starting next round:', error);
+    }
+  };
+
+  const loadNewRoundData = async (roundId, puzzleId, roundNumber) => {
+    try {
+      console.log(`Player2 loading round ${roundNumber} data...`);
+
+      // Reset round-specific states for player2
+      setMyGuess(null);
+      setOppGuess(null);
+      setGameFinished(false);
+      setRoundResult(null);
+      setMyTimer(180);
+      setMyClues([1]);
+      setMyScore(10000);
+      setSelectedYear(0);
+      setGuessCoords(null);
+      setFirstGuessSubmitted(false);
+
+      // Update battle state for new round
+      setBattleState(prev => ({
+        ...prev,
+        currentRoundNum: roundNumber
+      }));
+
+      // Load the round data
+      const { data: roundData, error: roundError } = await supabase
+        .from('battle_rounds')
+        .select('*')
+        .eq('id', roundId)
+        .maybeSingle();
+
+      if (roundError) {
+        console.error('Error loading round data:', roundError);
+        return;
+      }
+
+      // Load the puzzle data
+      const { data: puzzleData, error: puzzleError } = await supabase
+        .from('puzzles')
+        .select('*, puzzle_translations(*)')
+        .eq('id', puzzleId)
+        .maybeSingle();
+
+      if (puzzleError) {
+        console.error('Error loading puzzle data:', puzzleError);
+        return;
+      }
+
+      // Update game data
+      setGameData(prev => ({
+        ...prev,
+        currentRound: roundData,
+        puzzle: puzzleData
+      }));
+
+      // Set server round start time for timer sync
+      setServerRoundStartTime(new Date(roundData.started_at).getTime());
+
+      console.log(`Player2 loaded round ${roundNumber} successfully`);
+
+    } catch (error) {
+      console.error('Error loading new round data:', error);
     }
   };
 
@@ -778,8 +1418,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
             roundId: round.id,
             status: round.status,
             userIsAuthenticated: !!session?.user?.id,
-            isPlayer1: session?.user?.id === battle?.player1,
-            battlePlayer1: battle?.player1
+            isPlayer1: session?.user?.id === gameData.battle?.player1,
+            battlePlayer1: gameData.battle?.player1
           });
 
           if (!session?.user?.id) {
@@ -888,6 +1528,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     puzzle_id: randomPuzzle.id,
                     status: 'active',
                     started_at: roundStartTime,
+                    p1_score: 0,
+                    p2_score: 0,
                     player1_completed_at: null,
                     player2_completed_at: null
                   })
@@ -1018,7 +1660,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
             .single();
 
           if (!newPuzzleError && newPuzzleData) {
-            setPuzzle(newPuzzleData);
+            setGameData(prev => ({ ...prev, puzzle: newPuzzleData }));
             console.log('Loaded new puzzle for round', round.round_no);
           }
 
@@ -1034,13 +1676,65 @@ export default function LiveBattleView({ session, battleId, setView }) {
   };
 
   const getClueText = (clueNumber) => {
-    return puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];
+    return gameData.puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];
   };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Force sync function for debugging
+  const forceSyncRound = async () => {
+    if (!gameData.battle?.id) return;
+
+    console.log('Force syncing to latest round...');
+
+    const { data: rounds, error } = await supabase
+      .from('battle_rounds')
+      .select('*, puzzle:puzzles(*)')
+      .eq('battle_id', gameData.battle.id)
+      .order('round_no', { ascending: false })
+      .limit(1);
+
+    if (rounds?.[0] && !error) {
+      const latestRound = rounds[0];
+      console.log('Force syncing to round:', latestRound);
+
+      // Reset round-specific states
+      setMyGuess(null);
+      setOppGuess(null);
+      setGameFinished(false);
+      setRoundResult(null);
+      setMyTimer(180);
+      setMyClues([1]);
+      setMyScore(10000);
+      setSelectedYear(0);
+      setGuessCoords(null);
+      setFirstGuessSubmitted(false);
+
+      // Update game data
+      setGameData(prev => ({
+        ...prev,
+        currentRound: latestRound,
+        puzzle: latestRound.puzzle
+      }));
+
+      // Update battle state
+      setBattleState(prev => ({
+        ...prev,
+        currentRoundNum: latestRound.round_no
+      }));
+
+      // Set server round start time for timer sync
+      setServerRoundStartTime(new Date(latestRound.started_at).getTime());
+
+      alert(`Force synced to Round ${latestRound.round_no}`);
+    } else {
+      console.error('Failed to force sync:', error);
+      alert('Force sync failed - check console');
+    }
   };
 
   const displayYear = (year) => {
@@ -1198,6 +1892,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 </div>
               </div>
             )}
+
+            {/* Debug Force Sync Button */}
+            <div className="mb-2">
+              <button
+                onClick={forceSyncRound}
+                className="bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs transition-colors w-full"
+                title="Force sync to latest round (debug)"
+              >
+                🔄 Force Sync Round
+              </button>
+            </div>
 
             {/* Timer */}
             <div className="text-center">

@@ -1,6 +1,8 @@
 // next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Clean configuration - deprecated devtools options removed
+
   // SWC minification is enabled by default in Next.js 13+ - no need to specify
   
   // Optimized image configuration
