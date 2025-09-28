@@ -230,7 +230,32 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
             case 'battle_complete':
               if (payload.playerId !== session.user.id) {
+                console.log('Battle completed - showing final results for Player 2');
+
+                // Make sure Player 2 sees the final results
                 setBattleState(prev => ({ ...prev, battleFinished: true }));
+
+                // If Player 2 doesn't have round results showing, trigger them
+                if (!roundResult && gameData.currentRound) {
+                  const round = gameData.currentRound;
+                  const isPlayer1 = session.user.id === gameData.battle?.player1;
+                  const myScore = isPlayer1 ? round.p1_score : round.p2_score;
+                  const oppScore = isPlayer1 ? round.p2_score : round.p1_score;
+
+                  setRoundResult({
+                    myScore: myScore || 0,
+                    oppScore: oppScore || 0,
+                    winner: myScore > oppScore ? 'me' :
+                            myScore < oppScore ? 'opponent' : 'tie',
+                    roundNumber: round.round_no
+                  });
+                  setGameFinished(true);
+
+                  // Stop timer
+                  if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                  }
+                }
               }
               break;
 
@@ -1604,12 +1629,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
           }, 3000); // 3 second delay to show results
           } else {
             console.log('Battle completed after 3 rounds, marking battle as finished');
-            // Mark battle as completed
+            // Mark battle as completed and broadcast completion
             setTimeout(async () => {
               await supabase
                 .from('battles')
                 .update({ status: 'completed' })
                 .eq('id', round.battle_id);
+
+              // Broadcast battle completion so Player 2 sees final results
+              broadcastBattleEvent(round.battle_id, 'battle_complete', {
+                playerId: session.user.id
+              });
             }, 1000);
           }
 
