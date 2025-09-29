@@ -317,10 +317,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
     if (distance < 50) finalScore += 2000; else if (distance < 200) finalScore += 1000;
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
+    // Initialize XP score for all game modes
+    let xpScore = finalScoreRounded;
+    let endlessLevelProgress = null;
+
     if (session?.user) {
       // For endless mode, apply XP multiplier based on difficulty
-      let xpScore = finalScoreRounded;
-      let endlessLevelProgress = null;
 
       if (!challenge && !dailyPuzzleInfo) {
         // This is endless mode
@@ -364,7 +366,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
     }
 
     // Grant XP for ALL game modes (endless, challenge friend)
-    if (!dailyPuzzleInfo) { // Skip XP for daily challenge as it's handled in app/page.js
+    if (!dailyPuzzleInfo && session?.user) { // Skip XP for daily challenge as it's handled in app/page.js
       console.log('About to award XP:', { user_id: session.user.id, score: xpScore, gameMode: challenge ? 'challenge_friend' : 'endless' });
       const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
         user_id: session.user.id,
