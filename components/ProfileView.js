@@ -30,7 +30,7 @@ export default function ProfileView({ setView, session, userId = null }) {
           supabase
             .from("profiles")
             .select(
-              "username, avatar_url, xp, level, is_founder, titles, selected_title"
+              "username, avatar_url, xp, level, is_founder, titles, selected_title, coins"
             )
             .eq("id", profileId)
             .single(),
@@ -251,6 +251,15 @@ export default function ProfileView({ setView, session, userId = null }) {
                 <div className="p-4 bg-black/50 border border-gray-600/30 rounded-lg">
                   <p className="text-2xl font-bold text-white">{stats?.games_played || 0}</p>
                   <p className="text-sm text-gray-400 uppercase">Games Played</p>
+                </div>
+                <div className="col-span-2 lg:col-span-1 p-4 border rounded-lg" style={{ backgroundColor: 'rgba(255, 215, 0, 0.1)', borderColor: 'rgba(255, 215, 0, 0.3)' }}>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span className="text-xl">🪙</span>
+                    <p className="text-2xl font-bold" style={{ color: '#ffd700' }}>
+                      {(profile?.coins || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-400 uppercase text-center">Coins</p>
                 </div>
               </div>
             </div>

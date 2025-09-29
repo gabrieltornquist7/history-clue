@@ -86,6 +86,7 @@ export default function Page() {
   const [activeDailyPuzzle, setActiveDailyPuzzle] = useState(null);
   const [activeLiveMatch, setActiveLiveMatch] = useState(null);
   const [incomingInvite, setIncomingInvite] = useState(null);
+  const [dailyChallengeCoins, setDailyChallengeCoins] = useState(null);
 
   const inviteChannelRef = useRef(null);
 
@@ -99,6 +100,12 @@ export default function Page() {
     });
     console.log('[Main] handleSetView function type:', typeof handleSetView);
     console.log('[Main] setView function type:', typeof setView);
+
+    // Clear daily challenge coins when leaving daily view
+    if (view === "daily" && newView !== "daily") {
+      setDailyChallengeCoins(null);
+    }
+
     setView(newView);
     setViewPayload(payload);
   };
@@ -224,6 +231,13 @@ export default function Page() {
 
           if (coinError) {
             console.error('Error awarding daily challenge coins:', coinError);
+          } else {
+            console.log('Daily challenge coins awarded:', coinsEarned, 'for level:', highestLevel);
+            // Store coin results for display
+            setDailyChallengeCoins({
+              coinsEarned: coinsEarned,
+              levelReached: highestLevel
+            });
           }
         }
       }
@@ -358,6 +372,7 @@ export default function Page() {
               setView={handleSetView}
               session={session}
               setActiveDailyPuzzle={setActiveDailyPuzzle}
+              coinResults={dailyChallengeCoins}
             />
           </Suspense>
         );

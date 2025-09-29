@@ -12,6 +12,7 @@ export default function DailyChallengeView({
   setView,
   session,
   setActiveDailyPuzzle,
+  coinResults,
 }) {
   console.log('[DailyChallengeView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
@@ -440,11 +441,11 @@ export default function DailyChallengeView({
                       boxShadow: '0 0 30px rgba(212, 175, 55, 0.1)'
                     }}
                   >
-                    <div className="grid grid-cols-2 gap-8 text-center">
+                    <div className={`grid ${coinResults ? 'grid-cols-3' : 'grid-cols-2'} gap-8 text-center`}>
                       <div>
-                        <p 
+                        <p
                           className="text-5xl font-bold mb-2"
-                          style={{ 
+                          style={{
                             color: '#d4af37',
                             textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
                           }}
@@ -454,9 +455,9 @@ export default function DailyChallengeView({
                         <p className="text-sm text-gray-400 uppercase tracking-wider">Puzzles Completed</p>
                       </div>
                       <div>
-                        <p 
+                        <p
                           className="text-5xl font-bold mb-2"
-                          style={{ 
+                          style={{
                             color: '#d4af37',
                             textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
                           }}
@@ -465,6 +466,23 @@ export default function DailyChallengeView({
                         </p>
                         <p className="text-sm text-gray-400 uppercase tracking-wider">Total Score</p>
                       </div>
+                      {coinResults && (
+                        <div>
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <span className="text-3xl">🪙</span>
+                            <p
+                              className="text-4xl font-bold"
+                              style={{
+                                color: '#ffd700',
+                                textShadow: '0 0 20px rgba(255, 215, 0, 0.5)'
+                              }}
+                            >
+                              {coinResults.coinsEarned.toLocaleString()}
+                            </p>
+                          </div>
+                          <p className="text-sm text-gray-400 uppercase tracking-wider">Coins Earned</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   

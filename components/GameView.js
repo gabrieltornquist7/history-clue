@@ -390,6 +390,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
         if (coinError) {
           console.error('Error awarding coins:', coinError);
         } else {
+          console.log('Endless mode coins awarded:', coinsEarned, 'for difficulty:', difficulty);
           setCoinResults({
             coinsEarned: coinsEarned,
             difficulty: difficulty,
@@ -450,6 +451,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
           // Set coin results if current user is the winner
           if (session.user.id === winnerId) {
+            console.log('Challenge friend coins awarded: 50 (winner)');
             setCoinResults({
               coinsEarned: 50,
               result: 'win',
@@ -457,6 +459,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
             });
           } else {
             // Current user is the loser, gets 0 coins
+            console.log('Challenge friend coins awarded: 0 (loser)');
             setCoinResults({
               coinsEarned: 0,
               result: 'loss',
@@ -1307,6 +1310,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
             </div>
             
             {/* XP & Coins Rewards */}
+            {/* Debug logging */}
+            {console.log('Results screen - xpResults:', xpResults, 'coinResults:', coinResults)}
             {(xpResults || coinResults) && (
               <div className="space-y-3">
                 {/* XP Display */}
