@@ -9,24 +9,17 @@ export default function MainMenu({ setView, session, onSignOut }) {
     if (!session?.user?.id) return;
 
     const fetchUserProfile = async () => {
-      // Get profile data and endless mode level from users table
+      // Get profile data including endless mode level from profiles table
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, username, is_founder")
+        .select("id, username, is_founder, endless_mode_level")
         .eq("id", session.user.id)
         .single();
 
       if (!profileError && profileData) {
-        // Also get endless mode level from users table
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("endless_mode_level")
-          .eq("id", session.user.id)
-          .single();
-
         setCurrentUserProfile({
           ...profileData,
-          endless_mode_level: userData?.endless_mode_level || 1
+          endless_mode_level: profileData?.endless_mode_level || 1
         });
       }
     };

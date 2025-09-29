@@ -159,7 +159,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
         // Only fetch for endless mode (not challenges or daily puzzles)
         try {
           const { data, error } = await supabase
-            .from('users')
+            .from('profiles')
             .select('endless_mode_level')
             .eq('id', session.user.id)
             .single();
@@ -311,7 +311,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
           // Update user's endless mode level
           const newLevel = endlessModeLevel + 1;
           const { error: levelUpdateError } = await supabase
-            .from('users')
+            .from('profiles')
             .update({ endless_mode_level: newLevel })
             .eq('id', session.user.id);
 

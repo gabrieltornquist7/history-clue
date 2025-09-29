@@ -37,35 +37,32 @@ export default function LeaderboardView({ setView }) {
       setError(null);
 
       try {
-        // Get users with their endless mode levels and profiles
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
+        // Get profiles with their endless mode levels
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
           .select(`
             id,
-            endless_mode_level,
-            profiles (
-              username,
-              avatar_url
-            )
+            username,
+            avatar_url,
+            endless_mode_level
           `)
-          .not('profiles', 'is', null)
           .order('endless_mode_level', { ascending: false });
 
         if (ignore) return;
 
-        if (usersError) {
-          console.error('[LeaderboardView] users error', usersError);
+        if (profilesError) {
+          console.error('[LeaderboardView] profiles error', profilesError);
           setError('Failed to load leaderboard');
           return;
         }
 
         // Transform data for display
-        const leaderboardData = usersData?.map(user => ({
-          user_id: user.id,
-          endless_mode_level: user.endless_mode_level,
+        const leaderboardData = profilesData?.map(profile => ({
+          user_id: profile.id,
+          endless_mode_level: profile.endless_mode_level,
           profiles: {
-            username: user.profiles.username,
-            avatar_url: user.profiles.avatar_url
+            username: profile.username,
+            avatar_url: profile.avatar_url
           }
         }));
 
