@@ -53,9 +53,166 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [xpResults, setXpResults] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
+  const [endlessModeLevel, setEndlessModeLevel] = useState(1);
+  const [endlessLevelResults, setEndlessLevelResults] = useState(null);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
   const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
+
+  // Endless Mode Level System
+  const getEndlessDifficulty = (level) => {
+    const cycleLevel = ((level - 1) % 10) + 1;
+    if (cycleLevel <= 4) return 'easy';
+    if (cycleLevel <= 8) return 'medium';
+    return 'hard';
+  };
+
+  const getScoreThreshold = (level) => {
+    const difficulty = getEndlessDifficulty(level);
+    switch (difficulty) {
+      case 'easy': return 3000;
+      case 'medium': return 5000;
+      case 'hard': return 7500;
+      default: return 3000;
+    }
+  };
+
+  const getDifficultyLabel = (level) => {
+    const difficulty = getEndlessDifficulty(level);
+    const cycleLevel = ((level - 1) % 10) + 1;
+    return {
+      easy: 'Easy',
+      medium: 'Medium',
+      hard: 'Hard'
+    }[difficulty];
+  };
+
+  const getXpMultiplier = (level) => {
+    const difficulty = getEndlessDifficulty(level);
+    switch (difficulty) {
+      case 'easy': return 0.5;    // Lower XP for easy levels
+      case 'medium': return 1.0;  // Normal XP for medium levels
+      case 'hard': return 1.5;    // Higher XP for hard levels
+      default: return 1.0;
+    }
+  };
+
+  // Fetch puzzle based on difficulty level for endless mode
+  const fetchPuzzleByDifficulty = async (difficulty) => {
+    console.log(`Fetching puzzle for difficulty: ${difficulty}`);
+
+    let difficultyFilters = {};
+
+    // Define difficulty criteria based on puzzle attributes
+    switch (difficulty) {
+      case 'easy':
+        // Modern era, major cities/well-known places
+        difficultyFilters = {
+          yearMin: 1900,
+          yearMax: 2025
+        };
+        break;
+
+      case 'medium':
+        // Historical era, variety of locations
+        difficultyFilters = {
+          yearMin: 1500,
+          yearMax: 1899
+        };
+        break;
+
+      case 'hard':
+        // Ancient/medieval era, challenging locations
+        difficultyFilters = {
+          yearMin: -3000,
+          yearMax: 1499
+        };
+        break;
+
+      default:
+        // Fallback to easy
+        difficultyFilters = {
+          yearMin: 1900,
+          yearMax: 2025
+        };
+    }
+
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+
+      try {
+        // Get count of puzzles matching difficulty criteria
+        const { count } = await supabase
+          .from('puzzles')
+          .select('*', { count: 'exact', head: true })
+          .gte('year', difficultyFilters.yearMin)
+          .lte('year', difficultyFilters.yearMax);
+
+        if (count && count > 0) {
+          const randomOffset = Math.floor(Math.random() * count);
+
+          const { data: puzzles, error } = await supabase
+            .from('puzzles')
+            .select('*, puzzle_translations(*)')
+            .gte('year', difficultyFilters.yearMin)
+            .lte('year', difficultyFilters.yearMax)
+            .range(randomOffset, randomOffset)
+            .limit(1);
+
+          if (!error && puzzles && puzzles.length > 0) {
+            console.log(`Found ${difficulty} puzzle:`, puzzles[0].year, puzzles[0].city_name);
+            return puzzles[0];
+          }
+
+          console.log(`Difficulty-based query attempt ${attempts} failed:`, error);
+        }
+      } catch (attemptError) {
+        console.error(`Difficulty fetch attempt ${attempts} failed:`, attemptError);
+      }
+
+      // If difficulty-based selection fails, try falling back to easier criteria
+      if (attempts === maxAttempts - 1 && difficulty !== 'easy') {
+        console.log('Falling back to easier difficulty criteria...');
+        return await fetchPuzzleByDifficulty('easy');
+      }
+    }
+
+    // Ultimate fallback - get any random puzzle
+    console.log('Using ultimate fallback - any random puzzle');
+    const { data: fallbackPuzzles, error: fallbackError } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
+    if (!fallbackError && fallbackPuzzles && fallbackPuzzles.length > 0) {
+      return fallbackPuzzles[0];
+    }
+
+    throw new Error('Unable to load any puzzle');
+  };
+
+  // Fetch user's endless mode level on component load
+  useEffect(() => {
+    const fetchEndlessModeLevel = async () => {
+      if (session?.user && !challenge && !dailyPuzzleInfo) {
+        // Only fetch for endless mode (not challenges or daily puzzles)
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('endless_mode_level')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!error && data) {
+            setEndlessModeLevel(data.endless_mode_level || 1);
+          }
+        } catch (err) {
+          console.error('Error fetching endless mode level:', err);
+        }
+      }
+    };
+
+    fetchEndlessModeLevel();
+  }, [session, challenge, dailyPuzzleInfo]);
 
   // Sound effects
   useEffect(() => {
@@ -99,52 +256,10 @@ export default function GameView({ setView, challenge = null, session, onChallen
             .single();
           if (error) throw error;
           puzzleData = data;
-        } else { 
-          let attempts = 0;
-          const maxAttempts = 3;
-          
-          while (!puzzleData && attempts < maxAttempts) {
-            attempts++;
-            
-            try {
-              const { data: puzzles, error: rpcError } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
-              
-              if (!rpcError && puzzles && puzzles.length > 0) {
-                puzzleData = puzzles[0];
-                break;
-              }
-              
-              console.log(`RPC attempt ${attempts} failed:`, rpcError);
-              
-              const { count } = await supabase
-                .from('puzzles')
-                .select('*', { count: 'exact', head: true });
-              
-              if (count && count > 0) {
-                const randomOffset = Math.floor(Math.random() * count);
-                
-                const { data: directPuzzles, error: directError } = await supabase
-                  .from('puzzles')
-                  .select('*, puzzle_translations(*)')
-                  .range(randomOffset, randomOffset)
-                  .limit(1);
-                
-                if (!directError && directPuzzles && directPuzzles.length > 0) {
-                  puzzleData = directPuzzles[0];
-                  break;
-                }
-                
-                console.log(`Direct query attempt ${attempts} failed:`, directError);
-              }
-              
-            } catch (attemptError) {
-              console.error(`Attempt ${attempts} failed:`, attemptError);
-            }
-          }
-          
-          if (!puzzleData) {
-            throw new Error("Unable to load puzzle after multiple attempts. Please try again later.");
-          }
+        } else {
+          // Endless mode - fetch puzzle based on difficulty level
+          const currentDifficulty = getEndlessDifficulty(endlessModeLevel);
+          puzzleData = await fetchPuzzleByDifficulty(currentDifficulty);
         }
         
         if (!puzzleData) {
@@ -176,7 +291,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
       }
     };
     fetchPuzzleData();
-  }, [challenge, gameKey, dailyPuzzleInfo]);
+  }, [challenge, gameKey, dailyPuzzleInfo, endlessModeLevel]);
 
   const handleMapGuess = (latlng) => { setGuessCoords(latlng); };
   
@@ -217,9 +332,54 @@ export default function GameView({ setView, challenge = null, session, onChallen
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
     if (session?.user) {
+      // For endless mode, apply XP multiplier based on difficulty
+      let xpScore = finalScoreRounded;
+      let endlessLevelProgress = null;
+
+      if (!challenge && !dailyPuzzleInfo) {
+        // This is endless mode
+        const xpMultiplier = getXpMultiplier(endlessModeLevel);
+        xpScore = Math.round(finalScoreRounded * xpMultiplier);
+
+        // Check if user passed the current endless mode level
+        const threshold = getScoreThreshold(endlessModeLevel);
+        const passedLevel = finalScoreRounded >= threshold;
+
+        if (passedLevel) {
+          // Update user's endless mode level
+          const newLevel = endlessModeLevel + 1;
+          const { error: levelUpdateError } = await supabase
+            .from('users')
+            .update({ endless_mode_level: newLevel })
+            .eq('id', session.user.id);
+
+          if (!levelUpdateError) {
+            setEndlessModeLevel(newLevel);
+            endlessLevelProgress = {
+              oldLevel: endlessModeLevel,
+              newLevel: newLevel,
+              threshold: threshold,
+              score: finalScoreRounded,
+              passed: true
+            };
+          }
+        } else {
+          endlessLevelProgress = {
+            oldLevel: endlessModeLevel,
+            newLevel: endlessModeLevel,
+            threshold: threshold,
+            score: finalScoreRounded,
+            passed: false
+          };
+        }
+
+        setEndlessLevelResults(endlessLevelProgress);
+      }
+
+      // Grant XP (with multiplier for endless mode)
       const { data: xpData, error: xpError } = await supabase.rpc('grant_xp', {
         p_user_id: session.user.id,
-        p_score: finalScoreRounded
+        p_score: xpScore
       });
 
       if (xpError) {
@@ -483,12 +643,22 @@ export default function GameView({ setView, challenge = null, session, onChallen
               ) : challenge ? (
                 `Challenge - Round ${challenge.current_round}`
               ) : (
-                'Endless Mode'
+                <>
+                  Endless Mode - Level {endlessModeLevel}
+                  <span className="block text-xs" style={{ color: '#d4af37' }}>
+                    ({getDifficultyLabel(endlessModeLevel)} Difficulty)
+                  </span>
+                </>
               )}
             </p>
             {dailyPuzzleInfo && (
               <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
                 Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
+              </p>
+            )}
+            {!challenge && !dailyPuzzleInfo && (
+              <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
+                Score to Pass Level: {getScoreThreshold(endlessModeLevel).toLocaleString()}
               </p>
             )}
           </div>
@@ -1032,10 +1202,37 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 <p className="text-white">Your guess was <span className="font-bold">{results.distance} km</span> away</p>
               </div>
             </div>
-            
-            <div 
+
+            {/* Endless Mode Level Results */}
+            {endlessLevelResults && (
+              <div
+                className="mb-6 p-4 rounded-lg border-2"
+                style={{
+                  backgroundColor: endlessLevelResults.passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  borderColor: endlessLevelResults.passed ? '#22c55e' : '#ef4444'
+                }}
+              >
+                <p className={`text-xl font-bold ${endlessLevelResults.passed ? 'text-green-400' : 'text-red-400'}`}>
+                  {endlessLevelResults.passed ? '✓ Level Passed!' : '✗ Level Not Passed'}
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Threshold: {endlessLevelResults.threshold.toLocaleString()} |
+                  Your Score: {endlessLevelResults.score.toLocaleString()}
+                </p>
+                {endlessLevelResults.passed && (
+                  <p className="font-bold text-lg text-green-400 animate-pulse mt-2">
+                    ENDLESS MODE LEVEL UP! Now Level {endlessLevelResults.newLevel}!
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 mt-2">
+                  Difficulty: {getDifficultyLabel(endlessLevelResults.passed ? endlessLevelResults.oldLevel : endlessLevelResults.newLevel)}
+                </p>
+              </div>
+            )}
+
+            <div
               className="mb-6 p-6 rounded-lg border"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(212, 175, 55, 0.1)',
                 border: '2px solid rgba(212, 175, 55, 0.3)',
                 boxShadow: '0 0 30px rgba(212, 175, 55, 0.1)'

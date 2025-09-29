@@ -11,6 +11,23 @@ export default function LeaderboardView({ setView }) {
   const [endlessLeaderboard, setEndlessLeaderboard] = useState([]);
   const [error, setError] = useState(null);
 
+  // Endless Mode Level System (same as GameView)
+  const getEndlessDifficulty = (level) => {
+    const cycleLevel = ((level - 1) % 10) + 1;
+    if (cycleLevel <= 4) return 'easy';
+    if (cycleLevel <= 8) return 'medium';
+    return 'hard';
+  };
+
+  const getDifficultyLabel = (level) => {
+    const difficulty = getEndlessDifficulty(level);
+    return {
+      easy: 'Easy',
+      medium: 'Medium',
+      hard: 'Hard'
+    }[difficulty];
+  };
+
 
   useEffect(() => {
     let ignore = false;
@@ -20,58 +37,39 @@ export default function LeaderboardView({ setView }) {
       setError(null);
 
       try {
-        // Get all scores grouped by user with total
-        const { data: scoresData, error: scoresError } = await supabase
-          .from('scores')
-          .select('user_id, score');
+        // Get users with their endless mode levels and profiles
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select(`
+            id,
+            endless_mode_level,
+            profiles (
+              username,
+              avatar_url
+            )
+          `)
+          .not('profiles', 'is', null)
+          .order('endless_mode_level', { ascending: false });
 
         if (ignore) return;
 
-        if (scoresError) {
-          console.error('[LeaderboardView] scores error', scoresError);
+        if (usersError) {
+          console.error('[LeaderboardView] users error', usersError);
           setError('Failed to load leaderboard');
           return;
         }
 
-        // Group by user and calculate totals
-        const userTotals = {};
-        scoresData?.forEach(entry => {
-          if (!userTotals[entry.user_id]) {
-            userTotals[entry.user_id] = 0;
-          }
-          userTotals[entry.user_id] += entry.score;
-        });
-
-        // Get user profiles for all users with scores
-        const userIds = Object.keys(userTotals);
-        if (userIds.length === 0) {
-          setEndlessLeaderboard([]);
-          return;
-        }
-
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url')
-          .in('id', userIds);
-
-        if (profilesError) {
-          console.error('[LeaderboardView] profiles error', profilesError);
-          setError('Failed to load user profiles');
-          return;
-        }
-
-        // Combine data and sort
-        const leaderboardData = profiles?.map(profile => ({
-          user_id: profile.id,
-          score: userTotals[profile.id] || 0,
+        // Transform data for display
+        const leaderboardData = usersData?.map(user => ({
+          user_id: user.id,
+          endless_mode_level: user.endless_mode_level,
           profiles: {
-            username: profile.username,
-            avatar_url: profile.avatar_url
+            username: user.profiles.username,
+            avatar_url: user.profiles.avatar_url
           }
         }));
 
-        // Sort by total score descending
-        leaderboardData?.sort((a, b) => b.score - a.score);
+        // Data is already sorted by endless_mode_level descending from the query
 
         console.log('Successfully fetched leaderboard:', leaderboardData);
         setEndlessLeaderboard(leaderboardData || []);
@@ -137,7 +135,7 @@ export default function LeaderboardView({ setView }) {
             Leaderboard
           </h1>
           <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
-            Top players across all modes
+            Highest Endless Mode levels reached
           </p>
         </div>
       </header>
@@ -195,21 +193,23 @@ export default function LeaderboardView({ setView }) {
                         />
                         <div>
                           <span className="font-bold text-white text-lg">{entry.profiles?.username ?? 'Traveler'}</span>
-                          <div className="text-sm" style={{ color: '#9ca3af' }}>Total Score</div>
+                          <div className="text-sm" style={{ color: '#9ca3af' }}>Endless Mode</div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-xl" style={{ color: '#d4af37' }}>
-                          {entry.score.toLocaleString()}
+                          Level {entry.endless_mode_level}
                         </div>
-                        <div className="text-sm text-gray-400 uppercase tracking-wide">points</div>
+                        <div className="text-sm text-gray-400 uppercase tracking-wide">
+                          {getDifficultyLabel(entry.endless_mode_level)} Difficulty
+                        </div>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-12">
-                    <h3 className="text-xl font-serif text-white mb-4">No Scores Yet</h3>
-                    <p className="text-gray-400 mb-6">Be the first to play and claim the top spot!</p>
+                    <h3 className="text-xl font-serif text-white mb-4">No Endless Mode Players Yet</h3>
+                    <p className="text-gray-400 mb-6">Be the first to reach higher levels in Endless Mode!</p>
                     <button
                       onClick={() => setView('endless')}
                       className="px-6 py-3 font-medium text-white rounded-md transition-all duration-300"
