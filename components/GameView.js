@@ -606,10 +606,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 `Challenge - Round ${challenge.current_round}`
               ) : (
                 <>
-                  Endless Mode - Level {endlessModeLevel}
-                  <span className="block text-xs" style={{ color: '#d4af37' }}>
-                    ({getDifficultyLabel(endlessModeLevel)} Difficulty)
-                  </span>
+                  Level {endlessModeLevel}: {getDifficultyLabel(endlessModeLevel)}
                 </>
               )}
             </p>

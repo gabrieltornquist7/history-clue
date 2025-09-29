@@ -9,14 +9,25 @@ export default function MainMenu({ setView, session, onSignOut }) {
     if (!session?.user?.id) return;
 
     const fetchUserProfile = async () => {
-      const { data, error } = await supabase
+      // Get profile data and endless mode level from users table
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("id, username, is_founder")
         .eq("id", session.user.id)
         .single();
 
-      if (!error && data) {
-        setCurrentUserProfile(data);
+      if (!profileError && profileData) {
+        // Also get endless mode level from users table
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("endless_mode_level")
+          .eq("id", session.user.id)
+          .single();
+
+        setCurrentUserProfile({
+          ...profileData,
+          endless_mode_level: userData?.endless_mode_level || 1
+        });
       }
     };
 
@@ -149,7 +160,10 @@ export default function MainMenu({ setView, session, onSignOut }) {
                   onClick={() => setView("endless")}
                   className="px-5 py-3.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 relative group border border-gray-700/20"
                 >
-                  Endless Mode
+                  {currentUserProfile?.endless_mode_level
+                    ? `Level ${currentUserProfile.endless_mode_level}`
+                    : 'Endless Mode'
+                  }
                 </button>
                 <button
                   onClick={() => setView("challenge")}
