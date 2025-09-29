@@ -242,13 +242,15 @@ export default function Page() {
         }
 
         if (coinsEarned > 0) {
-          const { error: coinError } = await supabase.rpc('award_coins', {
+          const dailyCoinParams = {
             p_user_id: session.user.id,
             p_amount: coinsEarned,
             p_source: 'daily_challenge',
             p_game_mode: 'daily',
             p_metadata: { level_reached: highestLevel }
-          });
+          };
+          console.log('Daily challenge award_coins parameters:', dailyCoinParams);
+          const { error: coinError } = await supabase.rpc('award_coins', dailyCoinParams);
 
           if (coinError) {
             console.error('Error awarding daily challenge coins:', coinError);

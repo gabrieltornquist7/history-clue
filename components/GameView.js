@@ -401,13 +401,25 @@ export default function GameView({ setView, challenge = null, session, onChallen
           dailyPuzzleInfo: !!dailyPuzzleInfo
         });
 
-        const { data: coinData, error: coinError } = await supabase.rpc('award_coins', {
+        const coinParams = {
           p_user_id: session.user.id,
           p_amount: coinsEarned,
           p_source: `endless_${difficulty}`,
           p_game_mode: 'endless',
           p_metadata: { difficulty: difficulty, level: endlessModeLevel }
-        });
+        };
+        console.log('award_coins parameters:', coinParams);
+
+        let coinData, coinError;
+        try {
+          const result = await supabase.rpc('award_coins', coinParams);
+          coinData = result.data;
+          coinError = result.error;
+          console.log('award_coins RPC response:', { data: coinData, error: coinError });
+        } catch (rpcError) {
+          console.error('award_coins RPC catch error:', rpcError);
+          coinError = rpcError;
+        }
 
         if (coinError) {
           console.error('Error awarding coins:', coinError);
@@ -464,13 +476,15 @@ export default function GameView({ setView, challenge = null, session, onChallen
           const loserId = winnerId === challenge.challenger_id ? challenge.opponent_id : challenge.challenger_id;
 
           // Award coins to winner (50 coins)
-          const { error: winnerCoinError } = await supabase.rpc('award_coins', {
+          const winnerCoinParams = {
             p_user_id: winnerId,
             p_amount: 50,
             p_source: 'challenge_friend_win',
             p_game_mode: 'challenge_friend',
             p_metadata: { opponent_id: loserId, challenge_id: challenge.id }
-          });
+          };
+          console.log('Challenge friend award_coins parameters:', winnerCoinParams);
+          const { error: winnerCoinError } = await supabase.rpc('award_coins', winnerCoinParams);
 
           if (winnerCoinError) {
             console.error('Error awarding coins to winner:', winnerCoinError);
@@ -1397,13 +1411,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
                           textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
                         }}
                       >
-                        +{coinResults.coinsEarned.toLocaleString()} Coins
+                        +{coinResults?.coinsEarned?.toLocaleString() || 0} Coins
                       </p>
                     </div>
                     <p className="text-sm text-gray-300 text-center">
-                      {coinResults.gameMode === 'challenge_friend'
-                        ? (coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
-                        : coinResults.difficulty
+                      {coinResults?.gameMode === 'challenge_friend'
+                        ? (coinResults?.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                        : coinResults?.difficulty
                         ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
                         : 'Daily Challenge Reward'
                       }
