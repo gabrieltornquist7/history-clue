@@ -34,20 +34,54 @@ export default function DailyChallengeView({
       try {
         console.log('Fetching daily challenge data...');
         
-        // Create/get today's daily puzzle set
-        const { data: dailyData, error: dailyError } = await supabase
-          .rpc('create_daily_puzzle_set', { p_language_code: 'en' });
+        // Get today's daily puzzle set (5 puzzles, difficulty 1-5)
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+        // Fetch today's 5 daily challenge puzzles (one for each difficulty level)
+        const { data: dailyPuzzles, error: dailyError } = await supabase
+          .from('daily_challenge_puzzles')
+          .select(`
+            id,
+            city_name,
+            historical_entity,
+            year,
+            latitude,
+            longitude,
+            country_code,
+            difficulty_level,
+            scheduled_date,
+            is_active,
+            daily_challenge_translations!daily_challenge_id (
+              language_code,
+              clue_1_text,
+              clue_2_text,
+              clue_3_text,
+              clue_4_text,
+              clue_5_text
+            )
+          `)
+          .eq('scheduled_date', today)
+          .eq('is_active', true)
+          .eq('daily_challenge_translations.language_code', 'en')
+          .in('difficulty_level', [1, 2, 3, 4, 5])
+          .order('difficulty_level', { ascending: true });
 
         if (dailyError) {
-          console.error('Error creating daily puzzle set:', dailyError);
-          throw new Error(`Failed to create daily puzzle set: ${dailyError.message}`);
+          console.error('Error fetching daily puzzles:', dailyError);
+          throw new Error(`Failed to fetch daily puzzles: ${dailyError.message}`);
         }
 
-        if (!dailyData || dailyData.length === 0) {
-          throw new Error('No daily puzzle data returned');
+        if (!dailyPuzzles || dailyPuzzles.length !== 5) {
+          throw new Error(`Invalid daily puzzle set - expected 5 puzzles, got ${dailyPuzzles?.length || 0}. Check if puzzles are scheduled for ${today}.`);
         }
 
-        const todaysPuzzle = dailyData[0];
+        // Create a puzzle set object that matches expected structure
+        const todaysPuzzle = {
+          id: `daily-${today}`, // Use date as consistent ID
+          puzzle_ids: dailyPuzzles.map(p => p.id),
+          scheduled_date: today,
+          puzzles: dailyPuzzles
+        };
         console.log('Daily puzzle data:', todaysPuzzle);
         
         setDailyPuzzleSet(todaysPuzzle);
