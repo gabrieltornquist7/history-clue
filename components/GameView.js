@@ -101,42 +101,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const fetchPuzzleByDifficulty = async (difficulty) => {
     console.log(`Fetching puzzle for difficulty: ${difficulty}`);
 
-    let difficultyFilters = {};
-
-    // Define difficulty criteria based on puzzle attributes
-    switch (difficulty) {
-      case 'easy':
-        // Modern era, major cities/well-known places
-        difficultyFilters = {
-          yearMin: 1900,
-          yearMax: 2025
-        };
-        break;
-
-      case 'medium':
-        // Historical era, variety of locations
-        difficultyFilters = {
-          yearMin: 1500,
-          yearMax: 1899
-        };
-        break;
-
-      case 'hard':
-        // Ancient/medieval era, challenging locations
-        difficultyFilters = {
-          yearMin: -3000,
-          yearMax: 1499
-        };
-        break;
-
-      default:
-        // Fallback to easy
-        difficultyFilters = {
-          yearMin: 1900,
-          yearMax: 2025
-        };
-    }
-
     let attempts = 0;
     const maxAttempts = 3;
 
@@ -148,8 +112,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
         const { count } = await supabase
           .from('puzzles')
           .select('*', { count: 'exact', head: true })
-          .gte('year', difficultyFilters.yearMin)
-          .lte('year', difficultyFilters.yearMax);
+          .eq('difficulty', difficulty);
 
         if (count && count > 0) {
           const randomOffset = Math.floor(Math.random() * count);
@@ -157,13 +120,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
           const { data: puzzles, error } = await supabase
             .from('puzzles')
             .select('*, puzzle_translations(*)')
-            .gte('year', difficultyFilters.yearMin)
-            .lte('year', difficultyFilters.yearMax)
+            .eq('difficulty', difficulty)
             .range(randomOffset, randomOffset)
             .limit(1);
 
           if (!error && puzzles && puzzles.length > 0) {
-            console.log(`Found ${difficulty} puzzle:`, puzzles[0].year, puzzles[0].city_name);
+            console.log(`Found ${difficulty} puzzle:`, puzzles[0].id, puzzles[0].city_name);
             return puzzles[0];
           }
 
@@ -175,12 +137,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
       // If difficulty-based selection fails, try falling back to easier criteria
       if (attempts === maxAttempts - 1 && difficulty !== 'easy') {
-        console.log('Falling back to easier difficulty criteria...');
+        console.log('Falling back to easy difficulty...');
         return await fetchPuzzleByDifficulty('easy');
       }
     }
 
-    // Ultimate fallback - get any random puzzle
+    // Ultimate fallback - get any random puzzle (no difficulty filter)
     console.log('Using ultimate fallback - any random puzzle');
     const { data: fallbackPuzzles, error: fallbackError } = await supabase.rpc('get_random_puzzles', { limit_count: 1 });
     if (!fallbackError && fallbackPuzzles && fallbackPuzzles.length > 0) {
