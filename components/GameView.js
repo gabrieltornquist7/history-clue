@@ -51,6 +51,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [error, setError] = useState(null);
   const [gameKey, setGameKey] = useState(0);
   const [xpResults, setXpResults] = useState(null);
+  const [coinResults, setCoinResults] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [endlessModeLevel, setEndlessModeLevel] = useState(1);
@@ -94,6 +95,16 @@ export default function GameView({ setView, challenge = null, session, onChallen
       case 'medium': return 1.0;  // Normal XP for medium levels
       case 'hard': return 1.5;    // Higher XP for hard levels
       default: return 1.0;
+    }
+  };
+
+  const getCoinReward = (level) => {
+    const difficulty = getEndlessDifficulty(level);
+    switch (difficulty) {
+      case 'easy': return 15;     // Easy difficulty: 15 coins
+      case 'medium': return 25;   // Medium difficulty: 25 coins
+      case 'hard': return 35;     // Hard difficulty: 35 coins
+      default: return 15;
     }
   };
 
@@ -193,6 +204,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
     const fetchPuzzleData = async () => {
       setResults(null);
       setXpResults(null);
+      setCoinResults(null);
+      setEndlessLevelResults(null);
       setUnlockedClues([1]);
       setScore(10000);
       setSelectedYear(0);
@@ -360,6 +373,30 @@ export default function GameView({ setView, challenge = null, session, onChallen
       } else {
         setXpResults(xpData);
       }
+
+      // Award coins for endless mode
+      if (!challenge && !dailyPuzzleInfo) {
+        const coinsEarned = getCoinReward(endlessModeLevel);
+        const difficulty = getEndlessDifficulty(endlessModeLevel);
+
+        const { data: coinData, error: coinError } = await supabase.rpc('award_coins', {
+          user_id: session.user.id,
+          amount: coinsEarned,
+          source: `endless_${difficulty}`,
+          game_mode: 'endless',
+          metadata: { difficulty: difficulty, level: endlessModeLevel }
+        });
+
+        if (coinError) {
+          console.error('Error awarding coins:', coinError);
+        } else {
+          setCoinResults({
+            coinsEarned: coinsEarned,
+            difficulty: difficulty,
+            level: endlessModeLevel
+          });
+        }
+      }
     }
 
     if (challenge) {
@@ -392,6 +429,41 @@ export default function GameView({ setView, challenge = null, session, onChallen
             else if (opponentWins > challengerWins) updateData.winner_id = challenge.opponent_id;
         }
         await supabase.from('challenges').update(updateData).eq('id', challenge.id);
+
+        // Award coins for completed challenge friend match
+        if(isMatchOver && updateData.winner_id) {
+          const winnerId = updateData.winner_id;
+          const loserId = winnerId === challenge.challenger_id ? challenge.opponent_id : challenge.challenger_id;
+
+          // Award coins to winner (50 coins)
+          const { error: winnerCoinError } = await supabase.rpc('award_coins', {
+            user_id: winnerId,
+            amount: 50,
+            source: 'challenge_friend_win',
+            game_mode: 'challenge_friend',
+            metadata: { opponent_id: loserId, challenge_id: challenge.id }
+          });
+
+          if (winnerCoinError) {
+            console.error('Error awarding coins to winner:', winnerCoinError);
+          }
+
+          // Set coin results if current user is the winner
+          if (session.user.id === winnerId) {
+            setCoinResults({
+              coinsEarned: 50,
+              result: 'win',
+              gameMode: 'challenge_friend'
+            });
+          } else {
+            // Current user is the loser, gets 0 coins
+            setCoinResults({
+              coinsEarned: 0,
+              result: 'loss',
+              gameMode: 'challenge_friend'
+            });
+          }
+        }
     } else if (!dailyPuzzleInfo) {
         await supabase.from('scores').insert({ user_id: session.user.id, score: finalScoreRounded });
     }
@@ -410,10 +482,16 @@ export default function GameView({ setView, challenge = null, session, onChallen
     setShowConfirmModal(false);
   };
 
-  const handlePlayAgain = () => { 
-    if (challenge) onChallengeComplete(); 
-    else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore); 
-    else { setGameKey(prevKey => prevKey + 1); } 
+  const handlePlayAgain = () => {
+    // Reset results for next game
+    setCoinResults(null);
+    setXpResults(null);
+    setResults(null);
+    setEndlessLevelResults(null);
+
+    if (challenge) onChallengeComplete();
+    else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore);
+    else { setGameKey(prevKey => prevKey + 1); }
   };
   
   const displayYear = (year) => {
@@ -1228,38 +1306,77 @@ export default function GameView({ setView, challenge = null, session, onChallen
               </h3>
             </div>
             
-            {xpResults && (
-              <div
-                className="p-4 rounded-lg"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-              >
-                <p 
-                  className="font-bold text-lg"
-                  style={{ 
-                    color: '#d4af37',
-                    textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
-                  }}
-                >
-                  +{xpResults.xp_gained.toLocaleString()} XP
-                </p>
-                {xpResults.new_level > xpResults.old_level && (
-                  <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
-                    LEVEL UP! You are now Level {xpResults.new_level}!
-                  </p>
+            {/* XP & Coins Rewards */}
+            {(xpResults || coinResults) && (
+              <div className="space-y-3">
+                {/* XP Display */}
+                {xpResults && (
+                  <div
+                    className="p-4 rounded-lg"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                  >
+                    <p
+                      className="font-bold text-lg"
+                      style={{
+                        color: '#d4af37',
+                        textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                      }}
+                    >
+                      +{xpResults.xp_gained.toLocaleString()} XP
+                    </p>
+                    {xpResults.new_level > xpResults.old_level && (
+                      <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
+                        LEVEL UP! You are now Level {xpResults.new_level}!
+                      </p>
+                    )}
+                    <div className="w-full bg-gray-700 rounded-full h-3 my-3 overflow-hidden">
+                      <div
+                        className="h-3 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${(xpResults.new_xp / xpResults.xp_for_new_level) * 100}%`,
+                          backgroundColor: '#d4af37',
+                          boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {xpResults.new_xp.toLocaleString()} / {xpResults.xp_for_new_level.toLocaleString()} XP
+                    </p>
+                  </div>
                 )}
-                <div className="w-full bg-gray-700 rounded-full h-3 my-3 overflow-hidden">
-                  <div 
-                    className="h-3 rounded-full transition-all duration-500" 
-                    style={{ 
-                      width: `${(xpResults.new_xp / xpResults.xp_for_new_level) * 100}%`,
-                      backgroundColor: '#d4af37',
-                      boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+
+                {/* Coins Display */}
+                {coinResults && (
+                  <div
+                    className="p-4 rounded-lg border-2"
+                    style={{
+                      backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                      borderColor: 'rgba(255, 215, 0, 0.3)',
+                      boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)'
                     }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-400">
-                  {xpResults.new_xp.toLocaleString()} / {xpResults.xp_for_new_level.toLocaleString()} XP
-                </p>
+                  >
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-2xl">🪙</span>
+                      <p
+                        className="font-bold text-xl"
+                        style={{
+                          color: '#ffd700',
+                          textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
+                        }}
+                      >
+                        +{coinResults.coinsEarned.toLocaleString()} Coins
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-300 text-center">
+                      {coinResults.gameMode === 'challenge_friend'
+                        ? (coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                        : coinResults.difficulty
+                        ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
+                        : 'Daily Challenge Reward'
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             </div>

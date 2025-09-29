@@ -197,6 +197,37 @@ export default function Page() {
           final_score: newTotalScore,
         })
         .eq("id", activeDailyPuzzle.attemptId);
+
+      // Award coins for daily challenge completion based on highest level reached
+      if (session?.user?.id) {
+        const highestLevel = puzzlesCompleted;
+        let coinsEarned = 0;
+
+        // Award coins based on highest level reached
+        switch (highestLevel) {
+          case 1: coinsEarned = 25; break;
+          case 2: coinsEarned = 50; break;
+          case 3: coinsEarned = 100; break;
+          case 4: coinsEarned = 200; break;
+          case 5: coinsEarned = 1000; break;
+          default: coinsEarned = 0; break;
+        }
+
+        if (coinsEarned > 0) {
+          const { error: coinError } = await supabase.rpc('award_coins', {
+            user_id: session.user.id,
+            amount: coinsEarned,
+            source: 'daily_challenge',
+            game_mode: 'daily',
+            metadata: { level_reached: highestLevel }
+          });
+
+          if (coinError) {
+            console.error('Error awarding daily challenge coins:', coinError);
+          }
+        }
+      }
+
       setActiveDailyPuzzle(null);
       handleSetView("daily");
     }
