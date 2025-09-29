@@ -378,6 +378,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
       if (!challenge && !dailyPuzzleInfo) {
         const coinsEarned = getCoinReward(endlessModeLevel);
         const difficulty = getEndlessDifficulty(endlessModeLevel);
+        console.log('Endless mode - About to award coins:', {
+          coinsEarned,
+          difficulty,
+          endlessModeLevel,
+          challenge: !!challenge,
+          dailyPuzzleInfo: !!dailyPuzzleInfo
+        });
 
         const { data: coinData, error: coinError } = await supabase.rpc('award_coins', {
           user_id: session.user.id,
@@ -1351,6 +1358,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 )}
 
                 {/* Coins Display */}
+                {console.log('Coin display check - coinResults:', coinResults, 'truthy:', !!coinResults)}
                 {coinResults && (
                   <div
                     className="p-4 rounded-lg border-2"

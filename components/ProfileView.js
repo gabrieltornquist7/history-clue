@@ -42,9 +42,27 @@ export default function ProfileView({ setView, session, userId = null }) {
         const { data: profileData, error: profileError } = results[0];
         const { data: statsData, error: statsError } = results[1];
 
-        if (profileError) console.error("Error fetching profile:", profileError);
-        if (statsError) console.error("Error fetching stats:", statsError);
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          console.error("Profile error details:", {
+            message: profileError.message,
+            details: profileError.details,
+            hint: profileError.hint,
+            code: profileError.code
+          });
+        }
+        if (statsError) {
+          console.error("Error fetching stats:", statsError);
+          console.error("Stats error details:", {
+            message: statsError.message,
+            details: statsError.details,
+            hint: statsError.hint,
+            code: statsError.code
+          });
+        }
 
+        console.log("Profile data received:", profileData);
+        console.log("Stats data received:", statsData);
         setProfile(profileData);
         setStats(Array.isArray(statsData) ? statsData[0] : statsData);
       } catch (error) {
