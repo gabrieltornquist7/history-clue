@@ -36,7 +36,7 @@ export default function DailyChallengeView({
         
         // Create/get today's daily puzzle set
         const { data: dailyData, error: dailyError } = await supabase
-          .rpc('create_daily_puzzle_set');
+          .rpc('create_daily_puzzle_set', { p_language_code: 'en' });
 
         if (dailyError) {
           console.error('Error creating daily puzzle set:', dailyError);

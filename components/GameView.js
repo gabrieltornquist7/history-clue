@@ -213,8 +213,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
           const puzzleId = dailyPuzzleInfo.puzzleId;
           const { data, error } = await supabase
             .from('daily_challenge_puzzles')
-            .select('*')
+            .select(`
+              *,
+              daily_challenge_translations!daily_challenge_id (
+                language_code,
+                clue_1_text,
+                clue_2_text,
+                clue_3_text,
+                clue_4_text,
+                clue_5_text
+              )
+            `)
             .eq('id', puzzleId)
+            .eq('daily_challenge_translations.language_code', 'en')
             .single();
           if (error) throw error;
           puzzleData = data;
@@ -233,8 +244,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
         }
         
         if (dailyPuzzleInfo) {
-          if (!puzzleData.clue_1_text) {
-            throw new Error("Daily puzzle is missing clue data.");
+          if (!puzzleData.daily_challenge_translations || puzzleData.daily_challenge_translations.length === 0) {
+            throw new Error("Daily puzzle is missing translation data.");
           }
         } else {
           if (!puzzleData.puzzle_translations || puzzleData.puzzle_translations.length === 0) {
@@ -414,7 +425,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
   const getClueText = (clueNumber) => {
     if (dailyPuzzleInfo) {
-      return puzzle[`clue_${clueNumber}_text`];
+      return puzzle?.daily_challenge_translations?.[0]?.[`clue_${clueNumber}_text`];
     } else {
       return puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];
     }
