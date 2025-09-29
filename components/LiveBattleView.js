@@ -1043,6 +1043,19 @@ export default function LiveBattleView({ session, battleId, setView }) {
               return;
             }
 
+            // Check if battle is finished (no Round 3 means battle completed after Round 2)
+            const { data: battleData } = await supabase
+              .from('battles')
+              .select('status')
+              .eq('id', gameData.battle.id)
+              .single();
+
+            if (battleData?.status === 'completed') {
+              console.log('Player2 detected battle is completed - showing final results');
+              setBattleState(prev => ({ ...prev, battleFinished: true }));
+              return;
+            }
+
             if (pollCount < maxPolls) {
               setTimeout(pollForRound3, 2000);
             } else {
@@ -1340,6 +1353,19 @@ export default function LiveBattleView({ session, battleId, setView }) {
           if (rounds) {
             console.log('Player2 found new round via polling!', rounds);
             loadNewRoundData(rounds.id, rounds.puzzle_id, nextRoundNumber);
+            return;
+          }
+
+          // Check if battle is finished (no new round means battle completed)
+          const { data: battleData } = await supabase
+            .from('battles')
+            .select('status')
+            .eq('id', gameData.battle.id)
+            .single();
+
+          if (battleData?.status === 'completed') {
+            console.log('Player2 detected battle is completed - showing final results');
+            setBattleState(prev => ({ ...prev, battleFinished: true }));
             return;
           }
 
