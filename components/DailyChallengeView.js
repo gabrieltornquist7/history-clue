@@ -77,9 +77,8 @@ export default function DailyChallengeView({
 
         // Create a puzzle set object that matches expected structure
         const todaysPuzzle = {
-          id: `daily-${today}`, // Use date as consistent ID
+          scheduled_date: today, // Use date as the primary identifier
           puzzle_ids: dailyPuzzles.map(p => p.id),
-          scheduled_date: today,
           puzzles: dailyPuzzles
         };
         console.log('Daily puzzle data:', todaysPuzzle);
@@ -87,12 +86,12 @@ export default function DailyChallengeView({
         setDailyPuzzleSet(todaysPuzzle);
 
         // Check if user has already attempted today's challenge
-        if (session?.user?.id && todaysPuzzle?.id) {
+        if (session?.user?.id && todaysPuzzle?.scheduled_date) {
           const { data: attemptData, error: attemptError } = await supabase
             .from('daily_attempts')
             .select('*')
             .eq('user_id', session.user.id)
-            .eq('daily_puzzle_id', todaysPuzzle.id)
+            .eq('challenge_date', today)
             .single();
 
           if (attemptError && attemptError.code !== 'PGRST116') {
@@ -107,7 +106,7 @@ export default function DailyChallengeView({
             const { data: attempts, error: attemptsError } = await supabase
               .from('daily_attempts')
               .select('user_id, final_score, puzzles_completed')
-              .eq('daily_puzzle_id', todaysPuzzle.id)
+              .eq('challenge_date', today)
               .order('final_score', { ascending: false })
               .order('puzzles_completed', { ascending: false })
               .limit(10);
@@ -165,7 +164,7 @@ export default function DailyChallengeView({
 
   const startChallenge = async () => {
     try {
-      if (!dailyPuzzleSet?.id) {
+      if (!dailyPuzzleSet?.scheduled_date) {
         throw new Error('No daily puzzle set available');
       }
 
@@ -177,7 +176,7 @@ export default function DailyChallengeView({
         .from('daily_attempts')
         .insert({
           user_id: session.user.id,
-          daily_puzzle_id: dailyPuzzleSet.id,
+          challenge_date: dailyPuzzleSet.scheduled_date,
         })
         .select()
         .single();
@@ -192,7 +191,7 @@ export default function DailyChallengeView({
         step: 1,
         attemptId: data.id,
         scoreTarget: SCORE_TARGETS[0],
-        dailyPuzzleId: dailyPuzzleSet.id,
+        challengeDate: dailyPuzzleSet.scheduled_date,
         totalScore: 0,
       });
       

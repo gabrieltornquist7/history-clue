@@ -161,14 +161,28 @@ export default function Page() {
 
     if (score >= SCORE_TARGETS[currentStep - 1] && currentStep < 5) {
       const nextStep = currentStep + 1;
-      const { data: dailyPuzzleData } = await supabase
-        .from("daily_puzzles")
-        .select("puzzle_ids")
-        .eq("id", activeDailyPuzzle.dailyPuzzleId)
+      // Get the next puzzle (next difficulty level) for today's challenge
+      const { data: nextPuzzle } = await supabase
+        .from("daily_challenge_puzzles")
+        .select(`
+          id,
+          daily_challenge_translations!daily_challenge_id (
+            language_code,
+            clue_1_text,
+            clue_2_text,
+            clue_3_text,
+            clue_4_text,
+            clue_5_text
+          )
+        `)
+        .eq("scheduled_date", activeDailyPuzzle.challengeDate)
+        .eq("difficulty_level", nextStep)
+        .eq('daily_challenge_translations.language_code', 'en')
         .single();
+
       setActiveDailyPuzzle({
         ...activeDailyPuzzle,
-        puzzleId: dailyPuzzleData.puzzle_ids[nextStep - 1],
+        puzzleId: nextPuzzle.id,
         step: nextStep,
         scoreTarget: SCORE_TARGETS[nextStep - 1],
         totalScore: newTotalScore,
