@@ -208,13 +208,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
           switch (event) {
             case 'guess_submitted':
-              if (payload.playerId !== session.user.id) {
-                setOppGuess(payload.guess);
-                // Check if both players done
-                if (myGuess) {
-                  showResults(myGuess, payload.guess);
-                }
-              }
+              // Removed old logic - now using polling instead of realtime events
               break;
 
             case 'first_guess':
@@ -736,13 +730,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
     setMyScore(newScore);
     setMyClues(prev => [...prev, clueIndex].sort());
 
-    // Save move to database
-    await supabase.from('battle_moves').insert({
-      round_id: currentRoundId.current,
-      player: session.user.id,
-      action: 'reveal_clue',
-      payload: { clue_index: clueIndex }
-    });
+    // Move saved to battle_rounds table via score updates only
 
     // Broadcast to opponent
     broadcastBattleEvent(battleId, 'clue_revealed', {
@@ -812,13 +800,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       clearInterval(timerRef.current);
     }
 
-    // Save guess to database
-    await supabase.from('battle_moves').insert({
-      round_id: currentRoundId.current,
-      player: session.user.id,
-      action: 'guess',
-      payload: guessData
-    });
+    // Guess saved to battle_rounds table via score updates only
 
     // Update battle_rounds with completion timestamp
     if (!gameData.battle) {
@@ -921,11 +903,68 @@ export default function LiveBattleView({ session, battleId, setView }) {
       guess: guessData
     });
 
-    // Check if opponent already finished
-    if (oppGuess) {
-      console.log('Opponent already guessed, showing results');
-      showResults(guessData, oppGuess);
-    }
+    // Start polling to check if both players have completed the round
+    pollForRoundCompletion(guessData);
+  };
+
+  const pollForRoundCompletion = async (myGuessData) => {
+    console.log('Starting to poll for round completion...');
+    let pollCount = 0;
+    const maxPolls = 30; // 60 seconds total (2 second intervals)
+
+    const checkRoundCompletion = async () => {
+      pollCount++;
+      console.log(`Polling for round completion (attempt ${pollCount}/${maxPolls})`);
+
+      try {
+        // Fetch current round to check if both players have completed
+        const { data: currentRound, error } = await supabase
+          .from('battle_rounds')
+          .select('*')
+          .eq('id', gameData.currentRound?.id)
+          .single();
+
+        if (error) {
+          console.error('Error polling for round completion:', error);
+          return;
+        }
+
+        // Check if both players have scores (both completed)
+        const bothCompleted = currentRound.p1_score !== null && currentRound.p2_score !== null;
+
+        if (bothCompleted) {
+          console.log('Both players completed! Showing results');
+
+          // Determine which player I am
+          const isPlayer1 = session.user.id === gameData.battle?.player1;
+          const oppScore = isPlayer1 ? currentRound.p2_score : currentRound.p1_score;
+
+          // Create opponent guess data
+          const oppGuessData = {
+            score: oppScore,
+            // We don't have the opponent's exact guess details, but score is what matters for results
+            distance: 0 // This won't be displayed in results anyway
+          };
+
+          // Show results to this player
+          showResults(myGuessData, oppGuessData);
+          return;
+        }
+
+        // Continue polling if not both completed and within max attempts
+        if (pollCount < maxPolls) {
+          setTimeout(checkRoundCompletion, 2000);
+        } else {
+          console.error('Polling timeout: Opponent did not complete round');
+          // Could show a timeout message or force progression here
+        }
+      } catch (err) {
+        console.error('Error in round completion polling:', err);
+      }
+    };
+
+    // Start polling after a brief delay
+    setTimeout(checkRoundCompletion, 1000);
   };
 
   const showResults = (myGuessData, oppGuessData) => {
@@ -985,148 +1024,129 @@ export default function LiveBattleView({ session, battleId, setView }) {
       // Not the final round - schedule progression to next round
       console.log(`Round ${currentRoundNum} completed, scheduling next round...`);
 
-      // Check if this is Player 2 and we're going to Round 3
       const nextRoundNum = currentRoundNum + 1;
-      const isPlayer2 = session.user.id !== gameData.battle?.player1;
+      const isPlayer1 = session.user.id === gameData.battle?.player1;
 
-      if (isPlayer2 && nextRoundNum === 3) {
-        // Player 2 special polling for Round 3 detection
-        console.log('Player 2 setting up Round 3 detection polling...');
-
+      if (isPlayer1) {
+        // Only Player 1 creates and manages rounds
+        console.log('Player 1 managing round progression...');
         setTimeout(() => {
-          let pollCount = 0;
-          const maxPolls = 20; // 40 seconds total
-
-          const pollForRound3 = async () => {
-            pollCount++;
-            console.log(`Player2 polling for Round 3 (attempt ${pollCount}/${maxPolls})`);
-
-            const { data: round3, error } = await supabase
-              .from('battle_rounds')
-              .select('*, puzzle:puzzles(*)')
-              .eq('battle_id', gameData.battle.id)
-              .eq('round_no', 3)
-              .maybeSingle();
-
-            if (round3 && !error) {
-              console.log('Player2 found Round 3!', round3);
-
-              // Reset round-specific states
-              setMyGuess(null);
-              setOppGuess(null);
-              setGameFinished(false);
-              setRoundResult(null);
-              setMyTimer(180);
-              setMyClues([1]);
-              setMyScore(10000);
-              setSelectedYear(0);
-              setGuessCoords(null);
-              setFirstGuessSubmitted(false);
-
-              // Update game data with Round 3
-              setGameData(prev => ({
-                ...prev,
-                currentRound: round3,
-                puzzle: round3.puzzle
-              }));
-
-              // Update battle state
-              setBattleState(prev => ({
-                ...prev,
-                currentRoundNum: 3
-              }));
-
-              // Set server round start time for timer sync
-              setServerRoundStartTime(new Date(round3.started_at).getTime());
-
-              console.log('Player2 successfully loaded Round 3');
-              return;
-            }
-
-            // Check if battle is finished (no Round 3 means battle completed after Round 2)
-            const { data: battleData } = await supabase
-              .from('battles')
-              .select('status')
-              .eq('id', gameData.battle.id)
-              .single();
-
-            if (battleData?.status === 'completed') {
-              console.log('Player2 detected battle is completed - showing final results');
-
-              // Fetch all rounds to calculate final scores
-              const { data: allRounds } = await supabase
-                .from('battle_rounds')
-                .select('*')
-                .eq('battle_id', gameData.battle.id)
-                .order('round_no');
-
-              if (allRounds && allRounds.length > 0) {
-                const isPlayer1 = session.user.id === gameData.battle?.player1;
-
-                // Calculate total scores from all rounds
-                let myTotal = 0;
-                let oppTotal = 0;
-                let finalRound = allRounds[allRounds.length - 1];
-
-                allRounds.forEach(round => {
-                  const myRoundScore = isPlayer1 ? (round.p1_score || 0) : (round.p2_score || 0);
-                  const oppRoundScore = isPlayer1 ? (round.p2_score || 0) : (round.p1_score || 0);
-                  myTotal += myRoundScore;
-                  oppTotal += oppRoundScore;
-                });
-
-                // Determine battle winner
-                const battleWinner = myTotal > oppTotal ? 'me' :
-                                   myTotal < oppTotal ? 'opponent' : 'tie';
-
-                // Set up battle state with final scores
-                setBattleState(prev => ({
-                  ...prev,
-                  myTotalScore: myTotal,
-                  oppTotalScore: oppTotal,
-                  battleFinished: true,
-                  battleWinner: battleWinner
-                }));
-
-                // Set up final round result to show modal
-                const finalMyScore = isPlayer1 ? (finalRound.p1_score || 0) : (finalRound.p2_score || 0);
-                const finalOppScore = isPlayer1 ? (finalRound.p2_score || 0) : (finalRound.p1_score || 0);
-
-                setRoundResult({
-                  myScore: finalMyScore,
-                  oppScore: finalOppScore,
-                  winner: finalMyScore > finalOppScore ? 'me' :
-                          finalMyScore < finalOppScore ? 'opponent' : 'tie',
-                  roundNumber: finalRound.round_no
-                });
-                setGameFinished(true);
-
-                // Stop timer
-                if (timerRef.current) {
-                  clearInterval(timerRef.current);
-                }
-              }
-              return;
-            }
-
-            if (pollCount < maxPolls) {
-              setTimeout(pollForRound3, 2000);
-            } else {
-              console.error('Player2 timed out waiting for Round 3');
-            }
-          };
-
-          pollForRound3();
-        }, 3000); // Start polling after showing results
-
-      } else {
-        // Original logic for Player 1 or other rounds
-        setTimeout(() => {
-          console.log(`Starting round ${currentRoundNum + 1}`);
-          startNextRound(currentRoundNum + 1);
+          console.log(`Player 1 starting round ${nextRoundNum}`);
+          startNextRound(nextRoundNum);
         }, 3000); // Show results for 3 seconds before next round
+      } else {
+        // Player 2 waits and polls for the new round
+        console.log('Player 2 waiting for next round...');
+        setTimeout(() => {
+          pollForNewRound(nextRoundNum);
+        }, 4000); // Start polling after Player 1 has had time to create the round
       }
     }
+  };
+
+  const pollForNewRound = async (nextRoundNumber) => {
+    console.log(`Player 2 polling for round ${nextRoundNumber}...`);
+    let pollCount = 0;
+    const maxPolls = 30; // 60 seconds total
+
+    const checkForNewRound = async () => {
+      pollCount++;
+      console.log(`Polling for round ${nextRoundNumber} (attempt ${pollCount}/${maxPolls})`);
+
+      try {
+        // Check for the new round
+        const { data: newRound, error } = await supabase
+          .from('battle_rounds')
+          .select('*, puzzle:puzzles(*)')
+          .eq('battle_id', gameData.battle.id)
+          .eq('round_no', nextRoundNumber)
+          .maybeSingle();
+
+        if (newRound && !error) {
+          console.log(`Player 2 found round ${nextRoundNumber}!`, newRound);
+          loadNewRoundData(newRound.id, newRound.puzzle_id, nextRoundNumber);
+          return;
+        }
+
+        // Check if battle is finished instead of new round
+        const { data: battleData } = await supabase
+          .from('battles')
+          .select('status')
+          .eq('id', gameData.battle.id)
+          .single();
+
+        if (battleData?.status === 'completed') {
+          console.log('Player 2 detected battle is completed - showing final results');
+
+          // Fetch all rounds to calculate final scores
+          const { data: allRounds } = await supabase
+            .from('battle_rounds')
+            .select('*')
+            .eq('battle_id', gameData.battle.id)
+            .order('round_no');
+
+          if (allRounds && allRounds.length > 0) {
+            const isPlayer1 = session.user.id === gameData.battle?.player1;
+
+            // Calculate total scores from all rounds
+            let myTotal = 0;
+            let oppTotal = 0;
+            let finalRound = allRounds[allRounds.length - 1];
+
+            allRounds.forEach(round => {
+              const myRoundScore = isPlayer1 ? (round.p1_score || 0) : (round.p2_score || 0);
+              const oppRoundScore = isPlayer1 ? (round.p2_score || 0) : (round.p1_score || 0);
+              myTotal += myRoundScore;
+              oppTotal += oppRoundScore;
+            });
+
+            // Determine battle winner
+            const battleWinner = myTotal > oppTotal ? 'me' :
+                               myTotal < oppTotal ? 'opponent' : 'tie';
+
+            // Set up battle state with final scores
+            setBattleState(prev => ({
+              ...prev,
+              myTotalScore: myTotal,
+              oppTotalScore: oppTotal,
+              battleFinished: true,
+              battleWinner: battleWinner
+            }));
+
+            // Set up final round result to show modal
+            const finalMyScore = isPlayer1 ? (finalRound.p1_score || 0) : (finalRound.p2_score || 0);
+            const finalOppScore = isPlayer1 ? (finalRound.p2_score || 0) : (finalRound.p1_score || 0);
+
+            setRoundResult({
+              myScore: finalMyScore,
+              oppScore: finalOppScore,
+              winner: finalMyScore > finalOppScore ? 'me' :
+                      finalMyScore < finalOppScore ? 'opponent' : 'tie',
+              roundNumber: finalRound.round_no
+            });
+            setGameFinished(true);
+
+            // Stop timer
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+            }
+          }
+          return;
+        }
+
+        // Continue polling
+        if (pollCount < maxPolls) {
+          setTimeout(checkForNewRound, 2000);
+        } else {
+          console.error(`Player 2 timed out waiting for round ${nextRoundNumber}`);
+        }
+      } catch (err) {
+        console.error('Error polling for new round:', err);
+      }
+    };
+
+    // Start polling
+    checkForNewRound();
   };
 
   const startNextRound = async (nextRoundNumber) => {
@@ -1385,105 +1405,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
         }
 
       } else {
-        console.log('Player2 waiting for new round...');
-        // Player2 waits for round_started event
-
-        // Failsafe: Poll for new rounds every 2 seconds
-        let pollCount = 0;
-        const maxPolls = 15; // 30 seconds total
-
-        const pollForNewRound = async () => {
-          pollCount++;
-          console.log(`Player2 polling for round ${nextRoundNumber} (attempt ${pollCount}/${maxPolls})`);
-
-          const { data: rounds } = await supabase
-            .from('battle_rounds')
-            .select('*, puzzles(*)')
-            .eq('battle_id', gameData.battle.id)
-            .eq('round_no', nextRoundNumber)
-            .maybeSingle();
-
-          if (rounds) {
-            console.log('Player2 found new round via polling!', rounds);
-            loadNewRoundData(rounds.id, rounds.puzzle_id, nextRoundNumber);
-            return;
-          }
-
-          // Check if battle is finished (no new round means battle completed)
-          const { data: battleData } = await supabase
-            .from('battles')
-            .select('status')
-            .eq('id', gameData.battle.id)
-            .single();
-
-          if (battleData?.status === 'completed') {
-            console.log('Player2 detected battle is completed - showing final results');
-
-            // Fetch all rounds to calculate final scores
-            const { data: allRounds } = await supabase
-              .from('battle_rounds')
-              .select('*')
-              .eq('battle_id', gameData.battle.id)
-              .order('round_no');
-
-            if (allRounds && allRounds.length > 0) {
-              const isPlayer1 = session.user.id === gameData.battle?.player1;
-
-              // Calculate total scores from all rounds
-              let myTotal = 0;
-              let oppTotal = 0;
-              let finalRound = allRounds[allRounds.length - 1];
-
-              allRounds.forEach(round => {
-                const myRoundScore = isPlayer1 ? (round.p1_score || 0) : (round.p2_score || 0);
-                const oppRoundScore = isPlayer1 ? (round.p2_score || 0) : (round.p1_score || 0);
-                myTotal += myRoundScore;
-                oppTotal += oppRoundScore;
-              });
-
-              // Determine battle winner
-              const battleWinner = myTotal > oppTotal ? 'me' :
-                                 myTotal < oppTotal ? 'opponent' : 'tie';
-
-              // Set up battle state with final scores
-              setBattleState(prev => ({
-                ...prev,
-                myTotalScore: myTotal,
-                oppTotalScore: oppTotal,
-                battleFinished: true,
-                battleWinner: battleWinner
-              }));
-
-              // Set up final round result to show modal
-              const finalMyScore = isPlayer1 ? (finalRound.p1_score || 0) : (finalRound.p2_score || 0);
-              const finalOppScore = isPlayer1 ? (finalRound.p2_score || 0) : (finalRound.p1_score || 0);
-
-              setRoundResult({
-                myScore: finalMyScore,
-                oppScore: finalOppScore,
-                winner: finalMyScore > finalOppScore ? 'me' :
-                        finalMyScore < finalOppScore ? 'opponent' : 'tie',
-                roundNumber: finalRound.round_no
-              });
-              setGameFinished(true);
-
-              // Stop timer
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-              }
-            }
-            return;
-          }
-
-          if (pollCount < maxPolls) {
-            setTimeout(pollForNewRound, 2000);
-          } else {
-            console.error('Player2 timed out waiting for new round');
-          }
-        };
-
-        // Start polling after a short delay
-        setTimeout(pollForNewRound, 2000);
+        console.log('Player2 should not reach startNextRound - using pollForNewRound instead');
+        // This shouldn't happen with the new logic, but just in case
       }
 
     } catch (error) {
