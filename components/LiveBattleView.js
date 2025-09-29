@@ -1052,7 +1052,60 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
             if (battleData?.status === 'completed') {
               console.log('Player2 detected battle is completed - showing final results');
-              setBattleState(prev => ({ ...prev, battleFinished: true }));
+
+              // Fetch all rounds to calculate final scores
+              const { data: allRounds } = await supabase
+                .from('battle_rounds')
+                .select('*')
+                .eq('battle_id', gameData.battle.id)
+                .order('round_no');
+
+              if (allRounds && allRounds.length > 0) {
+                const isPlayer1 = session.user.id === gameData.battle?.player1;
+
+                // Calculate total scores from all rounds
+                let myTotal = 0;
+                let oppTotal = 0;
+                let finalRound = allRounds[allRounds.length - 1];
+
+                allRounds.forEach(round => {
+                  const myRoundScore = isPlayer1 ? (round.p1_score || 0) : (round.p2_score || 0);
+                  const oppRoundScore = isPlayer1 ? (round.p2_score || 0) : (round.p1_score || 0);
+                  myTotal += myRoundScore;
+                  oppTotal += oppRoundScore;
+                });
+
+                // Determine battle winner
+                const battleWinner = myTotal > oppTotal ? 'me' :
+                                   myTotal < oppTotal ? 'opponent' : 'tie';
+
+                // Set up battle state with final scores
+                setBattleState(prev => ({
+                  ...prev,
+                  myTotalScore: myTotal,
+                  oppTotalScore: oppTotal,
+                  battleFinished: true,
+                  battleWinner: battleWinner
+                }));
+
+                // Set up final round result to show modal
+                const finalMyScore = isPlayer1 ? (finalRound.p1_score || 0) : (finalRound.p2_score || 0);
+                const finalOppScore = isPlayer1 ? (finalRound.p2_score || 0) : (finalRound.p1_score || 0);
+
+                setRoundResult({
+                  myScore: finalMyScore,
+                  oppScore: finalOppScore,
+                  winner: finalMyScore > finalOppScore ? 'me' :
+                          finalMyScore < finalOppScore ? 'opponent' : 'tie',
+                  roundNumber: finalRound.round_no
+                });
+                setGameFinished(true);
+
+                // Stop timer
+                if (timerRef.current) {
+                  clearInterval(timerRef.current);
+                }
+              }
               return;
             }
 
@@ -1365,7 +1418,60 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
           if (battleData?.status === 'completed') {
             console.log('Player2 detected battle is completed - showing final results');
-            setBattleState(prev => ({ ...prev, battleFinished: true }));
+
+            // Fetch all rounds to calculate final scores
+            const { data: allRounds } = await supabase
+              .from('battle_rounds')
+              .select('*')
+              .eq('battle_id', gameData.battle.id)
+              .order('round_no');
+
+            if (allRounds && allRounds.length > 0) {
+              const isPlayer1 = session.user.id === gameData.battle?.player1;
+
+              // Calculate total scores from all rounds
+              let myTotal = 0;
+              let oppTotal = 0;
+              let finalRound = allRounds[allRounds.length - 1];
+
+              allRounds.forEach(round => {
+                const myRoundScore = isPlayer1 ? (round.p1_score || 0) : (round.p2_score || 0);
+                const oppRoundScore = isPlayer1 ? (round.p2_score || 0) : (round.p1_score || 0);
+                myTotal += myRoundScore;
+                oppTotal += oppRoundScore;
+              });
+
+              // Determine battle winner
+              const battleWinner = myTotal > oppTotal ? 'me' :
+                                 myTotal < oppTotal ? 'opponent' : 'tie';
+
+              // Set up battle state with final scores
+              setBattleState(prev => ({
+                ...prev,
+                myTotalScore: myTotal,
+                oppTotalScore: oppTotal,
+                battleFinished: true,
+                battleWinner: battleWinner
+              }));
+
+              // Set up final round result to show modal
+              const finalMyScore = isPlayer1 ? (finalRound.p1_score || 0) : (finalRound.p2_score || 0);
+              const finalOppScore = isPlayer1 ? (finalRound.p2_score || 0) : (finalRound.p1_score || 0);
+
+              setRoundResult({
+                myScore: finalMyScore,
+                oppScore: finalOppScore,
+                winner: finalMyScore > finalOppScore ? 'me' :
+                        finalMyScore < finalOppScore ? 'opponent' : 'tie',
+                roundNumber: finalRound.round_no
+              });
+              setGameFinished(true);
+
+              // Stop timer
+              if (timerRef.current) {
+                clearInterval(timerRef.current);
+              }
+            }
             return;
           }
 
