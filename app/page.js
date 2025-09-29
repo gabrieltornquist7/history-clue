@@ -205,10 +205,25 @@ export default function Page() {
         })
         .eq("id", activeDailyPuzzle.attemptId);
 
-      // Award coins for daily challenge completion based on highest level reached
+      // Award XP and coins for daily challenge completion based on highest level reached
       if (session?.user?.id) {
         const highestLevel = puzzlesCompleted;
         let coinsEarned = 0;
+
+        // Award XP for daily challenge completion (base score * level multiplier)
+        const xpScore = newTotalScore * highestLevel; // More levels completed = higher XP multiplier
+        console.log('About to award daily challenge XP:', { user_id: session.user.id, score: xpScore, totalScore: newTotalScore, levelMultiplier: highestLevel });
+
+        const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
+          user_id: session.user.id,
+          score: xpScore
+        });
+
+        if (xpError) {
+          console.error('Error awarding daily challenge XP:', xpError);
+        } else {
+          console.log('Daily challenge XP awarded:', xpData);
+        }
 
         // Award coins based on highest level reached
         switch (highestLevel) {

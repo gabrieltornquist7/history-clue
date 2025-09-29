@@ -361,21 +361,26 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
         setEndlessLevelResults(endlessLevelProgress);
       }
+    }
 
-      // Grant XP (with multiplier for endless mode)
-      const { data: xpData, error: xpError } = await supabase.rpc('grant_xp', {
-        p_user_id: session.user.id,
-        p_score: xpScore
+    // Grant XP for ALL game modes (endless, challenge friend)
+    if (!dailyPuzzleInfo) { // Skip XP for daily challenge as it's handled in app/page.js
+      console.log('About to award XP:', { user_id: session.user.id, score: xpScore, gameMode: challenge ? 'challenge_friend' : 'endless' });
+      const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
+        user_id: session.user.id,
+        score: xpScore
       });
 
       if (xpError) {
         console.error('Error granting XP:', xpError);
       } else {
+        console.log('XP awarded successfully:', xpData);
         setXpResults(xpData);
       }
+    }
 
-      // Award coins for endless mode
-      if (!challenge && !dailyPuzzleInfo) {
+    // Award coins for endless mode
+    if (!challenge && !dailyPuzzleInfo) {
         const coinsEarned = getCoinReward(endlessModeLevel);
         const difficulty = getEndlessDifficulty(endlessModeLevel);
         console.log('Endless mode - About to award coins:', {
@@ -405,7 +410,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
           });
         }
       }
-    }
 
     if (challenge) {
         const isChallenger = session.user.id === challenge.challenger_id;
