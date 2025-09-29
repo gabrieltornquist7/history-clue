@@ -215,12 +215,18 @@ export default function Page() {
         console.log('About to award daily challenge XP:', { user_id: session.user.id, score: xpScore, totalScore: newTotalScore, levelMultiplier: highestLevel });
 
         const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
-          user_id: session.user.id,
-          score: xpScore
+          p_user_id: session.user.id,
+          p_xp_amount: xpScore
         });
 
         if (xpError) {
           console.error('Error awarding daily challenge XP:', xpError);
+          console.error('Daily XP error details:', {
+            message: xpError.message,
+            details: xpError.details,
+            hint: xpError.hint,
+            code: xpError.code
+          });
         } else {
           console.log('Daily challenge XP awarded:', xpData);
         }
@@ -237,15 +243,21 @@ export default function Page() {
 
         if (coinsEarned > 0) {
           const { error: coinError } = await supabase.rpc('award_coins', {
-            user_id: session.user.id,
-            amount: coinsEarned,
-            source: 'daily_challenge',
-            game_mode: 'daily',
-            metadata: { level_reached: highestLevel }
+            p_user_id: session.user.id,
+            p_amount: coinsEarned,
+            p_source: 'daily_challenge',
+            p_game_mode: 'daily',
+            p_metadata: { level_reached: highestLevel }
           });
 
           if (coinError) {
             console.error('Error awarding daily challenge coins:', coinError);
+            console.error('Daily coin error details:', {
+              message: coinError.message,
+              details: coinError.details,
+              hint: coinError.hint,
+              code: coinError.code
+            });
           } else {
             console.log('Daily challenge coins awarded:', coinsEarned, 'for level:', highestLevel);
             // Store coin results for display

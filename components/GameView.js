@@ -369,15 +369,23 @@ export default function GameView({ setView, challenge = null, session, onChallen
     if (!dailyPuzzleInfo && session?.user) { // Skip XP for daily challenge as it's handled in app/page.js
       console.log('About to award XP:', { user_id: session.user.id, score: xpScore, gameMode: challenge ? 'challenge_friend' : 'endless' });
       const { data: xpData, error: xpError } = await supabase.rpc('award_xp', {
-        user_id: session.user.id,
-        score: xpScore
+        p_user_id: session.user.id,
+        p_xp_amount: xpScore
       });
 
       if (xpError) {
         console.error('Error granting XP:', xpError);
+        console.error('XP error details:', {
+          message: xpError.message,
+          details: xpError.details,
+          hint: xpError.hint,
+          code: xpError.code
+        });
       } else {
         console.log('XP awarded successfully:', xpData);
-        setXpResults(xpData);
+        // Handle TABLE return type - might be array, take first element
+        const xpResult = Array.isArray(xpData) ? xpData[0] : xpData;
+        setXpResults(xpResult);
       }
     }
 
@@ -394,15 +402,21 @@ export default function GameView({ setView, challenge = null, session, onChallen
         });
 
         const { data: coinData, error: coinError } = await supabase.rpc('award_coins', {
-          user_id: session.user.id,
-          amount: coinsEarned,
-          source: `endless_${difficulty}`,
-          game_mode: 'endless',
-          metadata: { difficulty: difficulty, level: endlessModeLevel }
+          p_user_id: session.user.id,
+          p_amount: coinsEarned,
+          p_source: `endless_${difficulty}`,
+          p_game_mode: 'endless',
+          p_metadata: { difficulty: difficulty, level: endlessModeLevel }
         });
 
         if (coinError) {
           console.error('Error awarding coins:', coinError);
+          console.error('Coin error details:', {
+            message: coinError.message,
+            details: coinError.details,
+            hint: coinError.hint,
+            code: coinError.code
+          });
         } else {
           console.log('Endless mode coins awarded:', coinsEarned, 'for difficulty:', difficulty);
           setCoinResults({
@@ -451,11 +465,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
           // Award coins to winner (50 coins)
           const { error: winnerCoinError } = await supabase.rpc('award_coins', {
-            user_id: winnerId,
-            amount: 50,
-            source: 'challenge_friend_win',
-            game_mode: 'challenge_friend',
-            metadata: { opponent_id: loserId, challenge_id: challenge.id }
+            p_user_id: winnerId,
+            p_amount: 50,
+            p_source: 'challenge_friend_win',
+            p_game_mode: 'challenge_friend',
+            p_metadata: { opponent_id: loserId, challenge_id: challenge.id }
           });
 
           if (winnerCoinError) {
