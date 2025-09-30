@@ -5,27 +5,58 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useState, useEffect } from 'react';
 
-// Main player icon (default blue)
-const playerIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+// Custom gold pin SVG for player
+const goldPinSvg = `
+<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path d="M15 0C9.477 0 5 4.477 5 10c0 8 10 20 10 20s10-12 10-20c0-5.523-4.477-10-10-10z" 
+        fill="#d4af37" 
+        stroke="#ffd700" 
+        stroke-width="2"
+        filter="url(#glow)"/>
+  <circle cx="15" cy="10" r="4" fill="#1a1a1a"/>
+</svg>`;
+
+const playerIcon = new L.DivIcon({
+  html: goldPinSvg,
+  iconSize: [30, 40],
+  iconAnchor: [15, 40],
+  className: 'custom-gold-pin'
 });
 
-// Opponent icon (custom red color via CSS filter)
-const opponentIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-  className: 'leaflet-marker-opponent' // Class for CSS targeting
+// Custom red pin SVG for opponent
+const redPinSvg = `
+<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="redGlow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path d="M15 0C9.477 0 5 4.477 5 10c0 8 10 20 10 20s10-12 10-20c0-5.523-4.477-10-10-10z" 
+        fill="#dc2626" 
+        stroke="#ef4444" 
+        stroke-width="2"
+        filter="url(#redGlow)"/>
+  <circle cx="15" cy="10" r="4" fill="#1a1a1a"/>
+</svg>`;
+
+const opponentIcon = new L.DivIcon({
+  html: redPinSvg,
+  iconSize: [30, 40],
+  iconAnchor: [15, 40],
+  className: 'custom-red-pin'
 });
 
 function MapEvents({ onMapClick, position }) {
@@ -62,13 +93,6 @@ export default function Map({ onGuess, opponentPosition = null, initialPosition 
   
   return (
     <div className="h-64 md:h-80 w-full rounded-lg overflow-hidden border-2 border-sepia-dark shadow-lg">
-      <style>
-        {`
-          .leaflet-marker-opponent {
-            filter: hue-rotate(180deg) brightness(0.8);
-          }
-        `}
-      </style>
       <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
