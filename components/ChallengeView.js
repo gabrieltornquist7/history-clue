@@ -20,8 +20,39 @@ export default function ChallengeView({ setView, session, setActiveChallenge, se
   const [onlineFriends, setOnlineFriends] = useState([]);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [notificationPermission, setNotificationPermission] = useState('default');
   const currentUserId = session?.user?.id;
   const refetchData = useCallback(() => setDataVersion((v) => v + 1), []);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermission(permission);
+      });
+    } else if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  // Function to send browser notification
+  const sendBrowserNotification = (title, body) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification(title, {
+        body: body,
+        icon: '/icon-192x192.png', // Your game icon
+        badge: '/icon-192x192.png',
+        tag: 'historyclue-turn',
+        requireInteraction: true // Notification stays until user clicks
+      });
+      
+      // When user clicks notification, focus the window
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  };
 
 // Replace the useEffect in components/ChallengeView.js around line 45
 useEffect(() => {
@@ -117,6 +148,45 @@ useEffect(() => {
       filter: `or(challenger_id.eq.${currentUserId},opponent_id.eq.${currentUserId})`
     }, (payload) => {
       console.log('[ChallengeView] Challenge updated via realtime:', payload);
+      
+      const updatedChallenge = payload.new;
+      const previousChallenge = payload.old;
+      
+      // CASE 1: It's now YOUR turn (opponent just finished)
+      if (updatedChallenge && updatedChallenge.next_player_id === currentUserId && updatedChallenge.status === 'pending') {
+        const opponentId = updatedChallenge.challenger_id === currentUserId 
+          ? updatedChallenge.opponent_id 
+          : updatedChallenge.challenger_id;
+        
+        const opponent = profiles.find(p => p.id === opponentId);
+        const opponentName = opponent?.username || 'Your opponent';
+        
+        sendBrowserNotification(
+          '🎮 Your Turn in HistoryClue!',
+          `${opponentName} has completed their turn. It\'s your move in Round ${updatedChallenge.current_round}!`
+        );
+      }
+      
+      // CASE 2: It's now OPPONENT'S turn (you're waiting, opponent just started their turn)
+      if (updatedChallenge && updatedChallenge.next_player_id !== currentUserId && updatedChallenge.status === 'pending') {
+        // Check if the turn just changed (previous turn was yours)
+        if (previousChallenge && previousChallenge.next_player_id === currentUserId) {
+          console.log('[ChallengeView] Opponent started their turn, refreshing for waiting player');
+          // You just finished your turn, now waiting for opponent
+          // No notification needed here, but refresh the UI
+        }
+      }
+      
+      // CASE 3: Challenge just completed
+      if (updatedChallenge && updatedChallenge.status === 'completed' && previousChallenge?.status !== 'completed') {
+        const didWin = updatedChallenge.winner_id === currentUserId;
+        sendBrowserNotification(
+          didWin ? '🏆 Victory!' : '⚔️ Match Complete',
+          didWin ? 'You won the challenge!' : 'Challenge complete. Check the results!'
+        );
+      }
+      
+      // ALWAYS refresh data for both players on any challenge update
       refetchData();
     })
     .subscribe();
