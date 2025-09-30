@@ -275,7 +275,7 @@ export default function ProfileSettingsView({ setView, session }) {
                       Current Title
                     </h3>
                     <p className="text-2xl font-serif text-yellow-400">
-                      "{selectedTitle || "No title selected"}"
+                      {selectedTitle || "No title selected"}
                     </p>
                   </div>
 
@@ -316,7 +316,7 @@ export default function ProfileSettingsView({ setView, session }) {
                             : "border-gray-700/30 bg-gray-800/30 text-gray-300 hover:border-gray-600/50 hover:bg-gray-800/50"
                         }`}
                       >
-                        "{title}"{" "}
+                        {title}{" "}
                         {selectedTitle === title && (
                           <span className="ml-2 text-xs text-yellow-500">
                             ✓ Selected
