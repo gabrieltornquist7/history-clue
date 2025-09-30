@@ -19,13 +19,35 @@ export default function BadgeGallery({ session, setView }) {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [rarityFilter, setRarityFilter] = useState('all');
   const [selectedBadge, setSelectedBadge] = useState(null);
+  const [titleDefinitions, setTitleDefinitions] = useState({});
 
   const categories = getBadgeCategories();
   const rarities = getRarityFilters();
 
   useEffect(() => {
     loadBadges();
+    loadTitleDefinitions();
   }, [session?.user?.id]);
+
+  const loadTitleDefinitions = async () => {
+    try {
+      const { data } = await supabase
+        .from('title_definitions')
+        .select('id, title_text, color_hex');
+
+      // Create a map: { 'centurion': { text: 'Centurion', color: '#FFD700' }, ... }
+      const titleMap = {};
+      data?.forEach(title => {
+        titleMap[title.id] = {
+          text: title.title_text,
+          color: title.color_hex
+        };
+      });
+      setTitleDefinitions(titleMap);
+    } catch (error) {
+      console.error('[BadgeGallery] Error loading title definitions:', error);
+    }
+  };
 
   const loadBadges = async () => {
     try {
@@ -337,7 +359,7 @@ function BadgeDetailModal({ badge, onClose }) {
         <div className="bg-gray-900 rounded-lg p-4 mb-4">
           <div className="text-sm font-bold text-gray-400 mb-2">REQUIREMENTS</div>
           <div className="text-white">
-            {badge.requirement_type}: {badge.requirement_value}
+            {badge.description}
           </div>
         </div>
 
@@ -385,7 +407,12 @@ function BadgeDetailModal({ badge, onClose }) {
                 <div className="text-xl font-bold text-yellow-400">
                   ✨ Title
                 </div>
-                <div className="text-xs text-gray-400">{badge.unlocks_title}</div>
+                <div
+                  className="text-xs font-semibold"
+                  style={{ color: titleDefinitions[badge.unlocks_title]?.color || '#FFD700' }}
+                >
+                  {titleDefinitions[badge.unlocks_title]?.text || badge.unlocks_title}
+                </div>
               </div>
             )}
           </div>

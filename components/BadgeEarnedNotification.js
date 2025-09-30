@@ -1,11 +1,35 @@
 // components/BadgeEarnedNotification.js
 "use client";
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { getBadgeEmoji, getRarityColor, getRarityGradient, getRarityLabel } from '../lib/badgeUtils';
 
 export default function BadgeEarnedNotification({ badgeData, onClose, onViewBadge }) {
   const emoji = getBadgeEmoji(badgeData.badge_id);
   const rarityColor = getRarityColor(badgeData.rarity);
   const rarityGradient = getRarityGradient(badgeData.rarity);
+  const [titleText, setTitleText] = useState(badgeData.title_unlocked || '');
+
+  // Fetch title display text if we have a title unlock
+  useEffect(() => {
+    const fetchTitleText = async () => {
+      if (badgeData.title_unlocked) {
+        // If title_unlocked looks like an ID (lowercase with underscores), look it up
+        if (badgeData.title_unlocked.includes('_') || badgeData.title_unlocked === badgeData.title_unlocked.toLowerCase()) {
+          const { data } = await supabase
+            .from('title_definitions')
+            .select('title_text')
+            .eq('id', badgeData.title_unlocked)
+            .maybeSingle();
+
+          if (data?.title_text) {
+            setTitleText(data.title_text);
+          }
+        }
+      }
+    };
+    fetchTitleText();
+  }, [badgeData.title_unlocked]);
 
   return (
     <div
@@ -101,7 +125,7 @@ export default function BadgeEarnedNotification({ badgeData, onClose, onViewBadg
         </div>
 
         {/* Title Unlocked */}
-        {badgeData.title_unlocked && (
+        {titleText && (
           <div
             className="mb-4 p-3 rounded-lg border-2"
             style={{
@@ -110,7 +134,7 @@ export default function BadgeEarnedNotification({ badgeData, onClose, onViewBadg
             }}
           >
             <div className="text-yellow-400 font-bold text-lg">
-              ✨ Title Unlocked: {badgeData.title_unlocked}! ✨
+              ✨ Title Unlocked: {titleText}! ✨
             </div>
           </div>
         )}
