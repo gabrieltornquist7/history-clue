@@ -1433,13 +1433,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
                           textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
                         }}
                       >
-                        +{coinResults?.coinsEarned?.toLocaleString() || 0} Coins
+                        +{(coinResults && coinResults.coinsEarned && typeof coinResults.coinsEarned === 'number') ? coinResults.coinsEarned.toLocaleString() : '0'} Coins
                       </p>
                     </div>
                     <p className="text-sm text-gray-300 text-center">
                       {coinResults && coinResults.gameMode === 'challenge_friend'
-                        ? (coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
-                        : coinResults && coinResults.difficulty
+                        ? (coinResults && coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                        : coinResults && coinResults.difficulty && typeof coinResults.difficulty === 'string'
                         ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
                         : 'Reward Earned'
                       }
