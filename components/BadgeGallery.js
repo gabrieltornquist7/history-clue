@@ -42,32 +42,31 @@ export default function BadgeGallery({ session, setView }) {
       // Get user's earned badges
       const { data: earnedBadges, error: earnedError } = await supabase
         .from('user_badges')
-        .select('badge_id, earned_at, progress')
+        .select('badge_id, earned_at')
         .eq('user_id', session.user.id);
 
       if (earnedError) throw earnedError;
 
-      // Get badge progress
-      const { data: badgeProgress, error: progressError } = await supabase
-        .from('badge_progress')
-        .select('badge_id, current_value, metadata')
-        .eq('user_id', session.user.id);
+      // Get accurate progress for each badge by calling check_and_award_badge
+      const badgesWithStatus = await Promise.all(
+        allBadges.map(async (badge) => {
+          const earned = earnedBadges.find(e => e.badge_id === badge.id);
 
-      if (progressError) throw progressError;
+          // Call RPC to get accurate progress
+          const { data: badgeCheck } = await supabase.rpc('check_and_award_badge', {
+            p_user_id: session.user.id,
+            p_badge_id: badge.id
+          });
 
-      // Merge data
-      const badgesWithStatus = allBadges.map(badge => {
-        const earned = earnedBadges.find(e => e.badge_id === badge.id);
-        const progress = badgeProgress.find(p => p.badge_id === badge.id);
-
-        return {
-          ...badge,
-          isEarned: !!earned,
-          earnedAt: earned?.earned_at,
-          progress: progress?.current_value || 0,
-          progressMetadata: progress?.metadata
-        };
-      });
+          return {
+            ...badge,
+            isEarned: !!earned,
+            earnedAt: earned?.earned_at,
+            progress: badgeCheck?.progress || 0,
+            progressMetadata: badgeCheck?.metadata
+          };
+        })
+      );
 
       setBadges(badgesWithStatus);
     } catch (error) {
