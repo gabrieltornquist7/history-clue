@@ -15,7 +15,6 @@ export default function Shop({ setView, session }) {
   const [shopItems, setShopItems] = useState([]);
   const [userPurchases, setUserPurchases] = useState([]);
   const [userCoins, setUserCoins] = useState(0);
-  const [equippedTitle, setEquippedTitle] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('title');
   const [purchaseModal, setPurchaseModal] = useState(null);
@@ -43,17 +42,16 @@ export default function Shop({ setView, session }) {
       .select('item_id')
       .eq('user_id', session.user.id);
 
-    // Fetch user profile (coins and equipped title)
+    // Fetch user profile (coins)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('coins, equipped_title')
+      .select('coins')
       .eq('id', session.user.id)
       .single();
 
     setShopItems(items || []);
     setUserPurchases(purchases?.map(p => p.item_id) || []);
     setUserCoins(profile?.coins || 0);
-    setEquippedTitle(profile?.equipped_title || null);
     setIsLoading(false);
   };
 
@@ -88,57 +86,13 @@ export default function Shop({ setView, session }) {
       if (result.success) {
         setUserCoins(result.new_coin_balance);
         setUserPurchases([...userPurchases, item.id]);
-        showNotification(`Successfully purchased ${item.name}!`, 'success');
-        
-        // Auto-equip if it's a title and user has no title equipped
-        if (item.category === 'title' && !equippedTitle) {
-          await handleEquipTitle(item.id);
-        }
+        showNotification(`${item.name} added to your collection! Equip it in Profile Settings.`, 'success');
       } else {
         showNotification(result.message, 'error');
       }
     } catch (error) {
       console.error('Purchase error:', error);
       showNotification('Purchase failed. Please try again.', 'error');
-    }
-  };
-
-  const handleEquipTitle = async (itemId) => {
-    try {
-      const { data, error } = await supabase.rpc('equip_title', {
-        p_user_id: session.user.id,
-        p_item_id: itemId
-      });
-
-      if (error) throw error;
-
-      const result = data[0];
-      
-      if (result.success) {
-        setEquippedTitle(itemId);
-        showNotification('Title equipped!', 'success');
-      } else {
-        showNotification(result.message, 'error');
-      }
-    } catch (error) {
-      console.error('Equip error:', error);
-      showNotification('Failed to equip title.', 'error');
-    }
-  };
-
-  const handleUnequipTitle = async () => {
-    try {
-      const { error } = await supabase.rpc('unequip_title', {
-        p_user_id: session.user.id
-      });
-
-      if (error) throw error;
-
-      setEquippedTitle(null);
-      showNotification('Title unequipped!', 'success');
-    } catch (error) {
-      console.error('Unequip error:', error);
-      showNotification('Failed to unequip title.', 'error');
     }
   };
 
@@ -152,7 +106,6 @@ export default function Shop({ setView, session }) {
   };
 
   const isOwned = (itemId) => userPurchases.includes(itemId);
-  const isEquipped = (itemId) => equippedTitle === itemId;
 
   if (isLoading) {
     return (
@@ -290,7 +243,6 @@ export default function Shop({ setView, session }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {getItemsByCategory().map(item => {
               const owned = isOwned(item.id);
-              const equipped = isEquipped(item.id);
               const rarityColor = RARITY_COLORS[item.rarity] || RARITY_COLORS.common;
 
               return (
@@ -314,11 +266,6 @@ export default function Shop({ setView, session }) {
                     >
                       {item.rarity}
                     </span>
-                    {equipped && (
-                      <span className="text-xs font-bold text-green-400 bg-green-400/20 px-2 py-1 rounded">
-                        EQUIPPED
-                      </span>
-                    )}
                   </div>
 
                   {/* Item Name */}
@@ -350,21 +297,10 @@ export default function Shop({ setView, session }) {
                     </div>
 
                     {owned ? (
-                      equipped ? (
-                        <button
-                          onClick={() => handleUnequipTitle()}
-                          className="px-4 py-2 bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors font-medium text-sm"
-                        >
-                          Unequip
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleEquipTitle(item.id)}
-                          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-500 transition-colors font-medium text-sm"
-                        >
-                          Equip
-                        </button>
-                      )
+                      <div className="flex items-center gap-2 px-4 py-2 bg-green-900/30 border border-green-500/50 rounded-md">
+                        <span className="text-green-400 text-lg">✓</span>
+                        <span className="text-green-400 font-bold text-sm">OWNED</span>
+                      </div>
                     ) : (
                       <button
                         onClick={() => handlePurchase(item)}
@@ -387,6 +323,27 @@ export default function Shop({ setView, session }) {
           {getItemsByCategory().length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-400 text-lg">No items available in this category yet.</p>
+            </div>
+          )}
+
+          {/* Helpful Tips */}
+          {getItemsByCategory().length > 0 && (
+            <div className="col-span-full mt-8">
+              <div 
+                className="backdrop-blur rounded-lg p-6 border"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  border: '1px solid rgba(212, 175, 55, 0.2)'
+                }}
+              >
+                <h3 className="text-sm font-semibold uppercase text-yellow-500 mb-3 tracking-wider">💡 How It Works</h3>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p>• Purchase titles with coins earned from playing games</p>
+                  <p>• Collect all titles to complete your collection!</p>
+                  <p>• Equip your favorite title in <span className="text-yellow-400 font-semibold">Profile → Settings → Titles</span></p>
+                  <p>• Your equipped title appears on your profile and leaderboards</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
