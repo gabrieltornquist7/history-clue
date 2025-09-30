@@ -395,6 +395,39 @@ export default function GameView({ setView, challenge = null, session, onChallen
           };
         }
 
+        // Track endless total levels for "The Long Haul" badge (every level played, pass or fail)
+        try {
+          const { data: currentProgress } = await supabase
+            .from('badge_progress')
+            .select('current_value')
+            .eq('user_id', session.user.id)
+            .eq('badge_id', 'endless_total_tracker')
+            .maybeSingle();
+
+          const currentTotal = currentProgress?.current_value || 0;
+
+          await supabase.rpc('update_badge_progress', {
+            p_user_id: session.user.id,
+            p_badge_id: 'endless_total_tracker',
+            p_new_value: currentTotal + 1,
+            p_metadata: null
+          });
+
+          console.log(`Endless total levels played: ${currentTotal + 1}`);
+
+          // Check badge
+          const { data } = await supabase.rpc('check_and_award_badge', {
+            p_user_id: session.user.id,
+            p_badge_id: 'endless_total_100'
+          });
+
+          if (data?.awarded) {
+            queueBadgeNotification(data);
+          }
+        } catch (error) {
+          console.error('Error tracking endless total:', error);
+        }
+
         setEndlessLevelResults(endlessLevelProgress);
       }
     }

@@ -298,6 +298,65 @@ export default function Page() {
               }
             }
 
+            // Track daily streak for streak badges
+            try {
+              // Get today's date and yesterday's date (normalized to midnight UTC)
+              const today = new Date();
+              today.setUTCHours(0, 0, 0, 0);
+              const yesterday = new Date(today);
+              yesterday.setDate(yesterday.getDate() - 1);
+
+              // Check if user completed yesterday's challenge
+              const { data: yesterdayAttempt } = await supabase
+                .from('daily_attempts')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .eq('challenge_date', yesterday.toISOString().split('T')[0])
+                .eq('puzzles_completed', 5)
+                .maybeSingle();
+
+              // Get current streak from badge_progress
+              const { data: currentProgress } = await supabase
+                .from('badge_progress')
+                .select('current_value')
+                .eq('user_id', session.user.id)
+                .eq('badge_id', 'daily_streak_tracker')
+                .maybeSingle();
+
+              const currentStreak = currentProgress?.current_value || 0;
+
+              // Update streak
+              const newStreak = yesterdayAttempt ? currentStreak + 1 : 1;
+
+              await supabase.rpc('update_badge_progress', {
+                p_user_id: session.user.id,
+                p_badge_id: 'daily_streak_tracker',
+                p_new_value: newStreak,
+                p_metadata: null
+              });
+
+              console.log(`Daily streak updated: ${newStreak} days`);
+
+              // Check streak badges
+              const streakBadges = ['daily_streak_7', 'daily_streak_30', 'daily_streak_100'];
+              for (const badgeId of streakBadges) {
+                const { data } = await supabase.rpc('check_and_award_badge', {
+                  p_user_id: session.user.id,
+                  p_badge_id: badgeId
+                });
+
+                if (data?.awarded) {
+                  console.log(`Streak badge ${badgeId} awarded:`, data);
+                  if (!window.pendingBadgeNotifications) {
+                    window.pendingBadgeNotifications = [];
+                  }
+                  window.pendingBadgeNotifications.push(data);
+                }
+              }
+            } catch (error) {
+              console.error('Error tracking daily streak:', error);
+            }
+
             // Check for perfect day (all 5 levels perfect - score 10000 each)
             // This would require tracking per-level scores, skipping for now
           }

@@ -1030,17 +1030,102 @@ export default function LiveBattleView({ session, battleId, setView }) {
           const battleWinner = current.myTotalScore > current.oppTotalScore ? 'me' :
                               current.myTotalScore < current.oppTotalScore ? 'opponent' : 'tie';
 
-          // Check badges if we won
-          if (battleWinner === 'me') {
-            // Check battle win count badges
-            const battleBadges = [
-              'battle_first_win',
-              'battle_wins_25',
-              'battle_wins_100',
-              'battle_wins_500'
-            ];
+          const userWon = battleWinner === 'me';
 
-            (async () => {
+          (async () => {
+            // Track battle win streak
+            try {
+              const { data: currentProgress } = await supabase
+                .from('badge_progress')
+                .select('current_value')
+                .eq('user_id', session.user.id)
+                .eq('badge_id', 'battle_win_streak_tracker')
+                .maybeSingle();
+
+              const currentStreak = currentProgress?.current_value || 0;
+              const newStreak = userWon ? currentStreak + 1 : 0;
+
+              await supabase.rpc('update_badge_progress', {
+                p_user_id: session.user.id,
+                p_badge_id: 'battle_win_streak_tracker',
+                p_new_value: newStreak,
+                p_metadata: null
+              });
+
+              console.log(`Battle win streak: ${newStreak}`);
+
+              // Check streak badge if user won
+              if (userWon) {
+                const { data } = await supabase.rpc('check_and_award_badge', {
+                  p_user_id: session.user.id,
+                  p_badge_id: 'battle_streak_3'
+                });
+                if (data?.awarded) {
+                  queueBadgeNotification(data);
+                }
+              }
+            } catch (error) {
+              console.error('Error tracking battle win streak:', error);
+            }
+
+            // Track friend battles
+            try {
+              const isPlayer1 = session.user.id === gameData.battle?.player1;
+              const opponentId = isPlayer1 ? gameData.battle?.player2 : gameData.battle?.player1;
+
+              // Check if opponent is a friend
+              const { data: friendship } = await supabase
+                .from('friendships')
+                .select('id')
+                .or(`and(user_id_1.eq.${session.user.id},user_id_2.eq.${opponentId}),and(user_id_1.eq.${opponentId},user_id_2.eq.${session.user.id})`)
+                .eq('status', 'accepted')
+                .maybeSingle();
+
+              if (friendship) {
+                const { data: currentProgress } = await supabase
+                  .from('badge_progress')
+                  .select('current_value')
+                  .eq('user_id', session.user.id)
+                  .eq('badge_id', 'friend_battles_tracker')
+                  .maybeSingle();
+
+                const currentCount = currentProgress?.current_value || 0;
+
+                await supabase.rpc('update_badge_progress', {
+                  p_user_id: session.user.id,
+                  p_badge_id: 'friend_battles_tracker',
+                  p_new_value: currentCount + 1,
+                  p_metadata: null
+                });
+
+                console.log(`Friend battles played: ${currentCount + 1}`);
+
+                // Check friend battle badges
+                const friendBadges = ['social_friend_battles_50', 'social_legend'];
+                for (const badgeId of friendBadges) {
+                  const { data } = await supabase.rpc('check_and_award_badge', {
+                    p_user_id: session.user.id,
+                    p_badge_id: badgeId
+                  });
+                  if (data?.awarded) {
+                    queueBadgeNotification(data);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Error tracking friend battles:', error);
+            }
+
+            // Check badges if we won
+            if (userWon) {
+              // Check battle win count badges
+              const battleBadges = [
+                'battle_first_win',
+                'battle_wins_25',
+                'battle_wins_100',
+                'battle_wins_500'
+              ];
+
               for (const badgeId of battleBadges) {
                 const { data } = await supabase.rpc('check_and_award_badge', {
                   p_user_id: session.user.id,
@@ -1062,8 +1147,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   queueBadgeNotification(data);
                 }
               }
-            })();
-          }
+            }
+          })();
 
           return current;
         });
