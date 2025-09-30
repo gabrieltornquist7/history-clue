@@ -6,6 +6,7 @@ import { AvatarImage } from "../lib/avatarHelpers";
 import PageWrapper from "./ui/PageWrapper";
 import Card from "./ui/Card";
 import GlassBackButton from './GlassBackButton';
+import { getBadgeEmoji, getRarityColor, formatTimeAgo } from '../lib/badgeUtils';
 
 export default function ProfileView({ setView, session, userId = null }) {
   const [loading, setLoading] = useState(true);
@@ -14,6 +15,9 @@ export default function ProfileView({ setView, session, userId = null }) {
   const [uploading, setUploading] = useState(false);
   const [avatarKey, setAvatarKey] = useState(Date.now());
   const [streak] = useState(0); // always 0 until streaks table is created
+  const [displayedBadges, setDisplayedBadges] = useState([]);
+  const [recentBadges, setRecentBadges] = useState([]);
+  const [badgesLoading, setBadgesLoading] = useState(true);
 
   const profileId = userId || session?.user?.id;
 
@@ -73,6 +77,63 @@ export default function ProfileView({ setView, session, userId = null }) {
     }
 
     getProfileData();
+  }, [profileId]);
+
+  // Load badges separately
+  useEffect(() => {
+    async function loadBadges() {
+      if (!profileId) {
+        setBadgesLoading(false);
+        return;
+      }
+
+      try {
+        setBadgesLoading(true);
+
+        // Fetch displayed badges (max 5)
+        const { data: displayed, error: displayedError } = await supabase
+          .from('user_badges')
+          .select(`
+            badge_id,
+            earned_at,
+            badge_definitions!inner(id, name, rarity)
+          `)
+          .eq('user_id', profileId)
+          .eq('is_displayed', true)
+          .order('earned_at', { ascending: false })
+          .limit(5);
+
+        if (displayedError) {
+          console.error('Error loading displayed badges:', displayedError);
+        } else {
+          setDisplayedBadges(displayed || []);
+        }
+
+        // Fetch recently earned (last 3)
+        const { data: recent, error: recentError } = await supabase
+          .from('user_badges')
+          .select(`
+            badge_id,
+            earned_at,
+            badge_definitions!inner(id, name, rarity)
+          `)
+          .eq('user_id', profileId)
+          .order('earned_at', { ascending: false })
+          .limit(3);
+
+        if (recentError) {
+          console.error('Error loading recent badges:', recentError);
+        } else {
+          setRecentBadges(recent || []);
+        }
+      } catch (error) {
+        console.error('Error loading badges:', error);
+      } finally {
+        setBadgesLoading(false);
+      }
+    }
+
+    loadBadges();
   }, [profileId]);
 
   const uploadAvatar = async (event) => {
@@ -146,17 +207,7 @@ export default function ProfileView({ setView, session, userId = null }) {
   }, [profile?.xp, profile?.level]);
 
 
-  const mockBadges = useMemo(
-    () => [
-      { id: "first_win", name: "First Victory", unlocked: (stats?.wins || 0) > 0, icon: "🏆" },
-      { id: "streak_5", name: "5 Day Streak", unlocked: streak >= 5, icon: "🔥" },
-      { id: "high_scorer", name: "High Scorer", unlocked: (stats?.total_score || 0) > 10000, icon: "⭐" },
-      { id: "social_player", name: "Social Player", unlocked: false, icon: "👥" },
-      { id: "puzzle_master", name: "Puzzle Master", unlocked: false, icon: "🧩" },
-      { id: "speed_demon", name: "Speed Demon", unlocked: false, icon: "⚡" },
-    ],
-    [streak, stats?.total_score, stats?.wins]
-  );
+  // Removed mockBadges - now using real badges from database
 
   const isOwnProfile = session?.user?.id === profileId;
 
@@ -282,23 +333,105 @@ export default function ProfileView({ setView, session, userId = null }) {
               </div>
             </div>
 
-            {/* Achievements */}
-            <div className="backdrop-blur rounded-xl shadow-2xl border p-6" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
-              <h3 className="text-xs font-semibold uppercase text-yellow-500 mb-6">Achievements & Badges</h3>
-              <div className="grid grid-cols-3 lg:grid-cols-6 gap-4">
-                {mockBadges.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className={`p-4 rounded-lg border text-center ${
-                      badge.unlocked ? "bg-yellow-500/10 border-yellow-500/30" : "bg-black/50 border-gray-700 opacity-40"
-                    }`}
+            {/* Displayed Badges */}
+            {!badgesLoading && displayedBadges.length > 0 && (
+              <div className="backdrop-blur rounded-xl shadow-2xl border p-6" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xs font-semibold uppercase text-yellow-500">Featured Badges</h3>
+                  <button
+                    onClick={() => setView('badges')}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                   >
-                    <div className="text-2xl mb-2">{badge.icon}</div>
-                    <p className={badge.unlocked ? "text-white text-xs" : "text-gray-500 text-xs"}>{badge.name}</p>
-                  </div>
-                ))}
+                    View All →
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-4 justify-center">
+                  {displayedBadges.map((userBadge) => {
+                    const badge = userBadge.badge_definitions;
+                    const emoji = getBadgeEmoji(badge.id);
+                    const rarityColor = getRarityColor(badge.rarity);
+
+                    return (
+                      <div
+                        key={userBadge.badge_id}
+                        className="group relative"
+                      >
+                        <div
+                          className="p-4 rounded-lg border text-center transition-all hover:scale-110"
+                          style={{
+                            backgroundColor: "rgba(0,0,0,0.5)",
+                            borderColor: rarityColor,
+                            boxShadow: `0 0 20px ${rarityColor}44`
+                          }}
+                        >
+                          <div className="text-4xl mb-2">{emoji}</div>
+                          <p className="text-white text-xs font-medium">{badge.name}</p>
+                        </div>
+                        {/* Tooltip on hover */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black rounded-lg text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          {badge.name}
+                          <div className="text-xxs text-gray-400 mt-1">
+                            {formatTimeAgo(userBadge.earned_at)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Recently Earned */}
+            {!badgesLoading && recentBadges.length > 0 && (
+              <div className="backdrop-blur rounded-xl shadow-2xl border p-6" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+                <h3 className="text-xs font-semibold uppercase text-yellow-500 mb-6">Recently Earned</h3>
+                <div className="space-y-3">
+                  {recentBadges.map((userBadge) => {
+                    const badge = userBadge.badge_definitions;
+                    const emoji = getBadgeEmoji(badge.id);
+                    const rarityColor = getRarityColor(badge.rarity);
+
+                    return (
+                      <div
+                        key={userBadge.badge_id}
+                        className="flex items-center gap-4 p-3 rounded-lg"
+                        style={{
+                          backgroundColor: "rgba(0,0,0,0.3)",
+                          borderLeft: `3px solid ${rarityColor}`
+                        }}
+                      >
+                        <div className="text-3xl">{emoji}</div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium">{badge.name}</p>
+                          <p className="text-xs text-gray-400">{formatTimeAgo(userBadge.earned_at)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* No Badges Yet */}
+            {!badgesLoading && displayedBadges.length === 0 && recentBadges.length === 0 && (
+              <div className="backdrop-blur rounded-xl shadow-2xl border p-8 text-center" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+                <div className="text-6xl mb-4">🏅</div>
+                <h3 className="text-xl font-serif text-white mb-2">No Badges Yet</h3>
+                <p className="text-gray-400 mb-6">
+                  {isOwnProfile
+                    ? "Complete challenges to earn your first badge!"
+                    : "This player hasn't earned any badges yet."}
+                </p>
+                {isOwnProfile && (
+                  <button
+                    onClick={() => setView('badges')}
+                    className="px-6 py-3 bg-yellow-600 text-black font-bold rounded-md hover:bg-yellow-500 transition-all"
+                  >
+                    View All Badges
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

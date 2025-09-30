@@ -38,6 +38,11 @@ const DailyChallengeView = lazy(() => import("../components/DailyChallengeView")
 const ProfileSettingsView = lazy(() => import("../components/ProfileSettingsView"));
 const LeaderboardView = lazy(() => import("../components/LeaderboardView"));
 const UserProfileView = lazy(() => import("../components/UserProfileView"));
+const BadgeGallery = lazy(() => import("../components/BadgeGallery"));
+
+// Badge notification system
+import { BadgeNotificationProvider, useBadgeNotifications } from "../contexts/BadgeNotificationContext";
+import BadgeNotificationContainer from "../components/BadgeNotificationContainer";
 
 // Optimized loading component that matches your app's design
 const LoadingSpinner = ({ message = "Loading..." }) => (
@@ -267,6 +272,34 @@ export default function Page() {
               coinsEarned: coinsEarned,
               levelReached: highestLevel
             });
+
+            // Check daily challenge badges (completed all 5 levels)
+            const dailyBadges = ['daily_first', 'daily_3_days'];
+
+            for (const badgeId of dailyBadges) {
+              try {
+                const { data } = await supabase.rpc('check_and_award_badge', {
+                  p_user_id: session.user.id,
+                  p_badge_id: badgeId
+                });
+
+                // Badge will be shown via notification when returning to daily view
+                // The notification system is active inside BadgeNotificationProvider
+                if (data?.awarded) {
+                  console.log(`Badge ${badgeId} awarded:`, data);
+                  // Store badges to show when returning to view
+                  if (!window.pendingBadgeNotifications) {
+                    window.pendingBadgeNotifications = [];
+                  }
+                  window.pendingBadgeNotifications.push(data);
+                }
+              } catch (error) {
+                console.error(`Error checking badge ${badgeId}:`, error);
+              }
+            }
+
+            // Check for perfect day (all 5 levels perfect - score 10000 each)
+            // This would require tracking per-level scores, skipping for now
           }
         }
       }
@@ -449,6 +482,12 @@ export default function Page() {
             <LeaderboardView setView={handleSetView} />
           </Suspense>
         );
+      case "badges":
+        return (
+          <Suspense fallback={<LoadingSpinner message="Loading badges..." />}>
+            <BadgeGallery setView={handleSetView} session={session} />
+          </Suspense>
+        );
       case "contact":
         return (
           <div 
@@ -541,7 +580,8 @@ export default function Page() {
   };
 
   return (
-    <>
+    <BadgeNotificationProvider>
+      <BadgeNotificationContainer />
       {incomingInvite && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div 
@@ -574,6 +614,6 @@ export default function Page() {
         </div>
       )}
       {renderView()}
-    </>
+    </BadgeNotificationProvider>
   );
 }

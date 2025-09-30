@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { SILENT_AUDIO_URL } from '../public/sounds/silence.js';
 import dynamic from 'next/dynamic';
 import GlassBackButton from './GlassBackButton';
+import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
 
 // Historical eras with representative years
 const historicalEras = [
@@ -41,6 +42,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 export default function GameView({ setView, challenge = null, session, onChallengeComplete, dailyPuzzleInfo = null, onDailyStepComplete = null }) {
   console.log('[GameView] Rendered with setView:', typeof setView);
+  const { queueBadgeNotification } = useBadgeNotifications();
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
@@ -350,6 +352,38 @@ export default function GameView({ setView, challenge = null, session, onChallen
               score: finalScoreRounded,
               passed: true
             };
+
+            // Check for endless mode badges
+            const levelBadges = [
+              { id: 'endless_level_10', level: 10 },
+              { id: 'endless_level_25', level: 25 },
+              { id: 'endless_level_50', level: 50 },
+              { id: 'endless_level_100', level: 100 }
+            ];
+
+            for (const badge of levelBadges) {
+              if (newLevel >= badge.level) {
+                const { data } = await supabase.rpc('check_and_award_badge', {
+                  p_user_id: session.user.id,
+                  p_badge_id: badge.id
+                });
+
+                if (data?.awarded) {
+                  queueBadgeNotification(data);
+                }
+              }
+            }
+
+            // Check for perfect score badge
+            if (finalScoreRounded === 10000) {
+              const { data } = await supabase.rpc('check_and_award_badge', {
+                p_user_id: session.user.id,
+                p_badge_id: 'endless_first_perfect'
+              });
+              if (data?.awarded) {
+                queueBadgeNotification(data);
+              }
+            }
           }
         } else {
           endlessLevelProgress = {
@@ -458,6 +492,30 @@ export default function GameView({ setView, challenge = null, session, onChallen
             difficulty: difficulty,
             level: endlessModeLevel
           });
+
+          // Check for mastery coin badges after successful coin award
+          const coinBadges = ['mastery_coins_10k', 'mastery_coins_50k', 'mastery_coins_100k'];
+          for (const badgeId of coinBadges) {
+            const { data } = await supabase.rpc('check_and_award_badge', {
+              p_user_id: session.user.id,
+              p_badge_id: badgeId
+            });
+            if (data?.awarded) {
+              queueBadgeNotification(data);
+            }
+          }
+
+          // Check for puzzle completion badges
+          const puzzleBadges = ['mastery_puzzles_50', 'mastery_puzzles_500', 'mastery_puzzles_2000', 'mastery_puzzles_5000'];
+          for (const badgeId of puzzleBadges) {
+            const { data } = await supabase.rpc('check_and_award_badge', {
+              p_user_id: session.user.id,
+              p_badge_id: badgeId
+            });
+            if (data?.awarded) {
+              queueBadgeNotification(data);
+            }
+          }
         }
       }
 

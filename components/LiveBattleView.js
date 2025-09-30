@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import dynamic from 'next/dynamic';
 import { subscribeToBattle, broadcastBattleEvent } from '../lib/realtimeHelpers';
 import GlassBackButton from './GlassBackButton';
+import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
 
 // Historical eras with representative years
 const historicalEras = [
@@ -41,6 +42,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 export default function LiveBattleView({ session, battleId, setView }) {
   console.log('[LiveBattleView] Rendered with setView:', typeof setView);
+  const { queueBadgeNotification } = useBadgeNotifications();
 
   // Debug function to check variable availability
   const debugVariables = (location) => {
@@ -1015,11 +1017,59 @@ export default function LiveBattleView({ session, battleId, setView }) {
       clearInterval(timerRef.current);
     }
 
-    // If this was round 3, broadcast battle completion
+    // If this was round 3, broadcast battle completion and check badges
     if (currentRoundNum >= 3) {
       broadcastBattleEvent(battleId, 'battle_complete', {
         playerId: session.user.id
       });
+
+      // Check battle badges (after final round)
+      const checkBattleBadges = async () => {
+        // Get final battle state after setState completes
+        setBattleState(current => {
+          const battleWinner = current.myTotalScore > current.oppTotalScore ? 'me' :
+                              current.myTotalScore < current.oppTotalScore ? 'opponent' : 'tie';
+
+          // Check badges if we won
+          if (battleWinner === 'me') {
+            // Check battle win count badges
+            const battleBadges = [
+              'battle_first_win',
+              'battle_wins_25',
+              'battle_wins_100',
+              'battle_wins_500'
+            ];
+
+            (async () => {
+              for (const badgeId of battleBadges) {
+                const { data } = await supabase.rpc('check_and_award_badge', {
+                  p_user_id: session.user.id,
+                  p_badge_id: badgeId
+                });
+                if (data?.awarded) {
+                  queueBadgeNotification(data);
+                }
+              }
+
+              // Check for perfect victory (won all 3 rounds)
+              const wonAllRounds = current.roundScores.every(round => round.winner === 'me');
+              if (wonAllRounds && current.roundScores.length === 3) {
+                const { data } = await supabase.rpc('check_and_award_badge', {
+                  p_user_id: session.user.id,
+                  p_badge_id: 'battle_perfect'
+                });
+                if (data?.awarded) {
+                  queueBadgeNotification(data);
+                }
+              }
+            })();
+          }
+
+          return current;
+        });
+      };
+
+      checkBattleBadges();
     } else {
       // Not the final round - schedule progression to next round
       console.log(`Round ${currentRoundNum} completed, scheduling next round...`);

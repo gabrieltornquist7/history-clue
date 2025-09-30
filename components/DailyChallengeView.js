@@ -7,6 +7,7 @@ import Image from 'next/image';
 import PageWrapper from './ui/PageWrapper';
 import Card from './ui/Card';
 import GlassBackButton from './GlassBackButton';
+import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
 
 export default function DailyChallengeView({
   setView,
@@ -14,6 +15,7 @@ export default function DailyChallengeView({
   setActiveDailyPuzzle,
   coinResults,
 }) {
+  const { queueBadgeNotification } = useBadgeNotifications();
   console.log('[DailyChallengeView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
   const [dailyPuzzleSet, setDailyPuzzleSet] = useState(null);
@@ -25,6 +27,16 @@ export default function DailyChallengeView({
   const SCORE_TARGETS = [3000, 3500, 5000, 7500, 10000];
   const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
 
+  // Check for pending badge notifications from daily challenge completion
+  useEffect(() => {
+    if (window.pendingBadgeNotifications && window.pendingBadgeNotifications.length > 0) {
+      console.log('[DailyChallengeView] Displaying pending badge notifications');
+      window.pendingBadgeNotifications.forEach(badgeData => {
+        queueBadgeNotification(badgeData);
+      });
+      window.pendingBadgeNotifications = [];
+    }
+  }, [queueBadgeNotification]);
 
   useEffect(() => {
     async function fetchData() {

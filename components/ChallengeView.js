@@ -6,9 +6,11 @@ import { useProfileCache } from '../lib/useProfileCache';
 import PageWrapper from './ui/PageWrapper';
 import Card from './ui/Card';
 import GlassBackButton from './GlassBackButton';
+import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
 
 export default function ChallengeView({ setView, session, setActiveChallenge, setActiveLiveMatch }) {
   console.log('[ChallengeView] Rendered with setView:', typeof setView);
+  const { queueBadgeNotification } = useBadgeNotifications();
   const [tab, setTab] = useState('challenges');
   const [profiles, setProfiles] = useState([]);
   const [friendships, setFriendships] = useState([]);
@@ -195,7 +197,30 @@ useEffect(() => {
   };
   const handleAcceptRequest = async (friendship) => {
     const { error } = await supabase.from('friendships').update({ status: 'accepted', action_user_id: currentUserId }).eq('id', friendship.id);
-    if (error) alert(error.message); else { alert('Friend request accepted!'); refetchData(); }
+    if (error) {
+      alert(error.message);
+    } else {
+      alert('Friend request accepted!');
+      refetchData();
+
+      // Check social badges after accepting friend
+      const socialBadges = [
+        'social_first_friend',
+        'social_5_friends',
+        'social_20_friends',
+        'social_50_friends'
+      ];
+
+      for (const badgeId of socialBadges) {
+        const { data } = await supabase.rpc('check_and_award_badge', {
+          p_user_id: currentUserId,
+          p_badge_id: badgeId
+        });
+        if (data?.awarded) {
+          queueBadgeNotification(data);
+        }
+      }
+    }
   };
   const sendChallenge = async (opponentId) => {
     const { data: puzzles, error: puzzleError } = await supabase.rpc('get_random_puzzles', { limit_count: 3 });
@@ -203,6 +228,16 @@ useEffect(() => {
     const puzzleIds = puzzles.map(p => p.id);
     const { data: challenge, error } = await supabase.from('challenges').insert({ puzzle_ids: puzzleIds, challenger_id: currentUserId, opponent_id: opponentId, next_player_id: currentUserId, challenger_scores: [], opponent_scores: [], }).select(`*, challenger:challenger_id(username), opponent:opponent_id(username)`).single();
     if (error) { return alert('Could not create challenge: ' + error.message); }
+
+    // Check challenge_first badge after sending first challenge
+    const { data: badgeData } = await supabase.rpc('check_and_award_badge', {
+      p_user_id: currentUserId,
+      p_badge_id: 'challenge_first'
+    });
+    if (badgeData?.awarded) {
+      queueBadgeNotification(badgeData);
+    }
+
     setActiveChallenge(challenge);
     setView('game');
   };
