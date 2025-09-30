@@ -19,6 +19,7 @@ export default function ProfileView({ setView, session, userId = null }) {
   const [recentBadges, setRecentBadges] = useState([]);
   const [badgesLoading, setBadgesLoading] = useState(true);
   const [titleText, setTitleText] = useState('');
+  const [titleColor, setTitleColor] = useState('#FFD700');
 
   const profileId = userId || session?.user?.id;
 
@@ -80,31 +81,34 @@ export default function ProfileView({ setView, session, userId = null }) {
     getProfileData();
   }, [profileId]);
 
-  // Fetch title display text
+  // Fetch title display text and color
   useEffect(() => {
-    async function fetchTitleText() {
+    async function fetchTitleData() {
       if (!profile?.selected_title) {
         setTitleText('');
+        setTitleColor('#FFD700');
         return;
       }
 
       try {
         const { data } = await supabase
           .from('title_definitions')
-          .select('title_text')
+          .select('title_text, color_hex')
           .eq('id', profile.selected_title)
           .maybeSingle();
 
-        // If found in title_definitions, use title_text
+        // If found in title_definitions, use title_text and color
         // Otherwise assume it's legacy display text stored directly
         setTitleText(data?.title_text || profile.selected_title);
+        setTitleColor(data?.color_hex || '#FFD700');
       } catch (error) {
-        console.error('Error fetching title text:', error);
+        console.error('Error fetching title data:', error);
         setTitleText(profile.selected_title); // Fallback to raw value
+        setTitleColor('#FFD700');
       }
     }
 
-    fetchTitleText();
+    fetchTitleData();
   }, [profile?.selected_title]);
 
   // Load badges separately
@@ -309,7 +313,15 @@ export default function ProfileView({ setView, session, userId = null }) {
                 </div>
                 <h2 className="text-2xl font-serif font-bold text-white mb-1">{profile?.username || "Anonymous"}</h2>
                 {titleText && (
-                  <p className="text-sm mb-4 text-yellow-500/90">&quot;{titleText}&quot;</p>
+                  <p 
+                    className="text-sm mb-4 font-semibold"
+                    style={{ 
+                      color: titleColor,
+                      textShadow: `0 0 10px ${titleColor}44`
+                    }}
+                  >
+                    {titleText}
+                  </p>
                 )}
                 <div className="mb-6">
                   <span className="text-yellow-500 font-bold">Level {xpCalculations.currentLevel}</span>
