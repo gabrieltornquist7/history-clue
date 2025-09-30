@@ -1736,10 +1736,46 @@ export default function LiveBattleView({ session, battleId, setView }) {
             console.log('Battle completed after 3 rounds, marking battle as finished');
             // Mark battle as completed and broadcast completion
             setTimeout(async () => {
-              await supabase
-                .from('battles')
-                .update({ status: 'completed' })
-                .eq('id', round.battle_id);
+              // Fetch all rounds to calculate winner
+              const { data: allRounds } = await supabase
+                .from('battle_rounds')
+                .select('*')
+                .eq('battle_id', round.battle_id)
+                .order('round_no');
+
+              if (allRounds && allRounds.length > 0) {
+                // Calculate total scores
+                let p1Total = 0;
+                let p2Total = 0;
+
+                allRounds.forEach(r => {
+                  p1Total += r.p1_score || 0;
+                  p2Total += r.p2_score || 0;
+                });
+
+                // Determine winner_id
+                let winnerId = null;
+                if (p1Total > p2Total) {
+                  winnerId = gameData.battle?.player1;
+                } else if (p2Total > p1Total) {
+                  winnerId = gameData.battle?.player2;
+                }
+                // If tie, winner_id stays null
+
+                console.log('Battle results:', { p1Total, p2Total, winnerId });
+
+                // Update battle with winner_id
+                await supabase
+                  .from('battles')
+                  .update({ status: 'completed', winner_id: winnerId })
+                  .eq('id', round.battle_id);
+              } else {
+                // Fallback if no rounds found
+                await supabase
+                  .from('battles')
+                  .update({ status: 'completed' })
+                  .eq('id', round.battle_id);
+              }
 
               // Broadcast battle completion so Player 2 sees final results
               broadcastBattleEvent(round.battle_id, 'battle_complete', {
