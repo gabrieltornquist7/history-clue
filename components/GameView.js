@@ -1437,11 +1437,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
                       </p>
                     </div>
                     <p className="text-sm text-gray-300 text-center">
-                      {coinResults?.gameMode === 'challenge_friend'
-                        ? (coinResults?.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
-                        : coinResults?.difficulty
+                      {coinResults && coinResults.gameMode === 'challenge_friend'
+                        ? (coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                        : coinResults && coinResults.difficulty
                         ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
-                        : 'Daily Challenge Reward'
+                        : 'Reward Earned'
                       }
                     </p>
                   </div>
