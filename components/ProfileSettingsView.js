@@ -32,7 +32,7 @@ export default function ProfileSettingsView({ setView, session }) {
       try {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("username, titles, selected_title")
+          .select("username, selected_title")
           .eq("id", session.user.id)
           .single();
 
@@ -45,12 +45,23 @@ export default function ProfileSettingsView({ setView, session }) {
         setProfile(profileData);
         setSelectedTitle(profileData?.selected_title || "");
 
-        // Fetch title definitions for all user titles
-        if (profileData?.titles && profileData.titles.length > 0) {
+        // Fetch user's unlocked titles from user_titles table
+        const { data: userTitlesData, error: userTitlesError } = await supabase
+          .from('user_titles')
+          .select('title_id')
+          .eq('user_id', session.user.id);
+
+        if (userTitlesError) {
+          console.error('Error loading user titles:', userTitlesError);
+        } else if (userTitlesData && userTitlesData.length > 0) {
+          // Get title IDs
+          const titleIds = userTitlesData.map(t => t.title_id);
+          
+          // Fetch title definitions for unlocked titles
           const { data: titleDefs, error: titleError } = await supabase
             .from('title_definitions')
             .select('id, title_text, color_hex, rarity')
-            .in('id', profileData.titles);
+            .in('id', titleIds);
 
           if (!titleError && titleDefs) {
             setTitleDefinitions(titleDefs);
@@ -60,9 +71,6 @@ export default function ProfileSettingsView({ setView, session }) {
             setSelectedTitleText(selectedDef?.title_text || profileData.selected_title || '');
           } else {
             console.error('Error loading title definitions:', titleError);
-            // Fallback: treat titles array as legacy display text
-            setTitleDefinitions(profileData.titles.map(t => ({ id: t, title_text: t })));
-            setSelectedTitleText(profileData.selected_title || '');
           }
         }
       } catch (error) {
