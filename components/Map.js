@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 
 // Custom gold pin SVG for player
 const goldPinSvg = `
-<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+<svg width="36" height="46" viewBox="-3 -3 36 46" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="glow">
       <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -27,14 +27,14 @@ const goldPinSvg = `
 
 const playerIcon = new L.DivIcon({
   html: goldPinSvg,
-  iconSize: [30, 40],
-  iconAnchor: [15, 40],
+  iconSize: [36, 46],
+  iconAnchor: [18, 43],
   className: 'custom-gold-pin'
 });
 
 // Custom red pin SVG for opponent
 const redPinSvg = `
-<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+<svg width="36" height="46" viewBox="-3 -3 36 46" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <filter id="redGlow">
       <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -54,8 +54,8 @@ const redPinSvg = `
 
 const opponentIcon = new L.DivIcon({
   html: redPinSvg,
-  iconSize: [30, 40],
-  iconAnchor: [15, 40],
+  iconSize: [36, 46],
+  iconAnchor: [18, 43],
   className: 'custom-red-pin'
 });
 
