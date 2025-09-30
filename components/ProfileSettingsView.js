@@ -17,6 +17,10 @@ export default function ProfileSettingsView({ setView, session }) {
   const [userBadges, setUserBadges] = useState([]);
   const [badgesLoading, setBadgesLoading] = useState(false);
 
+  // Title state
+  const [titleDefinitions, setTitleDefinitions] = useState([]);
+  const [selectedTitleText, setSelectedTitleText] = useState('');
+
   useEffect(() => {
     async function getProfileData() {
       if (!session?.user?.id) {
@@ -24,17 +28,48 @@ export default function ProfileSettingsView({ setView, session }) {
         return;
       }
       setLoading(true);
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("username, titles, selected_title")
-        .eq("id", session.user.id)
-        .single();
 
-      if (!error) {
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("username, titles, selected_title")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error loading profile:', profileError);
+          setLoading(false);
+          return;
+        }
+
         setProfile(profileData);
         setSelectedTitle(profileData?.selected_title || "");
+
+        // Fetch title definitions for all user titles
+        if (profileData?.titles && profileData.titles.length > 0) {
+          const { data: titleDefs, error: titleError } = await supabase
+            .from('title_definitions')
+            .select('id, title_text, color_hex, rarity')
+            .in('id', profileData.titles);
+
+          if (!titleError && titleDefs) {
+            setTitleDefinitions(titleDefs);
+
+            // Set selected title text
+            const selectedDef = titleDefs.find(t => t.id === profileData.selected_title);
+            setSelectedTitleText(selectedDef?.title_text || profileData.selected_title || '');
+          } else {
+            console.error('Error loading title definitions:', titleError);
+            // Fallback: treat titles array as legacy display text
+            setTitleDefinitions(profileData.titles.map(t => ({ id: t, title_text: t })));
+            setSelectedTitleText(profileData.selected_title || '');
+          }
+        }
+      } catch (error) {
+        console.error('Error in getProfileData:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     getProfileData();
   }, [session?.user?.id]);
@@ -72,9 +107,11 @@ export default function ProfileSettingsView({ setView, session }) {
   const handleSave = async () => {
     if (!session?.user?.id) return;
     setSaving(true);
+
+    // Always store the title ID, not the display text
     const { error } = await supabase
       .from("profiles")
-      .update({ selected_title: selectedTitle })
+      .update({ selected_title: selectedTitle }) // selectedTitle is the ID
       .eq("id", session.user.id);
 
     if (error) {
@@ -267,7 +304,7 @@ export default function ProfileSettingsView({ setView, session }) {
                 Customize Your Title
               </h2>
 
-              {profile?.titles && profile.titles.length > 0 ? (
+              {titleDefinitions && titleDefinitions.length > 0 ? (
                 <div className="space-y-6">
                   {/* Current Selection */}
                   <div className="p-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
@@ -275,7 +312,7 @@ export default function ProfileSettingsView({ setView, session }) {
                       Current Title
                     </h3>
                     <p className="text-2xl font-serif text-yellow-400">
-                      {selectedTitle || "No title selected"}
+                      {selectedTitleText || "No title selected"}
                     </p>
                   </div>
 
@@ -290,12 +327,16 @@ export default function ProfileSettingsView({ setView, session }) {
                     <select
                       id="title-select"
                       value={selectedTitle}
-                      onChange={(e) => setSelectedTitle(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedTitle(e.target.value);
+                        const selectedDef = titleDefinitions.find(t => t.id === e.target.value);
+                        setSelectedTitleText(selectedDef?.title_text || e.target.value);
+                      }}
                       className="w-full px-4 py-3 bg-gray-900 text-white font-medium rounded-md border border-gray-700/30 focus:border-yellow-500/50 focus:outline-none"
                     >
-                      {profile.titles.map((title) => (
-                        <option key={title} value={title}>
-                          {title}
+                      {titleDefinitions.map((titleDef) => (
+                        <option key={titleDef.id} value={titleDef.id}>
+                          {titleDef.title_text}
                         </option>
                       ))}
                     </select>
@@ -306,18 +347,24 @@ export default function ProfileSettingsView({ setView, session }) {
                     <h4 className="text-sm font-medium text-gray-400 mb-2">
                       Preview your unlocked titles:
                     </h4>
-                    {profile.titles.map((title) => (
+                    {titleDefinitions.map((titleDef) => (
                       <div
-                        key={title}
-                        onClick={() => setSelectedTitle(title)}
+                        key={titleDef.id}
+                        onClick={() => {
+                          setSelectedTitle(titleDef.id);
+                          setSelectedTitleText(titleDef.title_text);
+                        }}
                         className={`p-3 rounded-lg border cursor-pointer ${
-                          selectedTitle === title
+                          selectedTitle === titleDef.id
                             ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
                             : "border-gray-700/30 bg-gray-800/30 text-gray-300 hover:border-gray-600/50 hover:bg-gray-800/50"
                         }`}
+                        style={{
+                          color: selectedTitle === titleDef.id ? titleDef.color_hex : undefined
+                        }}
                       >
-                        {title}{" "}
-                        {selectedTitle === title && (
+                        {titleDef.title_text}{" "}
+                        {selectedTitle === titleDef.id && (
                           <span className="ml-2 text-xs text-yellow-500">
                             ✓ Selected
                           </span>

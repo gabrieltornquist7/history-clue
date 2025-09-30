@@ -18,6 +18,7 @@ export default function ProfileView({ setView, session, userId = null }) {
   const [displayedBadges, setDisplayedBadges] = useState([]);
   const [recentBadges, setRecentBadges] = useState([]);
   const [badgesLoading, setBadgesLoading] = useState(true);
+  const [titleText, setTitleText] = useState('');
 
   const profileId = userId || session?.user?.id;
 
@@ -78,6 +79,33 @@ export default function ProfileView({ setView, session, userId = null }) {
 
     getProfileData();
   }, [profileId]);
+
+  // Fetch title display text
+  useEffect(() => {
+    async function fetchTitleText() {
+      if (!profile?.selected_title) {
+        setTitleText('');
+        return;
+      }
+
+      try {
+        const { data } = await supabase
+          .from('title_definitions')
+          .select('title_text')
+          .eq('id', profile.selected_title)
+          .maybeSingle();
+
+        // If found in title_definitions, use title_text
+        // Otherwise assume it's legacy display text stored directly
+        setTitleText(data?.title_text || profile.selected_title);
+      } catch (error) {
+        console.error('Error fetching title text:', error);
+        setTitleText(profile.selected_title); // Fallback to raw value
+      }
+    }
+
+    fetchTitleText();
+  }, [profile?.selected_title]);
 
   // Load badges separately
   useEffect(() => {
@@ -280,8 +308,8 @@ export default function ProfileView({ setView, session, userId = null }) {
                   )}
                 </div>
                 <h2 className="text-2xl font-serif font-bold text-white mb-1">{profile?.username || "Anonymous"}</h2>
-                {profile?.selected_title && (
-                  <p className="text-sm mb-4 text-yellow-500/90">&quot;{profile.selected_title}&quot;</p>
+                {titleText && (
+                  <p className="text-sm mb-4 text-yellow-500/90">&quot;{titleText}&quot;</p>
                 )}
                 <div className="mb-6">
                   <span className="text-yellow-500 font-bold">Level {xpCalculations.currentLevel}</span>
