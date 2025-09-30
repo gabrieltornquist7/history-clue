@@ -5,6 +5,17 @@ import { supabase } from "../lib/supabaseClient";
 import GlassBackButton from './GlassBackButton';
 import { getBadgeEmoji, getRarityColor, getRarityLabel } from '../lib/badgeUtils';
 
+// Helper function to get shop title colors based on rarity
+const getShopTitleColor = (rarity) => {
+  const colors = {
+    common: '#9ca3af',
+    rare: '#3b82f6',
+    epic: '#a855f7',
+    legendary: '#eab308'
+  };
+  return colors[rarity] || '#FFD700';
+};
+
 export default function ProfileSettingsView({ setView, session }) {
   console.log('[ProfileSettingsView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
@@ -19,6 +30,8 @@ export default function ProfileSettingsView({ setView, session }) {
 
   // Title state
   const [titleDefinitions, setTitleDefinitions] = useState([]);
+  const [shopTitles, setShopTitles] = useState([]);
+  const [allTitles, setAllTitles] = useState([]); // Combined titles from both systems
   const [selectedTitleText, setSelectedTitleText] = useState('');
 
   useEffect(() => {
@@ -45,34 +58,71 @@ export default function ProfileSettingsView({ setView, session }) {
         setProfile(profileData);
         setSelectedTitle(profileData?.selected_title || "");
 
-        // Fetch user's unlocked titles from user_titles table
+        // FETCH BADGE-EARNED TITLES (from title_definitions)
         const { data: userTitlesData, error: userTitlesError } = await supabase
           .from('user_titles')
           .select('title_id')
           .eq('user_id', session.user.id);
 
-        if (userTitlesError) {
-          console.error('Error loading user titles:', userTitlesError);
-        } else if (userTitlesData && userTitlesData.length > 0) {
-          // Get title IDs
+        let badgeTitles = [];
+        if (!userTitlesError && userTitlesData && userTitlesData.length > 0) {
           const titleIds = userTitlesData.map(t => t.title_id);
           
-          // Fetch title definitions for unlocked titles
           const { data: titleDefs, error: titleError } = await supabase
             .from('title_definitions')
             .select('id, title_text, color_hex, rarity')
             .in('id', titleIds);
 
           if (!titleError && titleDefs) {
+            badgeTitles = titleDefs.map(t => ({
+              id: t.id,
+              display_name: t.title_text,
+              color: t.color_hex,
+              rarity: t.rarity,
+              source: 'badge'
+            }));
             setTitleDefinitions(titleDefs);
-
-            // Set selected title text
-            const selectedDef = titleDefs.find(t => t.id === profileData.selected_title);
-            setSelectedTitleText(selectedDef?.title_text || profileData.selected_title || '');
-          } else {
-            console.error('Error loading title definitions:', titleError);
           }
         }
+
+        // FETCH SHOP-PURCHASED TITLES (from shop_items)
+        const { data: purchasedItems, error: purchaseError } = await supabase
+          .from('user_purchases')
+          .select(`
+            item_id,
+            shop_items!inner(
+              id,
+              name,
+              rarity,
+              category
+            )
+          `)
+          .eq('user_id', session.user.id)
+          .eq('shop_items.category', 'title');
+
+        let purchasedTitles = [];
+        if (!purchaseError && purchasedItems) {
+          purchasedTitles = purchasedItems.map(p => ({
+            id: `shop_${p.shop_items.id}`, // Prefix with 'shop_' to avoid ID conflicts
+            display_name: p.shop_items.name,
+            color: getShopTitleColor(p.shop_items.rarity),
+            rarity: p.shop_items.rarity,
+            source: 'shop',
+            shop_item_id: p.shop_items.id // Keep original ID for equipping
+          }));
+          setShopTitles(purchasedTitles);
+        }
+
+        // COMBINE ALL TITLES
+        const combined = [...badgeTitles, ...purchasedTitles];
+        setAllTitles(combined);
+
+        // Set selected title text
+        const selectedDef = combined.find(t => 
+          t.id === profileData.selected_title || 
+          t.shop_item_id === profileData.selected_title
+        );
+        setSelectedTitleText(selectedDef?.display_name || profileData.selected_title || '');
       } catch (error) {
         console.error('Error in getProfileData:', error);
       } finally {
@@ -116,10 +166,17 @@ export default function ProfileSettingsView({ setView, session }) {
     if (!session?.user?.id) return;
     setSaving(true);
 
-    // Always store the title ID, not the display text
+    // Find the selected title from allTitles
+    const selectedTitleObj = allTitles.find(t => t.id === selectedTitle);
+    
+    // If it's a shop title, use the original shop_item_id, otherwise use the ID directly
+    const titleIdToSave = selectedTitleObj?.source === 'shop' 
+      ? selectedTitleObj.shop_item_id 
+      : selectedTitle;
+
     const { error } = await supabase
       .from("profiles")
-      .update({ selected_title: selectedTitle }) // selectedTitle is the ID
+      .update({ selected_title: titleIdToSave })
       .eq("id", session.user.id);
 
     if (error) {
@@ -312,7 +369,7 @@ export default function ProfileSettingsView({ setView, session }) {
                 Customize Your Title
               </h2>
 
-              {titleDefinitions && titleDefinitions.length > 0 ? (
+              {allTitles && allTitles.length > 0 ? (
                 <div className="space-y-6">
                   {/* Current Selection */}
                   <div className="p-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
@@ -330,55 +387,101 @@ export default function ProfileSettingsView({ setView, session }) {
                       htmlFor="title-select"
                       className="block text-sm font-semibold text-white mb-3"
                     >
-                      Available Titles
+                      Available Titles ({allTitles.length})
                     </label>
                     <select
                       id="title-select"
                       value={selectedTitle}
                       onChange={(e) => {
                         setSelectedTitle(e.target.value);
-                        const selectedDef = titleDefinitions.find(t => t.id === e.target.value);
-                        setSelectedTitleText(selectedDef?.title_text || e.target.value);
+                        const selectedTitleObj = allTitles.find(t => t.id === e.target.value);
+                        setSelectedTitleText(selectedTitleObj?.display_name || e.target.value);
                       }}
                       className="w-full px-4 py-3 bg-gray-900 text-white font-medium rounded-md border border-gray-700/30 focus:border-yellow-500/50 focus:outline-none"
                     >
-                      {titleDefinitions.map((titleDef) => (
-                        <option key={titleDef.id} value={titleDef.id}>
-                          {titleDef.title_text}
+                      {allTitles.map((title) => (
+                        <option key={title.id} value={title.id}>
+                          {title.display_name} {title.source === 'shop' ? '🪙' : '🏆'}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Preview */}
+                  {/* Preview - Grouped by source */}
                   <div className="grid gap-3 mt-6">
-                    <h4 className="text-sm font-medium text-gray-400 mb-2">
-                      Preview your unlocked titles:
-                    </h4>
-                    {titleDefinitions.map((titleDef) => (
-                      <div
-                        key={titleDef.id}
-                        onClick={() => {
-                          setSelectedTitle(titleDef.id);
-                          setSelectedTitleText(titleDef.title_text);
-                        }}
-                        className={`p-3 rounded-lg border cursor-pointer ${
-                          selectedTitle === titleDef.id
-                            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-                            : "border-gray-700/30 bg-gray-800/30 text-gray-300 hover:border-gray-600/50 hover:bg-gray-800/50"
-                        }`}
-                        style={{
-                          color: selectedTitle === titleDef.id ? titleDef.color_hex : undefined
-                        }}
-                      >
-                        {titleDef.title_text}{" "}
-                        {selectedTitle === titleDef.id && (
-                          <span className="ml-2 text-xs text-yellow-500">
-                            ✓ Selected
-                          </span>
-                        )}
+                    {/* Badge Titles */}
+                    {allTitles.filter(t => t.source === 'badge').length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-400 mb-2">
+                          🏆 Badge-Earned Titles
+                        </h4>
+                        {allTitles.filter(t => t.source === 'badge').map((title) => (
+                          <div
+                            key={title.id}
+                            onClick={() => {
+                              setSelectedTitle(title.id);
+                              setSelectedTitleText(title.display_name);
+                            }}
+                            className={`p-3 rounded-lg border cursor-pointer mb-2 ${
+                              selectedTitle === title.id
+                                ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+                                : "border-gray-700/30 bg-gray-800/30 text-gray-300 hover:border-gray-600/50 hover:bg-gray-800/50"
+                            }`}
+                            style={{
+                              color: selectedTitle === title.id ? title.color : undefined
+                            }}
+                          >
+                            {title.display_name}{" "}
+                            {selectedTitle === title.id && (
+                              <span className="ml-2 text-xs text-yellow-500">
+                                ✓ Selected
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    {/* Shop Titles */}
+                    {allTitles.filter(t => t.source === 'shop').length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-400 mb-2">
+                          🪙 Shop-Purchased Titles
+                        </h4>
+                        {allTitles.filter(t => t.source === 'shop').map((title) => (
+                          <div
+                            key={title.id}
+                            onClick={() => {
+                              setSelectedTitle(title.id);
+                              setSelectedTitleText(title.display_name);
+                            }}
+                            className={`p-3 rounded-lg border cursor-pointer mb-2 ${
+                              selectedTitle === title.id
+                                ? "border-yellow-500/50 bg-yellow-500/10"
+                                : "border-gray-700/30 bg-gray-800/30 hover:border-gray-600/50 hover:bg-gray-800/50"
+                            }`}
+                            style={{
+                              color: selectedTitle === title.id ? title.color : '#9ca3af'
+                            }}
+                          >
+                            <span className="flex items-center justify-between">
+                              <span style={{ color: title.color }}>{title.display_name}</span>
+                              <span className="text-xs px-2 py-1 rounded" style={{ 
+                                backgroundColor: `${title.color}22`,
+                                color: title.color
+                              }}>
+                                {title.rarity}
+                              </span>
+                            </span>
+                            {selectedTitle === title.id && (
+                              <span className="ml-2 text-xs text-yellow-500">
+                                ✓ Selected
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -523,15 +626,16 @@ export default function ProfileSettingsView({ setView, session }) {
           )}
 
           {/* Tips */}
-          {activeTab === 'titles' && profile?.titles && profile.titles.length > 0 && (
+          {activeTab === 'titles' && allTitles && allTitles.length > 0 && (
             <div className="mt-8 backdrop-blur rounded-xl shadow-2xl border p-6 bg-black/70 border-white/5 slide-up">
               <h3 className="text-xs font-semibold uppercase mb-4 text-yellow-400/80 tracking-widest">
                 Tips
               </h3>
               <div className="space-y-3 text-sm text-gray-400">
-                <p>• Titles are earned by completing legendary badges</p>
-                <p>• Selected title shows on profile & leaderboards</p>
-                <p>• Rare titles let you stand out more</p>
+                <p>• 🏆 Badge titles are earned by completing legendary badges</p>
+                <p>• 🪙 Shop titles can be purchased with coins in the Shop</p>
+                <p>• Selected title shows on your profile & leaderboards</p>
+                <p>• Rarer titles let you stand out more</p>
                 <p>• Change your title anytime here</p>
               </div>
             </div>

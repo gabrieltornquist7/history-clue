@@ -39,6 +39,7 @@ const ProfileSettingsView = lazy(() => import("../components/ProfileSettingsView
 const LeaderboardView = lazy(() => import("../components/LeaderboardView"));
 const UserProfileView = lazy(() => import("../components/UserProfileView"));
 const BadgeGallery = lazy(() => import("../components/BadgeGallery"));
+const Shop = lazy(() => import("../components/Shop"));
 
 // Badge notification system
 import { BadgeNotificationProvider, useBadgeNotifications } from "../contexts/BadgeNotificationContext";
@@ -403,7 +404,8 @@ export default function Page() {
         view === "profileSettings" ||
         view === "leaderboard" ||
         view === "liveLobby" ||
-        view === "liveGame") &&
+        view === "liveGame" ||
+        view === "shop") &&
       !session
     ) {
       console.log('[Main] No session detected for protected view, redirecting to auth');
@@ -545,6 +547,12 @@ export default function Page() {
         return (
           <Suspense fallback={<LoadingSpinner message="Loading badges..." />}>
             <BadgeGallery setView={handleSetView} session={session} />
+          </Suspense>
+        );
+      case "shop":
+        return (
+          <Suspense fallback={<LoadingSpinner message="Loading shop..." />}>
+            <Shop setView={handleSetView} session={session} />
           </Suspense>
         );
       case "contact":

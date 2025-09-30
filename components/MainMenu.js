@@ -216,6 +216,25 @@ export default function MainMenu({ setView, session, onSignOut }) {
               {session ? (
                 <div className="flex items-center justify-center gap-3 flex-wrap">
                   <button
+                    onClick={() => setView("shop")}
+                    className="px-5 py-2.5 font-medium rounded-md border transition-all duration-300 relative"
+                    style={{
+                      borderColor: 'rgba(255, 215, 0, 0.4)',
+                      color: '#ffd700',
+                      backgroundColor: 'rgba(255, 215, 0, 0.05)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.borderColor = 'rgba(255, 215, 0, 0.6)';
+                      e.target.style.backgroundColor = 'rgba(255, 215, 0, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.borderColor = 'rgba(255, 215, 0, 0.4)';
+                      e.target.style.backgroundColor = 'rgba(255, 215, 0, 0.05)';
+                    }}
+                  >
+                    🪙 Shop
+                  </button>
+                  <button
                     onClick={() => setView("leaderboard")}
                     className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
                   >

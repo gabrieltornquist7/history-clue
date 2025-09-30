@@ -91,19 +91,46 @@ export default function ProfileView({ setView, session, userId = null }) {
       }
 
       try {
-        const { data } = await supabase
+        // First, try to fetch from title_definitions (badge-earned titles)
+        const { data: titleDef } = await supabase
           .from('title_definitions')
           .select('title_text, color_hex')
           .eq('id', profile.selected_title)
           .maybeSingle();
 
-        // If found in title_definitions, use title_text and color
-        // Otherwise assume it's legacy display text stored directly
-        setTitleText(data?.title_text || profile.selected_title);
-        setTitleColor(data?.color_hex || '#FFD700');
+        if (titleDef) {
+          // Found in title_definitions
+          setTitleText(titleDef.title_text);
+          setTitleColor(titleDef.color_hex || '#FFD700');
+        } else {
+          // Not found in title_definitions, try shop_items (shop-purchased titles)
+          const { data: shopItem } = await supabase
+            .from('shop_items')
+            .select('name, rarity')
+            .eq('id', profile.selected_title)
+            .eq('category', 'title')
+            .maybeSingle();
+
+          if (shopItem) {
+            // Found in shop_items
+            setTitleText(shopItem.name);
+            // Use rarity-based colors for shop titles
+            const shopColors = {
+              common: '#9ca3af',
+              rare: '#3b82f6',
+              epic: '#a855f7',
+              legendary: '#eab308'
+            };
+            setTitleColor(shopColors[shopItem.rarity] || '#FFD700');
+          } else {
+            // Fallback to raw value if not found in either table
+            setTitleText(profile.selected_title);
+            setTitleColor('#FFD700');
+          }
+        }
       } catch (error) {
         console.error('Error fetching title data:', error);
-        setTitleText(profile.selected_title); // Fallback to raw value
+        setTitleText(profile.selected_title);
         setTitleColor('#FFD700');
       }
     }
