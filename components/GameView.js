@@ -410,15 +410,37 @@ export default function GameView({ setView, challenge = null, session, onChallen
         };
         console.log('award_coins parameters:', coinParams);
 
+        // Try award_coins first, then alternative names if 404
         let coinData, coinError;
         try {
           const result = await supabase.rpc('award_coins', coinParams);
           coinData = result.data;
           coinError = result.error;
           console.log('award_coins RPC response:', { data: coinData, error: coinError });
-        } catch (rpcError) {
-          console.error('award_coins RPC catch error:', rpcError);
-          coinError = rpcError;
+        } catch (error) {
+          if (error.message.includes('404') || error.message.includes('not found')) {
+            console.log('award_coins not found, trying grant_coins...');
+            try {
+              const result = await supabase.rpc('grant_coins', coinParams);
+              coinData = result.data;
+              coinError = result.error;
+              console.log('grant_coins RPC response:', { data: coinData, error: coinError });
+            } catch (error2) {
+              console.log('grant_coins not found, trying add_coins...');
+              try {
+                const result = await supabase.rpc('add_coins', coinParams);
+                coinData = result.data;
+                coinError = result.error;
+                console.log('add_coins RPC response:', { data: coinData, error: coinError });
+              } catch (error3) {
+                console.error('All coin function attempts failed:', { award_coins: error, grant_coins: error2, add_coins: error3 });
+                coinError = error;
+              }
+            }
+          } else {
+            console.error('award_coins non-404 error:', error);
+            coinError = error;
+          }
         }
 
         if (coinError) {

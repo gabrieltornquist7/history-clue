@@ -477,7 +477,7 @@ export default function DailyChallengeView({
                                 textShadow: '0 0 20px rgba(255, 215, 0, 0.5)'
                               }}
                             >
-                              {coinResults.coinsEarned.toLocaleString()}
+                              {coinResults?.coinsEarned?.toLocaleString() || 0}
                             </p>
                           </div>
                           <p className="text-sm text-gray-400 uppercase tracking-wider">Coins Earned</p>
