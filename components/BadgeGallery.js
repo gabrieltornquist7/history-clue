@@ -219,6 +219,7 @@ export default function BadgeGallery({ session, setView }) {
       {selectedBadge && (
         <BadgeDetailModal
           badge={selectedBadge}
+          titleDefinitions={titleDefinitions}
           onClose={() => setSelectedBadge(null)}
         />
       )}
@@ -297,7 +298,7 @@ function BadgeCard({ badge, onClick }) {
   );
 }
 
-function BadgeDetailModal({ badge, onClose }) {
+function BadgeDetailModal({ badge, titleDefinitions, onClose }) {
   const emoji = getBadgeEmoji(badge.id);
   const rarityColor = getRarityColor(badge.rarity);
   const rarityGradient = getRarityGradient(badge.rarity);
