@@ -1390,9 +1390,9 @@ export default function GameView({ setView, challenge = null, session, onChallen
                         textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
                       }}
                     >
-                      +{xpResults.xp_gained.toLocaleString()} XP
+                      +{(xpResults.xp_gained && typeof xpResults.xp_gained === 'number') ? xpResults.xp_gained.toLocaleString() : '0'} XP
                     </p>
-                    {xpResults.new_level > xpResults.old_level && (
+                    {xpResults.new_level && xpResults.old_level && xpResults.new_level > xpResults.old_level && (
                       <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
                         LEVEL UP! You are now Level {xpResults.new_level}!
                       </p>
@@ -1401,20 +1401,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
                       <div
                         className="h-3 rounded-full transition-all duration-500"
                         style={{
-                          width: `${(xpResults.new_xp / xpResults.xp_for_new_level) * 100}%`,
+                          width: `${(xpResults.new_xp && xpResults.xp_for_new_level && typeof xpResults.new_xp === 'number' && typeof xpResults.xp_for_new_level === 'number') ? (xpResults.new_xp / xpResults.xp_for_new_level) * 100 : 0}%`,
                           backgroundColor: '#d4af37',
                           boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
                         }}
                       ></div>
                     </div>
                     <p className="text-xs text-gray-400">
-                      {xpResults.new_xp.toLocaleString()} / {xpResults.xp_for_new_level.toLocaleString()} XP
+                      {(xpResults.new_xp && typeof xpResults.new_xp === 'number') ? xpResults.new_xp.toLocaleString() : '0'} / {(xpResults.xp_for_new_level && typeof xpResults.xp_for_new_level === 'number') ? xpResults.xp_for_new_level.toLocaleString() : '1'} XP
                     </p>
                   </div>
                 )}
 
                 {/* Coins Display */}
-                {console.log('Coin display check - coinResults:', coinResults, 'truthy:', !!coinResults)}
                 {coinResults && (
                   <div
                     className="p-4 rounded-lg border-2"
