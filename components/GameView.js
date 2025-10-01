@@ -6,6 +6,9 @@ import { SILENT_AUDIO_URL } from '../public/sounds/silence.js';
 import dynamic from 'next/dynamic';
 import GlassBackButton from './GlassBackButton';
 import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
+import { useIsMobile } from '../lib/useIsMobile';
+import ContinentButtons from './ContinentButtons';
+import BottomControlBar from './BottomControlBar';
 
 // Historical eras with representative years
 const historicalEras = [
@@ -43,6 +46,8 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 export default function GameView({ setView, challenge = null, session, onChallengeComplete, dailyPuzzleInfo = null, onDailyStepComplete = null }) {
   console.log('[GameView] Rendered with setView:', typeof setView);
   const { queueBadgeNotification } = useBadgeNotifications();
+  const isMobile = useIsMobile();
+  
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
@@ -679,7 +684,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
           `
         }}
       >
-        {/* Metallic shine overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -717,7 +721,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
           `
         }}
       >
-        {/* Metallic shine overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -756,9 +759,826 @@ export default function GameView({ setView, challenge = null, session, onChallen
     );
   }
 
+  // MOBILE LAYOUT - Keep exactly as-is
+  if (isMobile) {
+    return (
+      <div 
+        className="min-h-screen relative"
+        style={{
+          background: `
+            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+            radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+            radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+            radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+          `
+        }}
+      >
+        {/* Metallic shine overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+            backgroundSize: "200% 200%",
+            animation: "shine 12s linear infinite",
+          }}
+        ></div>
+
+        <style jsx>{`
+          @keyframes shine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+          @keyframes shimmerLock {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.3; }
+          }
+          @keyframes goldReveal {
+            0% { 
+              opacity: 0; 
+              transform: scale(0.95); 
+              box-shadow: 0 0 0 rgba(212, 175, 55, 0);
+            }
+            100% { 
+              opacity: 1; 
+              transform: scale(1); 
+              box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+            }
+          }
+          @keyframes slideUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          .shimmer-lock {
+            animation: shimmerLock 2s ease-in-out infinite;
+          }
+          .gold-reveal {
+            animation: goldReveal 0.5s ease-out;
+          }
+          .slide-up {
+            animation: slideUp 0.6s ease-out;
+          }
+        `}</style>
+
+        <GlassBackButton
+          onClick={() => {
+            console.log('[GameView] Back button clicked');
+            const targetView = challenge ? 'challenge' : dailyPuzzleInfo ? 'daily' : 'menu';
+            if (setView && typeof setView === 'function') {
+              setView(targetView);
+            } else {
+              console.error('[GameView] setView is not a function:', setView);
+            }
+          }}
+          fallbackUrl="/"
+        />
+
+        {/* Header */}
+        <header className="p-8 relative z-10">
+          <div className="text-center max-w-7xl mx-auto">
+              <h1 
+                className="text-3xl sm:text-4xl font-serif font-bold text-white mb-2" 
+                style={{ 
+                  letterSpacing: '0.02em',
+                  textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+                }}
+              >
+                HistoryClue
+              </h1>
+              <p className="text-sm text-gray-300">
+                {dailyPuzzleInfo ? (
+                  <>
+                    Daily Challenge - Puzzle {dailyPuzzleInfo.step} 
+                    <span className="block text-xs" style={{ color: '#d4af37' }}>
+                      ({DIFFICULTY_LABELS[dailyPuzzleInfo.step - 1]})
+                    </span>
+                  </>
+                ) : challenge ? (
+                  `Challenge - Round ${challenge.current_round}`
+                ) : (
+                  <>
+                    Level {endlessModeLevel}: {getDifficultyLabel(endlessModeLevel)}
+                  </>
+                )}
+              </p>
+              {dailyPuzzleInfo && (
+                <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
+                  Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
+                </p>
+              )}
+              {!challenge && !dailyPuzzleInfo && (
+                <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
+                  Score to Pass Level: {getScoreThreshold(endlessModeLevel).toLocaleString()}
+                </p>
+              )}
+            </div>
+        </header>
+
+        {/* Main Game Area */}
+        <div className="px-4 sm:px-8 pb-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 max-w-7xl mx-auto">
+            
+            {/* Clues Section */}
+            <div className="space-y-4 slide-up">
+              {[1, 2, 3, 4, 5].map((num) => {
+                const isUnlocked = unlockedClues.includes(num);
+                const clueText = getClueText(num);
+                
+                return (
+                  <div 
+                    key={num}
+                    className={`backdrop-blur rounded-lg border transition-all duration-300 ${isUnlocked ? 'gold-reveal' : ''}`}
+                    style={{ 
+                      backgroundColor: isUnlocked ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+                      border: isUnlocked 
+                        ? '2px solid rgba(212, 175, 55, 0.3)' 
+                        : '1px solid rgba(255, 255, 255, 0.05)',
+                      boxShadow: isUnlocked 
+                        ? '0 0 20px rgba(212, 175, 55, 0.1)' 
+                        : 'none'
+                    }}
+                  >
+                    {isUnlocked ? (
+                      <div className="p-4 sm:p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ 
+                              backgroundColor: '#d4af37',
+                              boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+                            }}
+                          ></div>
+                          <span 
+                            className="font-serif font-bold text-lg"
+                            style={{ 
+                              color: '#d4af37',
+                              textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                            }}
+                          >
+                            Clue {num}
+                          </span>
+                        </div>
+                        <p className={`text-gray-300 leading-relaxed ${num === 1 ? 'italic text-lg' : ''}`}>
+                          {clueText || 'Loading...'}
+                        </p>
+                      </div>
+                    ) : (
+                      <button 
+                        className="w-full p-4 sm:p-6 text-left group hover:bg-white/5 transition-all duration-300 shimmer-lock" 
+                        onClick={() => handleUnlockClue(num)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center group-hover:border-yellow-500 transition-colors">
+                              <svg className="w-4 h-4 text-gray-600 group-hover:text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-white group-hover:text-yellow-500 transition-colors">Unlock Clue {num}</span>
+                              <p className="text-sm text-gray-500">Reveal the next piece of evidence</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-yellow-500">
+                              {CLUE_COSTS[num].toLocaleString()}
+                            </span>
+                            <p className="text-xs text-gray-500">points</p>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Map & Guess Panel */}
+            <div 
+              className="backdrop-blur rounded-lg border p-4 sm:p-6 space-y-6 hover:border-yellow-500/20 transition-all duration-300 slide-up"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
+              }}
+            >
+              {/* Map */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-serif font-bold text-white">Guess Location</h3>
+                  <button
+                    onClick={() => setIsMapFullscreen(!isMapFullscreen)}
+                    className="p-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+                    title="Toggle Fullscreen"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  </button>
+                </div>
+                <div 
+                  className="rounded-lg overflow-hidden border-2 hover:border-yellow-500/50 transition-colors duration-300" 
+                  style={{ border: '2px solid rgba(255, 255, 255, 0.1)' }}
+                >
+                  <div className={isMapFullscreen ? "h-96" : "h-64 sm:h-80"}>
+                    <GlobeMap 
+                      onGuess={handleMapGuess} 
+                      guessCoords={guessCoords}
+                      selectedYear={selectedYear}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Continent Quick Jump */}
+              <div className="mb-3">
+                <div className="text-xs text-gray-400 text-center font-medium uppercase tracking-wide mb-2">
+                  Jump to Continent
+                </div>
+
+                {/* Desktop: Continent buttons in compact grid */}
+                <div className="hidden sm:block">
+                  <div className="grid grid-cols-3 gap-1 mb-1">
+                    {CONTINENTS.slice(0, 3).map((continent) => (
+                      <button
+                        key={continent.label}
+                        onClick={() => handleMapGuess({ lat: continent.lat, lng: continent.lng })}
+                        className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
+                        style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          color: '#9ca3af',
+                          border: '1px solid rgba(156, 163, 175, 0.15)',
+                          backdropFilter: 'blur(4px)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.color = '#d4af37';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(156, 163, 175, 0.15)';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.color = '#9ca3af';
+                        }}
+                      >
+                        {continent.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    {CONTINENTS.slice(3).map((continent) => (
+                      <button
+                        key={continent.label}
+                        onClick={() => handleMapGuess({ lat: continent.lat, lng: continent.lng })}
+                        className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
+                        style={{
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          color: '#9ca3af',
+                          border: '1px solid rgba(156, 163, 175, 0.15)',
+                          backdropFilter: 'blur(4px)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.color = '#d4af37';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'rgba(156, 163, 175, 0.15)';
+                          e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.color = '#9ca3af';
+                        }}
+                      >
+                        {continent.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mobile: Dropdown selector */}
+                <div className="sm:hidden">
+                  <select
+                    onChange={(e) => {
+                      const selected = CONTINENTS.find(c => c.label === e.target.value);
+                      if (selected) {
+                        handleMapGuess({ lat: selected.lat, lng: selected.lng });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-black/50 border rounded-md text-white text-sm"
+                    style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}
+                    defaultValue=""
+                  >
+                    <option value="">Jump to Continent...</option>
+                    {CONTINENTS.map(continent => (
+                      <option key={continent.label} value={continent.label}>
+                        {continent.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Year Selector */}
+              <div>
+                <h3 className="text-lg font-serif font-bold text-white mb-3">Year Guess</h3>
+                <div className="space-y-4">
+                  {/* Direct Input */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={selectedYear}
+                      onChange={(e) => handleYearChange(e.target.value)}
+                      min="-1000"
+                      max="2025"
+                      className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors text-lg"
+                      style={{ 
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        color: '#d4af37',
+                        textShadow: '0 0 10px rgba(212, 175, 55, 0.3)',
+                        boxShadow: '0 0 0 0 rgba(212, 175, 55, 0.2)'
+                      }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => adjustYear(10)}
+                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                        style={{ minWidth: '50px' }}
+                      >
+                        +10
+                      </button>
+                      <button
+                        onClick={() => adjustYear(1)}
+                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                        style={{ minWidth: '50px' }}
+                      >
+                        +1
+                      </button>
+                      <button
+                        onClick={() => adjustYear(-10)}
+                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                        style={{ minWidth: '50px' }}
+                      >
+                        -10
+                      </button>
+                      <button
+                        onClick={() => adjustYear(-1)}
+                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
+                        style={{ minWidth: '50px' }}
+                      >
+                        -1
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Historical Era Quick Jump */}
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-400 text-center font-medium uppercase tracking-wide">
+                      Jump to Historical Era
+                    </div>
+
+                    {/* Desktop: Era buttons in grid */}
+                    <div className="hidden sm:block">
+                      <div className="grid grid-cols-4 gap-1 mb-1">
+                        {historicalEras.slice(0, 4).map((era) => (
+                          <button
+                            key={era.label}
+                            onClick={() => setSelectedYear(era.value)}
+                            title={era.tooltip}
+                            className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
+                            style={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                              color: Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                              border: '1px solid',
+                              borderColor: Math.abs(selectedYear - era.value) < 100
+                                ? 'rgba(212, 175, 55, 0.5)'
+                                : 'rgba(156, 163, 175, 0.15)',
+                              backdropFilter: 'blur(4px)',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.color = '#d4af37';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = Math.abs(selectedYear - era.value) < 100
+                                ? 'rgba(212, 175, 55, 0.5)'
+                                : 'rgba(156, 163, 175, 0.15)';
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.color = Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                            }}
+                          >
+                            {era.label}
+
+                            {/* Tooltip on hover */}
+                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black/90 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
+                              {era.tooltip}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {historicalEras.slice(4).map((era) => (
+                          <button
+                            key={era.label}
+                            onClick={() => setSelectedYear(era.value)}
+                            title={era.tooltip}
+                            className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
+                            style={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                              color: Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                              border: '1px solid',
+                              borderColor: Math.abs(selectedYear - era.value) < 100
+                                ? 'rgba(212, 175, 55, 0.5)'
+                                : 'rgba(156, 163, 175, 0.15)',
+                              backdropFilter: 'blur(4px)',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.color = '#d4af37';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = Math.abs(selectedYear - era.value) < 100
+                                ? 'rgba(212, 175, 55, 0.5)'
+                                : 'rgba(156, 163, 175, 0.15)';
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.color = Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                            }}
+                          >
+                            {era.label}
+
+                            {/* Tooltip on hover */}
+                            <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black/90 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
+                              {era.tooltip}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mobile: Dropdown selector */}
+                    <div className="sm:hidden">
+                      <select
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        value={selectedYear}
+                        className="w-full px-3 py-2 bg-black/50 border rounded-md text-white text-sm"
+                        style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}
+                      >
+                        <option value={selectedYear}>Jump to Era...</option>
+                        {historicalEras.map(era => (
+                          <option key={era.label} value={era.value}>
+                            {era.label} ({era.tooltip})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Display */}
+                  <div 
+                    className="text-center p-4 rounded-lg border"
+                    style={{ 
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      border: '1px solid rgba(212, 175, 55, 0.2)'
+                    }}
+                  >
+                <p className="text-sm text-gray-400 mb-1 uppercase tracking-wider">Your guess:</p>
+                    <p 
+                      className="text-2xl font-bold"
+                      style={{ 
+                        color: '#d4af37',
+                        textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                      }}
+                    >
+                      {displayYear(selectedYear)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Score Display */}
+              <div 
+                className="p-4 rounded-lg border"
+                style={{ 
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  border: '2px solid rgba(212, 175, 55, 0.2)',
+                  boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
+                }}
+              >
+                <div className="text-center">
+                  <p className="text-sm text-gray-400 mb-1 uppercase tracking-wide">Potential Score</p>
+                  <p 
+                    className="text-3xl font-bold mb-1"
+                    style={{ 
+                      color: '#d4af37',
+                      textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
+                    }}
+                  >
+                    {score.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">points remaining</p>
+                </div>
+              </div>
+
+              {/* Make Guess Button */}
+              <button 
+                onClick={() => setShowConfirmModal(true)}
+                disabled={!guessCoords || !!results}
+                className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative group"
+                style={{ 
+                  background: !guessCoords || !!results ? '#374151' : 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  letterSpacing: '-0.01em',
+                  fontSize: '18px'
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                {!guessCoords ? 'Place a Pin on the Map' : 'Make Guess'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div 
+              className="backdrop-blur rounded-xl p-8 max-w-md w-full text-center"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                border: '2px solid rgba(212, 175, 55, 0.3)',
+                boxShadow: '0 0 50px rgba(0, 0, 0, 0.8)'
+              }}
+            >
+              <h3 className="text-2xl font-serif font-bold text-white mb-4">Confirm Your Guess</h3>
+              <div className="space-y-3 mb-6">
+                <p className="text-gray-300">
+                  <span className="font-semibold">Year:</span> 
+                  <span 
+                    className="font-bold ml-2"
+                    style={{ color: '#d4af37' }}
+                  >
+                    {displayYear(selectedYear)}
+                  </span>
+                </p>
+                <p className="text-gray-300">
+                  <span className="font-semibold">Potential Score:</span> 
+                  <span 
+                    className="font-bold ml-2"
+                    style={{ 
+                      color: '#d4af37',
+                      textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                    }}
+                  >
+                    {score.toLocaleString()}
+                  </span>
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-medium rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleGuessSubmit}
+                  className="flex-1 px-4 py-3 font-bold text-white rounded-md transition-colors"
+                  style={{ background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)' }}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Results Modal */}
+        {results && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div
+              className="backdrop-blur rounded-xl max-w-sm sm:max-w-md w-full text-center shadow-2xl slide-up flex flex-col"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                border: '2px solid rgba(212, 175, 55, 0.3)',
+                boxShadow: '0 0 80px rgba(0, 0, 0, 0.8)',
+                maxHeight: '90vh'
+              }}
+            >
+              {/* Fixed Header */}
+              <div className="p-4 sm:p-6 pb-0">
+                <h2
+                  className="text-2xl sm:text-3xl font-serif font-bold text-white mb-4"
+                  style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.3)' }}
+                >
+                  Round Complete
+                </h2>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 space-y-4" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+              
+              {/* Daily Challenge Result */}
+              {dailyPuzzleInfo && (
+                <div 
+                  className="mb-6 p-4 rounded-lg border-2"
+                  style={{ 
+                    backgroundColor: results.passedTarget ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    borderColor: results.passedTarget ? '#22c55e' : '#ef4444'
+                  }}
+                >
+                  <p className={`text-xl font-bold ${results.passedTarget ? 'text-green-400' : 'text-red-400'}`}>
+                    {results.passedTarget ? '✓ Target Reached!' : '✗ Target Missed'}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Target: {dailyPuzzleInfo.scoreTarget.toLocaleString()} | 
+                    Your Score: {results.finalScore.toLocaleString()}
+                  </p>
+                </div>
+              )}
+              
+              {/* Answer & Distance Info - Compact */}
+              <div className="bg-black/30 rounded-lg p-4 space-y-3">
+                <div className="text-center">
+                  <h4 className="text-base font-serif font-bold text-gray-300 mb-1">Correct Answer</h4>
+                  <p className="text-green-400 font-semibold text-lg">{results.answer.city}, {results.answer.historical_entity}</p>
+                  <p className="text-green-400 font-semibold text-sm">{displayYear(results.answer.year)}</p>
+                </div>
+                <div className="text-center border-t border-gray-600/30 pt-3">
+                  <h4 className="text-base font-serif font-bold text-gray-300 mb-1">Distance</h4>
+                  <p className="text-white">Your guess was <span className="font-bold text-yellow-400">{results.distance} km</span> away</p>
+                </div>
+              </div>
+
+              {/* Endless Mode Level Results */}
+              {endlessLevelResults && (
+                <div
+                  className="mb-6 p-4 rounded-lg border-2"
+                  style={{
+                    backgroundColor: endlessLevelResults.passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    borderColor: endlessLevelResults.passed ? '#22c55e' : '#ef4444'
+                  }}
+                >
+                  <p className={`text-xl font-bold ${endlessLevelResults.passed ? 'text-green-400' : 'text-red-400'}`}>
+                    {endlessLevelResults.passed ? '✓ Level Passed!' : '✗ Level Not Passed'}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Threshold: {endlessLevelResults.threshold.toLocaleString()} |
+                    Your Score: {endlessLevelResults.score.toLocaleString()}
+                  </p>
+                  {endlessLevelResults.passed && (
+                    <p className="font-bold text-lg text-green-400 animate-pulse mt-2">
+                      ENDLESS MODE LEVEL UP! Now Level {endlessLevelResults.newLevel}!
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    Difficulty: {getDifficultyLabel(endlessLevelResults.passed ? endlessLevelResults.oldLevel : endlessLevelResults.newLevel)}
+                  </p>
+                </div>
+              )}
+
+              {/* Final Score - Prominent but Compact */}
+              <div
+                className="p-4 rounded-lg border text-center"
+                style={{
+                  backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                  border: '2px solid rgba(212, 175, 55, 0.3)',
+                  boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
+                }}
+              >
+                <h3
+                  className="text-xl sm:text-2xl font-serif font-bold"
+                  style={{
+                    color: '#d4af37',
+                    textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                  }}
+                >
+                  Final Score: {results.finalScore.toLocaleString()}
+                </h3>
+              </div>
+              
+              {/* XP & Coins Rewards */}
+              {/* Debug logging */}
+              {console.log('Results screen - xpResults:', xpResults, 'coinResults:', coinResults)}
+              {(xpResults || coinResults) && (
+                <div className="space-y-3">
+                  {/* XP Display */}
+                  {xpResults && (
+                    <div
+                      className="p-4 rounded-lg"
+                      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                    >
+                      <p
+                        className="font-bold text-lg"
+                        style={{
+                          color: '#d4af37',
+                          textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                        }}
+                      >
+                        +{(xpResults.xp_gained && typeof xpResults.xp_gained === 'number') ? xpResults.xp_gained.toLocaleString() : '0'} XP
+                      </p>
+                      {xpResults.new_level && xpResults.old_level && xpResults.new_level > xpResults.old_level && (
+                        <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
+                          LEVEL UP! You are now Level {xpResults.new_level}!
+                        </p>
+                      )}
+                      <div className="w-full bg-gray-700 rounded-full h-3 my-3 overflow-hidden">
+                        <div
+                          className="h-3 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${(xpResults.new_xp && xpResults.xp_for_new_level && typeof xpResults.new_xp === 'number' && typeof xpResults.xp_for_new_level === 'number') ? (xpResults.new_xp / xpResults.xp_for_new_level) * 100 : 0}%`,
+                            backgroundColor: '#d4af37',
+                            boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+                          }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {(xpResults.new_xp && typeof xpResults.new_xp === 'number') ? xpResults.new_xp.toLocaleString() : '0'} / {(xpResults.xp_for_new_level && typeof xpResults.xp_for_new_level === 'number') ? xpResults.xp_for_new_level.toLocaleString() : '1'} XP
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Coins Display */}
+                  {coinResults && (
+                    <div
+                      className="p-4 rounded-lg border-2"
+                      style={{
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                        borderColor: 'rgba(255, 215, 0, 0.3)',
+                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)'
+                      }}
+                    >
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-2xl">🪙</span>
+                        <p
+                          className="font-bold text-xl"
+                          style={{
+                            color: '#ffd700',
+                            textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
+                          }}
+                        >
+                          +{(coinResults && coinResults.coinsEarned && typeof coinResults.coinsEarned === 'number') ? coinResults.coinsEarned.toLocaleString() : '0'} Coins
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-300 text-center">
+                        {coinResults && coinResults.gameMode === 'challenge_friend'
+                          ? (coinResults && coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                          : coinResults && coinResults.difficulty && typeof coinResults.difficulty === 'string'
+                          ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
+                          : 'Reward Earned'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              </div>
+
+              {/* Fixed Button at Bottom */}
+              <div className="p-4 sm:p-6 pt-2 border-t border-gray-700/30">
+                <button
+                  onClick={handlePlayAgain}
+                  className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300"
+                  style={{
+                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }}
+                >
+                  {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // DESKTOP LAYOUT - Full-screen globe with floating controls
   return (
     <div 
-      className="min-h-screen relative"
+      className="h-screen relative overflow-hidden"
       style={{
         background: `
           linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
@@ -800,18 +1620,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
             box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
           }
         }
-        @keyframes slideUp {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
         .shimmer-lock {
           animation: shimmerLock 2s ease-in-out infinite;
         }
         .gold-reveal {
           animation: goldReveal 0.5s ease-out;
-        }
-        .slide-up {
-          animation: slideUp 0.6s ease-out;
         }
       `}</style>
 
@@ -828,11 +1641,20 @@ export default function GameView({ setView, challenge = null, session, onChallen
         fallbackUrl="/"
       />
 
-      {/* Header */}
-      <header className="p-8 relative z-10">
-        <div className="text-center max-w-7xl mx-auto">
+      {/* Desktop Layout: Two-column */}
+      <div className="flex h-full">
+        {/* Left: Clues Panel */}
+        <div 
+          className="w-80 flex-shrink-0 overflow-y-auto"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            borderRight: '1px solid rgba(212, 175, 55, 0.2)'
+          }}
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-gray-700/30">
             <h1 
-              className="text-3xl sm:text-4xl font-serif font-bold text-white mb-2" 
+              className="text-2xl font-serif font-bold text-white mb-2" 
               style={{ 
                 letterSpacing: '0.02em',
                 textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
@@ -857,24 +1679,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
               )}
             </p>
             {dailyPuzzleInfo && (
-              <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
-                Score to Pass: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
+              <p className="text-base font-bold mt-2" style={{ color: '#d4af37' }}>
+                Target: {dailyPuzzleInfo.scoreTarget.toLocaleString()}
               </p>
             )}
             {!challenge && !dailyPuzzleInfo && (
-              <p className="text-lg font-bold mt-2" style={{ color: '#d4af37' }}>
-                Score to Pass Level: {getScoreThreshold(endlessModeLevel).toLocaleString()}
+              <p className="text-base font-bold mt-2" style={{ color: '#d4af37' }}>
+                Pass: {getScoreThreshold(endlessModeLevel).toLocaleString()}
               </p>
             )}
           </div>
-      </header>
 
-      {/* Main Game Area */}
-      <div className="px-4 sm:px-8 pb-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 max-w-7xl mx-auto">
-          
-          {/* Clues Section */}
-          <div className="space-y-4 slide-up">
+          {/* Clues */}
+          <div className="p-4 space-y-3">
             {[1, 2, 3, 4, 5].map((num) => {
               const isUnlocked = unlockedClues.includes(num);
               const clueText = getClueText(num);
@@ -894,17 +1711,17 @@ export default function GameView({ setView, challenge = null, session, onChallen
                   }}
                 >
                   {isUnlocked ? (
-                    <div className="p-4 sm:p-6">
-                      <div className="flex items-center gap-3 mb-3">
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
                         <div 
-                          className="w-3 h-3 rounded-full"
+                          className="w-2 h-2 rounded-full"
                           style={{ 
                             backgroundColor: '#d4af37',
                             boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
                           }}
                         ></div>
                         <span 
-                          className="font-serif font-bold text-lg"
+                          className="font-serif font-bold text-sm"
                           style={{ 
                             color: '#d4af37',
                             textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
@@ -913,32 +1730,30 @@ export default function GameView({ setView, challenge = null, session, onChallen
                           Clue {num}
                         </span>
                       </div>
-                      <p className={`text-gray-300 leading-relaxed ${num === 1 ? 'italic text-lg' : ''}`}>
+                      <p className={`text-gray-300 text-sm leading-relaxed ${num === 1 ? 'italic' : ''}`}>
                         {clueText || 'Loading...'}
                       </p>
                     </div>
                   ) : (
                     <button 
-                      className="w-full p-4 sm:p-6 text-left group hover:bg-white/5 transition-all duration-300 shimmer-lock" 
+                      className="w-full p-3 text-left group hover:bg-white/5 transition-all duration-300 shimmer-lock" 
                       onClick={() => handleUnlockClue(num)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full border-2 border-gray-600 flex items-center justify-center group-hover:border-yellow-500 transition-colors">
-                            <svg className="w-4 h-4 text-gray-600 group-hover:text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full border-2 border-gray-600 flex items-center justify-center group-hover:border-yellow-500 transition-colors">
+                            <svg className="w-3 h-3 text-gray-600 group-hover:text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>
                           </div>
                           <div>
-                            <span className="font-semibold text-white group-hover:text-yellow-500 transition-colors">Unlock Clue {num}</span>
-                            <p className="text-sm text-gray-500">Reveal the next piece of evidence</p>
+                            <span className="text-sm font-semibold text-white group-hover:text-yellow-500 transition-colors">Unlock Clue {num}</span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="font-bold text-yellow-500">
+                          <span className="text-sm font-bold text-yellow-500">
                             {CLUE_COSTS[num].toLocaleString()}
                           </span>
-                          <p className="text-xs text-gray-500">points</p>
                         </div>
                       </div>
                     </button>
@@ -947,365 +1762,33 @@ export default function GameView({ setView, challenge = null, session, onChallen
               );
             })}
           </div>
+        </div>
 
-          {/* Map & Guess Panel */}
-          <div 
-            className="backdrop-blur rounded-lg border p-4 sm:p-6 space-y-6 hover:border-yellow-500/20 transition-all duration-300 slide-up"
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
-            }}
-          >
-            {/* Map */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-serif font-bold text-white">Guess Location</h3>
-                <button
-                  onClick={() => setIsMapFullscreen(!isMapFullscreen)}
-                  className="p-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
-                  title="Toggle Fullscreen"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                  </svg>
-                </button>
-              </div>
-              <div 
-                className="rounded-lg overflow-hidden border-2 hover:border-yellow-500/50 transition-colors duration-300" 
-                style={{ border: '2px solid rgba(255, 255, 255, 0.1)' }}
-              >
-                <div className={isMapFullscreen ? "h-96" : "h-64 sm:h-80"}>
-                  <GlobeMap 
-                    onGuess={handleMapGuess} 
-                    guessCoords={guessCoords}
-                    selectedYear={selectedYear}
-                  />
-                </div>
-              </div>
-            </div>
+        {/* Right: Full-screen Globe with Floating Controls */}
+        <div className="flex-1 relative">
+          {/* Globe fills this entire area */}
+          <GlobeMap 
+            onGuess={handleMapGuess} 
+            guessCoords={guessCoords}
+            selectedYear={selectedYear}
+          />
 
-            {/* Continent Quick Jump */}
-            <div className="mb-3">
-              <div className="text-xs text-gray-400 text-center font-medium uppercase tracking-wide mb-2">
-                Jump to Continent
-              </div>
+          {/* Floating Continent Buttons */}
+          <ContinentButtons onJumpToContinent={handleMapGuess} />
 
-              {/* Desktop: Continent buttons in compact grid */}
-              <div className="hidden sm:block">
-                <div className="grid grid-cols-3 gap-1 mb-1">
-                  {CONTINENTS.slice(0, 3).map((continent) => (
-                    <button
-                      key={continent.label}
-                      onClick={() => handleMapGuess({ lat: continent.lat, lng: continent.lng })}
-                      className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
-                      style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        color: '#9ca3af',
-                        border: '1px solid rgba(156, 163, 175, 0.15)',
-                        backdropFilter: 'blur(4px)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.color = '#d4af37';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(156, 163, 175, 0.15)';
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.color = '#9ca3af';
-                      }}
-                    >
-                      {continent.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  {CONTINENTS.slice(3).map((continent) => (
-                    <button
-                      key={continent.label}
-                      onClick={() => handleMapGuess({ lat: continent.lat, lng: continent.lng })}
-                      className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
-                      style={{
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        color: '#9ca3af',
-                        border: '1px solid rgba(156, 163, 175, 0.15)',
-                        backdropFilter: 'blur(4px)',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.color = '#d4af37';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(156, 163, 175, 0.15)';
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.color = '#9ca3af';
-                      }}
-                    >
-                      {continent.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          {/* MapControls already floats inside GlobeMap (top-right) */}
 
-              {/* Mobile: Dropdown selector */}
-              <div className="sm:hidden">
-                <select
-                  onChange={(e) => {
-                    const selected = CONTINENTS.find(c => c.label === e.target.value);
-                    if (selected) {
-                      handleMapGuess({ lat: selected.lat, lng: selected.lng });
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-black/50 border rounded-md text-white text-sm"
-                  style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}
-                  defaultValue=""
-                >
-                  <option value="">Jump to Continent...</option>
-                  {CONTINENTS.map(continent => (
-                    <option key={continent.label} value={continent.label}>
-                      {continent.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Year Selector */}
-            <div>
-              <h3 className="text-lg font-serif font-bold text-white mb-3">Year Guess</h3>
-              <div className="space-y-4">
-                {/* Direct Input */}
-                {/* Direct Input */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    value={selectedYear}
-                    onChange={(e) => handleYearChange(e.target.value)}
-                    min="-1000"
-                    max="2025"
-                    className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors text-lg"
-                    style={{ 
-                      fontFamily: 'system-ui, -apple-system, sans-serif',
-                      color: '#d4af37',
-                      textShadow: '0 0 10px rgba(212, 175, 55, 0.3)',
-                      boxShadow: '0 0 0 0 rgba(212, 175, 55, 0.2)'
-                    }}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => adjustYear(10)}
-                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                      style={{ minWidth: '50px' }}
-                    >
-                      +10
-                    </button>
-                    <button
-                      onClick={() => adjustYear(1)}
-                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                      style={{ minWidth: '50px' }}
-                    >
-                      +1
-                    </button>
-                    <button
-                      onClick={() => adjustYear(-10)}
-                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                      style={{ minWidth: '50px' }}
-                    >
-                      -10
-                    </button>
-                    <button
-                      onClick={() => adjustYear(-1)}
-                      className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                      style={{ minWidth: '50px' }}
-                    >
-                      -1
-                    </button>
-                  </div>
-                </div>
-
-                {/* Historical Era Quick Jump */}
-                <div className="space-y-2">
-                  <div className="text-xs text-gray-400 text-center font-medium uppercase tracking-wide">
-                    Jump to Historical Era
-                  </div>
-
-                  {/* Desktop: Era buttons in grid */}
-                  <div className="hidden sm:block">
-                    <div className="grid grid-cols-4 gap-1 mb-1">
-                      {historicalEras.slice(0, 4).map((era) => (
-                        <button
-                          key={era.label}
-                          onClick={() => setSelectedYear(era.value)}
-                          title={era.tooltip}
-                          className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
-                          style={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            color: Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
-                            border: '1px solid',
-                            borderColor: Math.abs(selectedYear - era.value) < 100
-                              ? 'rgba(212, 175, 55, 0.5)'
-                              : 'rgba(156, 163, 175, 0.15)',
-                            backdropFilter: 'blur(4px)',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
-                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                            e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.color = '#d4af37';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = Math.abs(selectedYear - era.value) < 100
-                              ? 'rgba(212, 175, 55, 0.5)'
-                              : 'rgba(156, 163, 175, 0.15)';
-                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.color = Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
-                          }}
-                        >
-                          {era.label}
-
-                          {/* Tooltip on hover */}
-                          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black/90 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
-                            {era.tooltip}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-4 gap-1">
-                      {historicalEras.slice(4).map((era) => (
-                        <button
-                          key={era.label}
-                          onClick={() => setSelectedYear(era.value)}
-                          title={era.tooltip}
-                          className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
-                          style={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            color: Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
-                            border: '1px solid',
-                            borderColor: Math.abs(selectedYear - era.value) < 100
-                              ? 'rgba(212, 175, 55, 0.5)'
-                              : 'rgba(156, 163, 175, 0.15)',
-                            backdropFilter: 'blur(4px)',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
-                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                            e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.color = '#d4af37';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = Math.abs(selectedYear - era.value) < 100
-                              ? 'rgba(212, 175, 55, 0.5)'
-                              : 'rgba(156, 163, 175, 0.15)';
-                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.color = Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
-                          }}
-                        >
-                          {era.label}
-
-                          {/* Tooltip on hover */}
-                          <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black/90 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
-                            {era.tooltip}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Mobile: Dropdown selector */}
-                  <div className="sm:hidden">
-                    <select
-                      onChange={(e) => setSelectedYear(Number(e.target.value))}
-                      value={selectedYear}
-                      className="w-full px-3 py-2 bg-black/50 border rounded-md text-white text-sm"
-                      style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}
-                    >
-                      <option value={selectedYear}>Jump to Era...</option>
-                      {historicalEras.map(era => (
-                        <option key={era.label} value={era.value}>
-                          {era.label} ({era.tooltip})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Display */}
-                <div 
-                  className="text-center p-4 rounded-lg border"
-                  style={{ 
-                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    border: '1px solid rgba(212, 175, 55, 0.2)'
-                  }}
-                >
-              <p className="text-sm text-gray-400 mb-1 uppercase tracking-wider">Your guess:</p>
-                  <p 
-                    className="text-2xl font-bold"
-                    style={{ 
-                      color: '#d4af37',
-                      textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
-                    }}
-                  >
-                    {displayYear(selectedYear)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Score Display */}
-            <div 
-              className="p-4 rounded-lg border"
-              style={{ 
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                border: '2px solid rgba(212, 175, 55, 0.2)',
-                boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
-              }}
-            >
-              <div className="text-center">
-                <p className="text-sm text-gray-400 mb-1 uppercase tracking-wide">Potential Score</p>
-                <p 
-                  className="text-3xl font-bold mb-1"
-                  style={{ 
-                    color: '#d4af37',
-                    textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
-                  }}
-                >
-                  {score.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500">points remaining</p>
-              </div>
-            </div>
-
-            {/* Make Guess Button */}
-            <button 
-              onClick={() => setShowConfirmModal(true)}
-              disabled={!guessCoords || !!results}
-              className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative group"
-              style={{ 
-                background: !guessCoords || !!results ? '#374151' : 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                letterSpacing: '-0.01em',
-                fontSize: '18px'
-              }}
-              onMouseEnter={(e) => {
-                if (!e.target.disabled) {
-                  e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 10px 30px rgba(139, 0, 0, 0.3)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              {!guessCoords ? 'Place a Pin on the Map' : 'Make Guess'}
-            </button>
-          </div>
+          {/* Floating Bottom Control Bar */}
+          <BottomControlBar
+            year={selectedYear}
+            onYearChange={handleYearChange}
+            onAdjustYear={adjustYear}
+            onEraSelect={setSelectedYear}
+            score={score}
+            guessCoords={guessCoords}
+            results={results}
+            onMakeGuess={() => setShowConfirmModal(true)}
+          />
         </div>
       </div>
 
@@ -1363,11 +1846,11 @@ export default function GameView({ setView, challenge = null, session, onChallen
         </div>
       )}
 
-      {/* Results Modal */}
+      {/* Results Modal (Same for both mobile and desktop) */}
       {results && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div
-            className="backdrop-blur rounded-xl max-w-sm sm:max-w-md w-full text-center shadow-2xl slide-up flex flex-col"
+            className="backdrop-blur rounded-xl max-w-sm sm:max-w-md w-full text-center shadow-2xl flex flex-col"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.9)',
               border: '2px solid rgba(212, 175, 55, 0.3)',
@@ -1468,8 +1951,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
             </div>
             
             {/* XP & Coins Rewards */}
-            {/* Debug logging */}
-            {console.log('Results screen - xpResults:', xpResults, 'coinResults:', coinResults)}
             {(xpResults || coinResults) && (
               <div className="space-y-3">
                 {/* XP Display */}
