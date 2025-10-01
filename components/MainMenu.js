@@ -119,7 +119,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                   className="text-xs font-semibold uppercase"
                   style={{
                     color: "#ffffff",
-                    opacity: 0.8,
+                    opacity: 1,
                     letterSpacing: "0.15em",
                   }}
                 >
@@ -271,7 +271,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
                   className="text-xs font-semibold uppercase"
                   style={{
                     color: "#ffffff",
-                    opacity: 0.8,
+                    opacity: 1,
                     letterSpacing: "0.15em",
                   }}
                 >
