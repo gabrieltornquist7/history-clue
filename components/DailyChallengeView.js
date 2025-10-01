@@ -655,12 +655,6 @@ export default function DailyChallengeView({
                           animation: "shine 3s infinite",
                         }}
                       ></div>
-                      <style jsx>{`
-                        @keyframes shine {
-                          0% { background-position: 200% 0; }
-                          100% { background-position: -200% 0; }
-                        }
-                      `}</style>
                       <span className="relative z-10">Begin Challenge</span>
                     </button>
                   </div>
