@@ -82,8 +82,16 @@ export default function MainMenu({ setView, session, onSignOut }) {
         <div className="flex-1"></div>
         <div className="text-center">
           <h1
-            className="text-4xl font-serif font-bold text-white mb-2"
-            style={{ letterSpacing: "0.02em" }}
+            className="text-5xl font-serif font-bold mb-2 relative inline-block"
+            style={{
+              letterSpacing: "0.05em",
+              background: "linear-gradient(135deg, #ffffff 0%, #f5f5f5 50%, #e0e0e0 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              textShadow: "0 0 40px rgba(212, 175, 55, 0.3)",
+              filter: "drop-shadow(0 2px 8px rgba(212, 175, 55, 0.4)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.1))"
+            }}
           >
             HistoryClue
           </h1>
@@ -91,8 +99,9 @@ export default function MainMenu({ setView, session, onSignOut }) {
             className="text-sm italic font-light"
             style={{
               color: "#d4af37",
-              opacity: 0.9,
-              letterSpacing: "0.05em",
+              opacity: 0.95,
+              letterSpacing: "0.08em",
+              textShadow: "0 0 15px rgba(212, 175, 55, 0.4)"
             }}
           >
             Where in history are you?
