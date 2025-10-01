@@ -22,7 +22,7 @@ export default function ResultsScreen({ results, handlePlayAgain }) {
             <p className="text-green-700 font-semibold">{displayYear(results.answer.year)}</p>
           </div>
         </div>
-        <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {results.finalScore.toLocaleString()}</h3>
+        <h3 className="text-2xl font-serif font-bold text-ink mb-6">Final Score: {(results.finalScore ?? 0).toLocaleString()}</h3>
         <button
           onClick={handlePlayAgain}
           className="p-4 bg-sepia-dark text-white font-bold text-lg rounded-lg hover:bg-ink transition-colors duration-200 w-full"
