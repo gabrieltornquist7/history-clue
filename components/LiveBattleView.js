@@ -211,12 +211,21 @@ export default function LiveBattleView({ session, battleId, setView }) {
           switch (event) {
             case 'guess_submitted':
               // Removed old logic - now using polling instead of realtime events
+              console.log('[Realtime] guess_submitted event received (ignored - using polling):', payload);
               break;
 
             case 'first_guess':
+              console.log('[Realtime] First guess submitted by:', payload.playerId);
               if (payload.playerId !== session.user.id && !firstGuessSubmitted) {
+                console.log('Opponent submitted first! Reducing timer to 45s max');
                 // Opponent made first guess, reduce remaining time to 45s max
-                setMyTimer(prev => Math.min(prev, 45));
+                setMyTimer(prev => {
+                  const newTime = Math.min(prev, 45);
+                  console.log(`Timer reduced from ${prev}s to ${newTime}s`);
+                  return newTime;
+                });
+                // Mark that we know opponent submitted first
+                setFirstGuessSubmitted(true);
               }
               break;
 
@@ -862,7 +871,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
     });
 
     if (completionError) {
-      console.error('Error updating completion timestamp:', completionError);
+      console.error('Error saving score and completion:', completionError);
 
       if (completionError.code === '406') {
         console.error('406 Not Acceptable - RLS authorization failed:', {
@@ -879,8 +888,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
         });
       }
     } else {
-      // Successfully updated completion - refetch the round to ensure sync
-      console.log('Completion update successful, refetching round data...');
+      // Successfully updated - refetch the round to verify and sync
+      console.log('✅ Score and completion saved successfully! Refetching to verify...');
       const { data: updatedRound, error: refetchError } = await supabase
         .from('battle_rounds')
         .select('*')
@@ -888,15 +897,24 @@ export default function LiveBattleView({ session, battleId, setView }) {
         .maybeSingle();
 
       if (updatedRound && !refetchError) {
-        console.log('Round data refetched:', updatedRound);
+        console.log('✅ Round data verified after save:', {
+          roundId: updatedRound.id,
+          p1_score: updatedRound.p1_score,
+          p2_score: updatedRound.p2_score,
+          p1_completed: !!updatedRound.player1_completed_at,
+          p2_completed: !!updatedRound.player2_completed_at,
+          myScore: finalScore,
+          scoreField: scoreField
+        });
         setGameData(prev => ({ ...prev, currentRound: updatedRound }));
       } else {
-        console.error('Error refetching round data:', refetchError);
+        console.error('❌ Error refetching round data:', refetchError);
       }
     }
 
-    // Broadcast first guess if needed
+    // Broadcast first guess if needed (do this BEFORE polling starts)
     if (!firstGuessSubmitted && !oppGuess) {
+      console.log('Broadcasting first_guess event to opponent');
       broadcastBattleEvent(battleId, 'first_guess', {
         playerId: session.user.id
       });
@@ -935,22 +953,55 @@ export default function LiveBattleView({ session, battleId, setView }) {
           return;
         }
 
+        console.log(`[Polling ${pollCount}] Round status:`, {
+          roundId: currentRound.id,
+          p1_completed: !!currentRound.player1_completed_at,
+          p2_completed: !!currentRound.player2_completed_at,
+          p1_score: currentRound.p1_score,
+          p2_score: currentRound.p2_score,
+          status: currentRound.status
+        });
+
+        // Check opponent's completion status and update UI
+        const isPlayer1 = session.user.id === gameData.battle?.player1;
+        const oppCompleted = isPlayer1 ? currentRound.player2_completed_at : currentRound.player1_completed_at;
+        const oppScore = isPlayer1 ? currentRound.p2_score : currentRound.p1_score;
+        
+        // If opponent completed but we haven't shown it yet, update oppGuess state
+        if (oppCompleted && !oppGuess && oppScore !== undefined) {
+          console.log('Opponent has completed! Updating UI...');
+          setOppGuess({
+            score: oppScore,
+            distance: 0,
+            completed_at: oppCompleted
+          });
+        }
+
         // Check if both players have completed (using completion timestamps)
         const bothCompleted = currentRound.player1_completed_at && currentRound.player2_completed_at;
 
         if (bothCompleted) {
-          console.log('Both players completed! Showing results');
+          console.log('Both players completed! Fetching opponent score and showing results');
 
           // Determine which player I am
           const isPlayer1 = session.user.id === gameData.battle?.player1;
           const oppScore = isPlayer1 ? currentRound.p2_score : currentRound.p1_score;
 
-          // Create opponent guess data
+          // Create opponent guess data with actual score from database
           const oppGuessData = {
             score: oppScore,
-            // We don't have the opponent's exact guess details, but score is what matters for results
-            distance: 0 // This won't be displayed in results anyway
+            distance: 0, // We don't track opponent's exact guess details
+            completed_at: isPlayer1 ? currentRound.player2_completed_at : currentRound.player1_completed_at
           };
+
+          // Set opponent guess state so UI shows they completed
+          setOppGuess(oppGuessData);
+
+          console.log('Showing results with scores:', {
+            myScore: myGuessData.score,
+            oppScore: oppScore,
+            bothCompleted: true
+          });
 
           // Show results to this player
           showResults(myGuessData, oppGuessData);
@@ -975,6 +1026,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   const showResults = (myGuessData, oppGuessData) => {
     console.log('Showing results:', { myGuessData, oppGuessData });
+
+    // Safeguard: Don't show results if we don't have valid opponent data
+    if (!oppGuessData || oppGuessData.score === undefined || oppGuessData.score === null) {
+      console.warn('Cannot show results - missing opponent score data');
+      return;
+    }
 
     const myRoundScore = myGuessData.score || 0;
     const oppRoundScore = oppGuessData.score || 0;
@@ -2167,9 +2224,18 @@ export default function LiveBattleView({ session, battleId, setView }) {
             {/* Timer */}
             <div className="text-center">
               <p className="text-sm text-gray-400">Your Timer</p>
-              <p className={`text-2xl font-bold ${myTimer <= 30 ? 'text-red-400' : 'text-white'}`}>
+              <p className={`text-2xl font-bold ${
+                myTimer <= 30 ? 'text-red-400' : 
+                myTimer <= 45 && firstGuessSubmitted ? 'text-orange-400' : 
+                'text-white'
+              }`}>
                 {formatTime(myTimer)}
               </p>
+              {myTimer <= 45 && firstGuessSubmitted && !myGuess && (
+                <p className="text-xs text-orange-400 mt-1 animate-pulse">
+                  ⚡ Hurry! Opponent submitted!
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -2487,6 +2553,29 @@ export default function LiveBattleView({ session, battleId, setView }) {
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-yellow-400">Battle Status</h2>
               
+              {/* Opponent Status Indicator */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+                <h3 className="font-bold text-blue-400 mb-2">
+                  {gameData.opponent?.username || 'Opponent'}
+                </h3>
+                {oppGuess ? (
+                  <div className="flex items-center gap-2 text-green-400">
+                    <span className="text-2xl">✅</span>
+                    <span className="font-bold">Guess Submitted!</span>
+                  </div>
+                ) : firstGuessSubmitted && !myGuess ? (
+                  <div className="flex items-center gap-2 text-yellow-400">
+                    <span className="text-2xl">⏱️</span>
+                    <span className="font-bold">Submitted First!</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <span className="text-2xl">🤔</span>
+                    <span>Thinking...</span>
+                  </div>
+                )}
+              </div>
+              
               {myGuess ? (
                 <div className="bg-green-800 rounded-lg p-4 border border-green-500">
                   <h3 className="font-bold text-green-400 mb-2">Your Result</h3>
@@ -2494,24 +2583,23 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   <p>Distance: <span className="font-bold">{myGuess.distance}km</span></p>
                   {!oppGuess && (
                     <div className="mt-2">
-                      <div className="text-yellow-400">Waiting for opponent...</div>
-                      <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
-                        <div className="bg-yellow-400 h-2 rounded-full animate-pulse" style={{width: '50%'}}></div>
+                      <div className="text-yellow-400 font-semibold">Waiting for opponent...</div>
+                      <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                        <div className="bg-yellow-400 h-2 rounded-full animate-pulse" style={{width: '70%'}}></div>
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-                  <p className="text-gray-300">Make your guess before time runs out!</p>
-                </div>
-              )}
-
-              {oppGuess && (
-                <div className="bg-blue-800 rounded-lg p-4 border border-blue-500">
-                  <h3 className="font-bold text-blue-400 mb-2">Opponent Result</h3>
-                  <p>Score: <span className="font-bold">{oppGuess.score.toLocaleString()}</span></p>
-                  <p>Distance: <span className="font-bold">{oppGuess.distance}km</span></p>
+                  <h3 className="font-bold text-white mb-2">Your Turn</h3>
+                  <p className="text-gray-300">Place your pin on the map, select a year, and submit your guess!</p>
+                  {firstGuessSubmitted && (
+                    <div className="mt-3 p-2 bg-orange-500/20 border border-orange-500/30 rounded">
+                      <p className="text-orange-400 text-sm font-bold">⚡ Opponent submitted first!</p>
+                      <p className="text-orange-300 text-xs mt-1">Timer reduced to 45 seconds</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
