@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
+import Image from "next/image";
 
 export default function MainMenu({ setView, session, onSignOut }) {
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -81,16 +82,19 @@ export default function MainMenu({ setView, session, onSignOut }) {
       <header className="flex items-center justify-between p-8 pb-4 relative z-10">
         <div className="flex-1"></div>
         <div className="text-center">
-          <h1
-            className="text-5xl font-serif font-bold text-white mb-2 relative inline-block"
-            style={{
-              letterSpacing: "0.05em",
-              textShadow: "0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.3), 0 2px 8px rgba(255, 255, 255, 0.2)",
-              filter: "drop-shadow(0 0 20px rgba(255, 255, 255, 0.4))"
-            }}
-          >
-            HistoryClue
-          </h1>
+          {/* Logo */}
+          <div className="mb-4 flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="HistoryClue Logo"
+              width={300}
+              height={80}
+              className="object-contain"
+              style={{
+                filter: "drop-shadow(0 0 20px rgba(255, 255, 255, 0.4))"
+              }}
+            />
+          </div>
           <p
             className="text-sm italic font-light"
             style={{
