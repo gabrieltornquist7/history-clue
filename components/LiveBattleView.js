@@ -6,6 +6,9 @@ import dynamic from 'next/dynamic';
 import { subscribeToBattle, broadcastBattleEvent } from '../lib/realtimeHelpers';
 import GlassBackButton from './GlassBackButton';
 import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
+import { useIsMobile } from '../lib/useIsMobile';
+import ContinentButtons from './ContinentButtons';
+import BottomControlBar from './BottomControlBar';
 
 // Historical eras with representative years
 const historicalEras = [
@@ -43,6 +46,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 export default function LiveBattleView({ session, battleId, setView }) {
   console.log('[LiveBattleView] Rendered with setView:', typeof setView);
   const { queueBadgeNotification } = useBadgeNotifications();
+  const isMobile = useIsMobile();
 
   // Debug function to check variable availability
   const debugVariables = (location) => {
@@ -2167,6 +2171,396 @@ export default function LiveBattleView({ session, battleId, setView }) {
     );
   }
 
+  // DESKTOP LAYOUT - Full-screen map with floating panels
+  if (!isMobile) {
+    return (
+      <div className="fixed inset-0 overflow-hidden">
+        {/* Full-screen Map Background */}
+        <div className="absolute inset-0">
+          <GlobeMap 
+            onGuess={handleMapGuess} 
+            guessCoords={guessCoords}
+            selectedYear={selectedYear}
+          />
+        </div>
+
+        {/* Back Button */}
+        <div className="absolute top-4 left-4 z-50">
+          <GlassBackButton
+            onClick={() => {
+              console.log('[LiveBattleView] Back button clicked');
+              if (setView && typeof setView === 'function') {
+                setView('menu');
+              } else {
+                console.error('[LiveBattleView] setView is not a function:', setView);
+              }
+            }}
+            fallbackUrl="/"
+          />
+        </div>
+
+        {/* Floating Clue Panel (Left Side) */}
+        <div 
+          className="absolute top-4 left-20 w-80 max-h-[calc(100vh-8rem)] overflow-y-auto backdrop-blur-xl rounded-2xl p-6 z-40"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            border: '1px solid rgba(212, 175, 55, 0.2)',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          <h2 
+            className="text-2xl font-bold text-yellow-400 mb-6"
+            style={{
+              textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+            }}
+          >
+            Clues
+          </h2>
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((num) => {
+              const isUnlocked = myClues.includes(num);
+              const clueText = getClueText(num);
+              
+              return (
+                <div 
+                  key={num}
+                  className="backdrop-blur rounded-lg p-4 transition-all duration-300"
+                  style={{
+                    backgroundColor: isUnlocked ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+                    border: isUnlocked ? '2px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: isUnlocked ? '0 0 20px rgba(212, 175, 55, 0.1)' : 'none'
+                  }}
+                >
+                  {isUnlocked ? (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div 
+                          className="w-2 h-2 rounded-full"
+                          style={{ 
+                            backgroundColor: '#d4af37',
+                            boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+                          }}
+                        ></div>
+                        <span 
+                          className="font-bold"
+                          style={{ 
+                            color: '#d4af37',
+                            textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                          }}
+                        >
+                          Clue {num}
+                        </span>
+                      </div>
+                      <p className="text-gray-300">{clueText}</p>
+                    </div>
+                  ) : (
+                    <button 
+                      className="w-full text-left hover:bg-gray-700 p-2 rounded"
+                      onClick={() => handleRevealClue(num)}
+                      disabled={myScore < CLUE_COSTS[num] || !!myGuess}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">🔒 Unlock Clue {num}</span>
+                        <span className="text-yellow-500 font-bold">
+                          {CLUE_COSTS[num]}
+                        </span>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            
+            <div 
+              className="rounded-lg p-4"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(212, 175, 55, 0.2)'
+              }}
+            >
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Potential Score</p>
+                <p className="text-2xl font-bold text-yellow-400">
+                  {myScore.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Floating Battle Info Panel (Right Side) */}
+        <div 
+          className="absolute top-4 right-4 w-80 backdrop-blur-xl rounded-2xl p-6 z-40"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            border: '1px solid rgba(212, 175, 55, 0.2)',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          {/* Battle Header */}
+          <div className="text-center mb-6">
+            <h1 
+              className="text-2xl font-serif font-bold text-yellow-400 mb-2"
+              style={{
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.5)',
+                letterSpacing: '0.02em'
+              }}
+            >
+              Live Battle
+            </h1>
+            <p className="text-sm text-gray-300">vs {gameData.opponent?.username || 'Loading...'}</p>
+            <div className="text-xs text-gray-400 mt-1">
+              Round {battleState.currentRoundNum} of {battleState.totalRounds}
+            </div>
+          </div>
+
+          {/* Battle Scores */}
+          <div 
+            className="rounded-lg p-4 mb-4"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              border: '1px solid rgba(212, 175, 55, 0.1)'
+            }}
+          >
+            <div className="flex justify-between items-center">
+              <div className="text-center flex-1">
+                <p className="text-xs text-gray-400">You</p>
+                <p className="text-xl font-bold text-green-400">
+                  {battleState.myTotalScore.toLocaleString()}
+                </p>
+              </div>
+              <div className="text-gray-500 text-2xl font-bold">VS</div>
+              <div className="text-center flex-1">
+                <p className="text-xs text-gray-400">Them</p>
+                <p className="text-xl font-bold text-blue-400">
+                  {battleState.oppTotalScore.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Timer */}
+          <div 
+            className="rounded-lg p-4 mb-4"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              border: myTimer <= 30 ? '2px solid #ef4444' : myTimer <= 45 && firstGuessSubmitted ? '2px solid #f97316' : '2px solid rgba(212, 175, 55, 0.2)',
+              boxShadow: myTimer <= 30 ? '0 0 20px rgba(239, 68, 68, 0.3)' : myTimer <= 45 && firstGuessSubmitted ? '0 0 20px rgba(249, 115, 22, 0.3)' : '0 0 20px rgba(212, 175, 55, 0.1)'
+            }}
+          >
+            <p className="text-xs text-gray-400 uppercase tracking-wide text-center">Your Timer</p>
+            <p 
+              className={`text-4xl font-bold text-center ${
+                myTimer <= 30 ? 'text-red-400' : 
+                myTimer <= 45 && firstGuessSubmitted ? 'text-orange-400' : 
+                'text-white'
+              }`}
+              style={{
+                textShadow: myTimer <= 30 ? '0 0 20px rgba(239, 68, 68, 0.5)' : myTimer <= 45 && firstGuessSubmitted ? '0 0 20px rgba(249, 115, 22, 0.5)' : '0 0 20px rgba(212, 175, 55, 0.3)'
+              }}
+            >
+              {formatTime(myTimer)}
+            </p>
+            {myTimer <= 45 && firstGuessSubmitted && !myGuess && (
+              <p className="text-xs text-orange-400 mt-2 text-center animate-pulse">
+                ⚡ Hurry! Opponent submitted!
+              </p>
+            )}
+          </div>
+
+          {/* Invite Code */}
+          {gameData.battle?.invite_code && (
+            <div 
+              className="rounded-lg p-4 mb-4"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <p className="text-xs text-gray-400 uppercase tracking-wide text-center mb-2">Invite Code</p>
+              <div className="flex items-center justify-center gap-2">
+                <span
+                  className="text-sm font-mono font-bold text-yellow-400 px-3 py-1 bg-black/30 rounded border border-yellow-500/30"
+                  style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
+                >
+                  {gameData.battle.invite_code}
+                </span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(gameData.battle.invite_code)}
+                  className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors"
+                  title="Copy invite code"
+                >
+                  📋
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Debug Button */}
+          <button
+            onClick={forceSyncRound}
+            className="w-full bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-xs transition-colors"
+            title="Force sync to latest round (debug)"
+          >
+            🔄 Force Sync Round
+          </button>
+        </div>
+
+        {/* Continent Navigation */}
+        <ContinentButtons 
+          continents={CONTINENTS}
+          onContinentClick={(lat, lng) => handleMapGuess({ lat, lng })}
+          disabled={!!myGuess}
+        />
+
+        {/* Bottom Control Bar */}
+        <BottomControlBar
+          selectedYear={selectedYear}
+          onYearChange={handleYearChange}
+          historicalEras={historicalEras}
+          guessCoords={guessCoords}
+          onSubmit={() => handleGuessSubmit(false)}
+          disabled={!!myGuess}
+          displayYear={displayYear}
+        />
+
+        {/* Round Result Modal */}
+        {gameFinished && roundResult && (
+          <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
+            onClick={() => {
+              if (battleState.battleFinished) {
+                setView('menu');
+              } else {
+                setGameFinished(false);
+              }
+            }}
+          >
+            <div 
+              className="backdrop-blur-xl rounded-2xl p-8 max-w-2xl w-full mx-4"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.95)',
+                border: '2px solid rgba(212, 175, 55, 0.3)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-3xl font-bold text-center mb-6">
+                {battleState.battleFinished ? (
+                  <span className="text-yellow-400">Battle Complete!</span>
+                ) : (
+                  <span className="text-yellow-400">Round {roundResult.roundNumber} Complete!</span>
+                )}
+              </h2>
+
+              {battleState.battleFinished ? (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <p className="text-6xl mb-4">
+                      {battleState.battleWinner === 'me' ? '🏆' : battleState.battleWinner === 'opponent' ? '😔' : '🤝'}
+                    </p>
+                    <p className="text-2xl font-bold mb-2">
+                      {battleState.battleWinner === 'me' ? 'Victory!' : battleState.battleWinner === 'opponent' ? 'Defeat' : "It's a Tie!"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <p className="text-sm text-gray-400">Your Total</p>
+                      <p className="text-3xl font-bold text-green-400">
+                        {battleState.myTotalScore.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <p className="text-sm text-gray-400">Their Total</p>
+                      <p className="text-3xl font-bold text-blue-400">
+                        {battleState.oppTotalScore.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-bold text-center text-gray-300">Round Breakdown</h3>
+                    {battleState.roundScores.map((round, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-gray-800/30 rounded p-3">
+                        <span className="text-gray-400">Round {round.round}</span>
+                        <div className="flex gap-4">
+                          <span className="text-green-400">{round.myScore.toLocaleString()}</span>
+                          <span className="text-gray-500">-</span>
+                          <span className="text-blue-400">{round.oppScore.toLocaleString()}</span>
+                        </div>
+                        <span className="text-yellow-400">
+                          {round.winner === 'me' ? '✓' : round.winner === 'opponent' ? '✗' : '='}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setView('menu')}
+                    className="w-full py-3 bg-yellow-600 hover:bg-yellow-700 text-black font-bold rounded-lg transition-colors"
+                  >
+                    Return to Menu
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <p className="text-6xl mb-4">
+                      {roundResult.winner === 'me' ? '🎯' : roundResult.winner === 'opponent' ? '😔' : '🤝'}
+                    </p>
+                    <p className="text-xl">
+                      {roundResult.winner === 'me' ? 'You won this round!' : roundResult.winner === 'opponent' ? 'Opponent won this round' : 'Round tied!'}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <p className="text-sm text-gray-400">Your Score</p>
+                      <p className="text-2xl font-bold text-green-400">
+                        {roundResult.myScore.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <p className="text-sm text-gray-400">Their Score</p>
+                      <p className="text-2xl font-bold text-blue-400">
+                        {roundResult.oppScore.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-center bg-gray-800/30 rounded-lg p-4">
+                    <p className="text-sm text-gray-400 mb-2">Battle Score</p>
+                    <div className="flex justify-center gap-6">
+                      <div>
+                        <p className="text-xs text-gray-500">You</p>
+                        <p className="text-xl font-bold text-green-400">
+                          {battleState.myTotalScore.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center text-gray-500">-</div>
+                      <div>
+                        <p className="text-xs text-gray-500">Them</p>
+                        <p className="text-xl font-bold text-blue-400">
+                          {battleState.oppTotalScore.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-center text-gray-400">
+                    Next round starting soon...
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // MOBILE LAYOUT - Original 3-column grid
   return (
     <div
       className="min-h-screen relative text-white"
