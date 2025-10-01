@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { AvatarImage } from '../lib/avatarHelpers';
 import GlassBackButton from './GlassBackButton';
+import UserProfileView from './UserProfileView';
 
-export default function LeaderboardView({ setView }) {
+export default function LeaderboardView({ setView, session }) {
   console.log('[LeaderboardView] Rendered with setView:', typeof setView);
   const [loading, setLoading] = useState(true);
   const [endlessLeaderboard, setEndlessLeaderboard] = useState([]);
   const [error, setError] = useState(null);
+  const [viewingUserId, setViewingUserId] = useState(null);
 
   // Endless Mode Level System (same as GameView)
   const getEndlessDifficulty = (level) => {
@@ -28,6 +30,47 @@ export default function LeaderboardView({ setView }) {
     }[difficulty];
   };
 
+  // Get crown emoji and styling for top 3
+  const getTopPlayerStyle = (rank) => {
+    if (rank === 0) return {
+      crown: '👑',
+      bgColor: 'rgba(255, 215, 0, 0.15)',
+      borderColor: 'rgba(255, 215, 0, 0.6)',
+      textColor: 'text-yellow-300',
+      glowColor: 'rgba(255, 215, 0, 0.4)',
+      label: '1st Place'
+    };
+    if (rank === 1) return {
+      crown: '🥈',
+      bgColor: 'rgba(192, 192, 192, 0.12)',
+      borderColor: 'rgba(192, 192, 192, 0.5)',
+      textColor: 'text-gray-300',
+      glowColor: 'rgba(192, 192, 192, 0.3)',
+      label: '2nd Place'
+    };
+    if (rank === 2) return {
+      crown: '🥉',
+      bgColor: 'rgba(205, 127, 50, 0.12)',
+      borderColor: 'rgba(205, 127, 50, 0.5)',
+      textColor: 'text-orange-300',
+      glowColor: 'rgba(205, 127, 50, 0.3)',
+      label: '3rd Place'
+    };
+    return null;
+  };
+
+  // Handle clicking on a profile
+  const handleProfileClick = (userId) => {
+    console.log('[LeaderboardView] Profile clicked:', userId);
+    
+    // If it's your own profile, go to regular profile view
+    if (session?.user?.id === userId) {
+      setView('profile');
+    } else {
+      // View other user's profile
+      setViewingUserId(userId);
+    }
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -44,7 +87,8 @@ export default function LeaderboardView({ setView }) {
             id,
             username,
             avatar_url,
-            endless_mode_level
+            endless_mode_level,
+            equipped_title
           `)
           .order('endless_mode_level', { ascending: false });
 
@@ -62,7 +106,8 @@ export default function LeaderboardView({ setView }) {
           endless_mode_level: profile.endless_mode_level,
           profiles: {
             username: profile.username,
-            avatar_url: profile.avatar_url
+            avatar_url: profile.avatar_url,
+            equipped_title: profile.equipped_title
           }
         }));
 
@@ -85,6 +130,18 @@ export default function LeaderboardView({ setView }) {
     fetchLeaderboard();
     return () => { ignore = true; };
   }, []);
+
+  // If viewing a user profile, show that instead
+  if (viewingUserId) {
+    return (
+      <UserProfileView
+        setView={setView}
+        session={session}
+        userId={viewingUserId}
+        onBack={() => setViewingUserId(null)}
+      />
+    );
+  }
 
   return (
     <div
@@ -111,6 +168,24 @@ export default function LeaderboardView({ setView }) {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 20px var(--glow-color, rgba(255, 215, 0, 0.3)); }
+          50% { box-shadow: 0 0 35px var(--glow-color, rgba(255, 215, 0, 0.5)); }
+        }
+        .top-player-glow {
+          animation: pulse-glow 2.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
+        .crown-float {
+          animation: float 2s ease-in-out infinite;
+        }
       `}</style>
 
       <GlassBackButton
@@ -132,7 +207,7 @@ export default function LeaderboardView({ setView }) {
             Leaderboard
           </h1>
           <p className="text-sm italic font-light" style={{ color: '#d4af37', opacity: 0.9, letterSpacing: '0.05em' }}>
-            Highest Endless Mode levels reached
+            Highest Endless Mode levels reached • Click to view profiles
           </p>
         </div>
       </header>
@@ -165,44 +240,106 @@ export default function LeaderboardView({ setView }) {
             ) : (
               <div className="space-y-4">
                 {endlessLeaderboard.length > 0 ? (
-                  endlessLeaderboard.map((entry, index) => (
-                    <div 
-                      key={`${entry.profiles?.username || 'unknown'}-${index}`} 
-                      className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/50 ${index < 3 ? 'bg-gradient-to-r from-yellow-500/10 to-transparent' : ''}`}
-                      style={{ 
-                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                        borderColor: index < 3 ? 'rgba(212, 175, 55, 0.3)' : 'rgba(255, 255, 255, 0.05)'
-                      }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 w-12">
-                          <span className="font-bold text-white text-lg">
-                            {index + 1}.
-                          </span>
-                          {index < 3 && (
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
-                          )}
+                  endlessLeaderboard.map((entry, index) => {
+                    const topStyle = getTopPlayerStyle(index);
+                    const isTopThree = index < 3;
+                    const isCurrentUser = session?.user?.id === entry.user_id;
+                    
+                    return (
+                      <div 
+                        key={`${entry.profiles?.username || 'unknown'}-${index}`} 
+                        onClick={() => handleProfileClick(entry.user_id)}
+                        className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300 hover:border-yellow-500/50 hover:scale-[1.02] cursor-pointer group ${
+                          isTopThree ? 'top-player-glow' : ''
+                        } ${isCurrentUser ? 'ring-2 ring-blue-500/50' : ''}`}
+                        style={{ 
+                          backgroundColor: topStyle ? topStyle.bgColor : 'rgba(0, 0, 0, 0.3)',
+                          borderColor: topStyle ? topStyle.borderColor : 'rgba(255, 255, 255, 0.05)',
+                          position: 'relative',
+                          '--glow-color': topStyle?.glowColor
+                        }}
+                      >
+                        {/* Top 3 special background shimmer effect */}
+                        {isTopThree && (
+                          <div 
+                            className="absolute inset-0 rounded-lg pointer-events-none opacity-60"
+                            style={{
+                              background: `linear-gradient(90deg, transparent 0%, ${topStyle.glowColor} 50%, transparent 100%)`,
+                              backgroundSize: '200% 100%',
+                              animation: 'shimmer 4s linear infinite'
+                            }}
+                          />
+                        )}
+                        
+                        <div className="flex items-center gap-3 sm:gap-4 relative z-10 flex-1">
+                          {/* Rank and Crown */}
+                          <div className="flex items-center gap-2 w-16 sm:w-20">
+                            <span className={`font-bold text-base sm:text-lg ${topStyle ? topStyle.textColor : 'text-white'}`}>
+                              #{index + 1}
+                            </span>
+                            {topStyle && (
+                              <span className="text-2xl sm:text-3xl crown-float">{topStyle.crown}</span>
+                            )}
+                          </div>
+                          
+                          {/* Avatar with special effect for top 3 */}
+                          <div className="relative">
+                            <AvatarImage
+                              url={entry.profiles?.avatar_url}
+                              size="w-12 h-12 sm:w-14 sm:h-14"
+                              className={`border-2 ${topStyle ? topStyle.borderColor.replace('rgba', 'border-yellow') : 'border-yellow-500'} transition-transform group-hover:scale-110`}
+                            />
+                            {isTopThree && (
+                              <div 
+                                className="absolute inset-0 rounded-full pointer-events-none"
+                                style={{
+                                  boxShadow: `0 0 20px ${topStyle.glowColor}`,
+                                  animation: 'pulse-glow 2s ease-in-out infinite'
+                                }}
+                              />
+                            )}
+                          </div>
+                          
+                          {/* Username and Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-bold text-base sm:text-lg truncate ${topStyle ? topStyle.textColor : 'text-white'}`}>
+                                {entry.profiles?.username ?? 'Traveler'}
+                              </span>
+                              {isCurrentUser && (
+                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs font-medium rounded-full border border-blue-500/30 whitespace-nowrap">
+                                  You
+                                </span>
+                              )}
+                              {topStyle && (
+                                <span className={`px-2 py-0.5 text-xs font-bold rounded-full whitespace-nowrap hidden sm:inline-block`}
+                                      style={{
+                                        backgroundColor: topStyle.bgColor,
+                                        color: topStyle.textColor.replace('text-', '#'),
+                                        border: `1px solid ${topStyle.borderColor}`
+                                      }}>
+                                  {topStyle.label}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-400 group-hover:text-yellow-500 transition-colors">
+                              Endless Mode • Click to view profile
+                            </div>
+                          </div>
                         </div>
-                        <AvatarImage
-                          url={entry.profiles?.avatar_url}
-                          size="w-10 h-10"
-                          className="border-2 border-yellow-500"
-                        />
-                        <div>
-                          <span className="font-bold text-white text-lg">{entry.profiles?.username ?? 'Traveler'}</span>
-                          <div className="text-sm" style={{ color: '#9ca3af' }}>Endless Mode</div>
+                        
+                        {/* Level Display */}
+                        <div className="text-right relative z-10 ml-2">
+                          <div className={`font-bold text-lg sm:text-xl ${topStyle ? topStyle.textColor : 'text-yellow-500'} whitespace-nowrap`}>
+                            Lvl {entry.endless_mode_level}
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide">
+                            {getDifficultyLabel(entry.endless_mode_level)}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-bold text-xl" style={{ color: '#d4af37' }}>
-                          Level {entry.endless_mode_level}
-                        </div>
-                        <div className="text-sm text-gray-400 uppercase tracking-wide">
-                          {getDifficultyLabel(entry.endless_mode_level)} Difficulty
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-12">
                     <h3 className="text-xl font-serif text-white mb-4">No Endless Mode Players Yet</h3>
