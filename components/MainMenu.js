@@ -67,6 +67,10 @@ export default function MainMenu({ setView, session, onSignOut }) {
             background-position: -200% 0;
           }
         }
+        @keyframes dailyShine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
       `}</style>
 
       {/* Header */}
@@ -151,12 +155,6 @@ export default function MainMenu({ setView, session, onSignOut }) {
                     animation: "dailyShine 3s infinite",
                   }}
                 ></div>
-                <style jsx>{`
-                  @keyframes dailyShine {
-                    0% { background-position: 200% 0; }
-                    100% { background-position: -200% 0; }
-                  }
-                `}</style>
                 <div className="flex items-center justify-between">
                   <div className="text-left">
                     <div className="text-lg font-bold">Daily Challenge</div>
