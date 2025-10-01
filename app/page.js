@@ -561,11 +561,11 @@ export default function Page() {
             className="min-h-screen relative flex items-center justify-center p-6"
             style={{
               background: `
-                linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
-                radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
-              `,
-              backgroundBlendMode: "overlay",
+                linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+                radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+                radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+              `
             }}
           >
             <div
@@ -639,11 +639,11 @@ export default function Page() {
             className="min-h-screen relative flex items-center justify-center p-6"
             style={{
               background: `
-                linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
-                radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
-              `,
-              backgroundBlendMode: "overlay",
+                linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+                radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+                radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+              `
             }}
           >
             <div

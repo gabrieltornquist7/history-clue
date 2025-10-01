@@ -504,83 +504,164 @@ export default function DailyChallengeView({
                 </div>
               ) : (
                 <div className="p-12">
-                  <div className="text-center mb-8">
-                    <p className="text-3xl font-serif text-white mb-6">
+                  <div className="text-center mb-10">
+                    <div className="inline-block mb-6">
+                      <div 
+                        className="text-6xl mb-4"
+                        style={{
+                          filter: 'drop-shadow(0 0 20px rgba(212, 175, 55, 0.4))'
+                        }}
+                      >
+                        🏆
+                      </div>
+                    </div>
+                    <h2 className="text-4xl font-serif font-bold text-white mb-4">
                       Welcome to Today&apos;s Daily Challenge!
-                    </p>
-                    <p className="text-gray-300 text-lg leading-relaxed mb-8">
+                    </h2>
+                    <p className="text-gray-300 text-lg leading-relaxed max-w-2xl mx-auto">
                       Face 5 progressively challenging puzzles, from very easy to super hard. 
                       You must meet each score target to advance. One attempt per day!
                     </p>
                   </div>
 
-                  {/* Difficulty Progression Display */}
+                  {/* Difficulty Progression Display - Enhanced */}
                   <div 
-                    className="p-6 rounded-xl border mb-8"
+                    className="p-8 rounded-xl border mb-8 relative overflow-hidden"
                     style={{ 
-                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                      border: '2px solid rgba(212, 175, 55, 0.2)',
+                      boxShadow: '0 0 30px rgba(212, 175, 55, 0.1)'
                     }}
                   >
-                    <h3 className="text-xl font-serif font-bold text-white mb-4 text-center">Challenge Progression</h3>
-                    <div className="grid grid-cols-5 gap-4">
-                      {SCORE_TARGETS.map((target, index) => (
-                        <div key={index} className="text-center">
+                    {/* Subtle gradient overlay */}
+                    <div 
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background: 'radial-gradient(circle at top right, rgba(212, 175, 55, 0.05), transparent 60%)'
+                      }}
+                    ></div>
+                    
+                    <div className="relative z-10">
+                      <h3 
+                        className="text-2xl font-serif font-bold text-center mb-6"
+                        style={{ 
+                          color: '#d4af37',
+                          textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+                        }}
+                      >
+                        Challenge Progression
+                      </h3>
+                      <div className="grid grid-cols-5 gap-4">
+                        {SCORE_TARGETS.map((target, index) => (
                           <div 
-                            className="font-bold text-lg mb-2"
-                            style={{ color: '#d4af37' }}
+                            key={index} 
+                            className="text-center p-4 rounded-lg border transition-all duration-300 hover:scale-105"
+                            style={{
+                              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                              border: '1px solid rgba(212, 175, 55, 0.2)',
+                            }}
                           >
-                            Puzzle {index + 1}
+                            <div 
+                              className="font-bold text-xl mb-2"
+                              style={{ color: '#d4af37' }}
+                            >
+                              #{index + 1}
+                            </div>
+                            <div 
+                              className="text-xs uppercase tracking-wider mb-3 px-2 py-1 rounded"
+                              style={{ 
+                                backgroundColor: `rgba(212, 175, 55, ${0.1 + index * 0.05})`,
+                                color: '#d4af37'
+                              }}
+                            >
+                              {DIFFICULTY_LABELS[index]}
+                            </div>
+                            <div 
+                              className="text-white font-bold text-lg"
+                              style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
+                            >
+                              {target.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">points</div>
                           </div>
-                          <div className="text-xs text-gray-400 mb-2 uppercase tracking-wider">
-                            {DIFFICULTY_LABELS[index]}
-                          </div>
-                          <div 
-                            className="text-white font-bold text-lg"
-                            style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
-                          >
-                            {target.toLocaleString()}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
 
+                  {/* How it Works - Enhanced */}
                   <div 
-                    className="p-6 rounded-xl border mb-8"
+                    className="p-6 rounded-xl border mb-10"
                     style={{ 
-                      backgroundColor: 'rgba(139, 69, 19, 0.1)',
-                      border: '1px solid rgba(139, 69, 19, 0.3)'
+                      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid rgba(212, 175, 55, 0.15)'
                     }}
                   >
-                    <h4 className="font-bold text-yellow-400 mb-3 text-lg">How it works:</h4>
-                    <ul className="text-gray-300 space-y-2 leading-relaxed">
-                      <li>• Each puzzle gets progressively harder</li>
-                      <li>• You must reach the target score to unlock the next puzzle</li>
-                      <li>• If you fail to reach a target, your challenge ends</li>
-                      <li>• Your final score is the sum of all completed puzzles</li>
-                      <li>• Complete all 5 puzzles for maximum glory!</li>
+                    <h4 
+                      className="font-bold text-xl mb-4 flex items-center gap-2"
+                      style={{ color: '#d4af37' }}
+                    >
+                      <span>💡</span> How it Works
+                    </h4>
+                    <ul className="text-gray-300 space-y-3 leading-relaxed">
+                      <li className="flex items-start gap-3">
+                        <span className="text-yellow-500 font-bold text-lg">→</span>
+                        <span>Each puzzle gets progressively harder</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-yellow-500 font-bold text-lg">→</span>
+                        <span>You must reach the target score to unlock the next puzzle</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-yellow-500 font-bold text-lg">→</span>
+                        <span>If you fail to reach a target, your challenge ends</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-yellow-500 font-bold text-lg">→</span>
+                        <span>Your final score is the sum of all completed puzzles</span>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-yellow-500 font-bold text-lg">→</span>
+                        <span>Complete all 5 puzzles for maximum glory!</span>
+                      </li>
                     </ul>
                   </div>
 
                   <div className="text-center">
                     <button
                       onClick={startChallenge}
-                      className="px-12 py-5 font-bold text-white text-xl rounded-lg transition-all duration-300 relative group"
+                      className="px-16 py-6 font-bold text-white text-2xl rounded-xl transition-all duration-300 relative group overflow-hidden"
                       style={{ 
                         background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
                         fontFamily: 'system-ui, -apple-system, sans-serif',
                         letterSpacing: '-0.02em',
-                        boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                        boxShadow: '0 10px 30px rgba(139, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.2)'
                       }}
                       onMouseEnter={(e) => {
-                        e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 15px 40px rgba(139, 0, 0, 0.6), 0 0 30px rgba(212, 175, 55, 0.4)';
                       }}
                       onMouseLeave={(e) => {
-                        e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.2)';
                       }}
                     >
-                      Begin Challenge
+                      {/* Shine effect */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)",
+                          backgroundSize: "200% 100%",
+                          animation: "shine 3s infinite",
+                        }}
+                      ></div>
+                      <style jsx>{`
+                        @keyframes shine {
+                          0% { background-position: 200% 0; }
+                          100% { background-position: -200% 0; }
+                        }
+                      `}</style>
+                      <span className="relative z-10">Begin Challenge</span>
                     </button>
                   </div>
                 </div>
