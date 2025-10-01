@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getEmpiresForYear, createEmpireGeoJSON } from '../lib/historicalData';
+import { getLandmarksForYear } from '../lib/landmarks';
+import MapControls from './MapControls';
+import LandmarkPopup from './LandmarkPopup';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZnJlZW1hbjExMTExMSIsImEiOiJjbWc4MTRidHAwMnB3MmxzOHRueHFjdTA4In0.ZTM8iAIySz1g7IzCf0fNiA';
 
@@ -53,6 +55,25 @@ const RedPin = () => (
   </svg>
 );
 
+// Landmark Marker Component
+const LandmarkMarker = ({ landmark, onClick }) => (
+  <div
+    onClick={(e) => {
+      e.stopPropagation(); // Prevent map click
+      onClick(landmark);
+    }}
+    className="cursor-pointer transition-transform hover:scale-110"
+    style={{
+      fontSize: '28px',
+      filter: 'drop-shadow(0 2px 8px rgba(212, 175, 55, 0.6))',
+      animation: 'gentle-pulse 3s ease-in-out infinite'
+    }}
+    title={landmark.name}
+  >
+    {landmark.icon}
+  </div>
+);
+
 export default function GlobeMap({ 
   onGuess, 
   opponentPosition = null, 
@@ -70,7 +91,11 @@ export default function GlobeMap({
   });
   const [playerPin, setPlayerPin] = useState(initialPosition);
   const [cursorStyle, setCursorStyle] = useState('grab');
-  const [visibleEmpires, setVisibleEmpires] = useState([]);
+  
+  // Landmark system state
+  const [showLandmarks, setShowLandmarks] = useState(true);
+  const [visibleLandmarks, setVisibleLandmarks] = useState([]);
+  const [selectedLandmark, setSelectedLandmark] = useState(null);
 
   // Update player pin when guessCoords changes (continent quick jump)
   useEffect(() => {
@@ -96,11 +121,11 @@ export default function GlobeMap({
     }
   }, [initialPosition]);
 
-  // Update visible empires based on selected year (TIME-TRAVEL FEATURE!)
+  // Update visible landmarks based on selected year (TIME-TRAVEL FEATURE!)
   useEffect(() => {
-    const empires = getEmpiresForYear(selectedYear);
-    setVisibleEmpires(empires);
-    console.log(`Year ${selectedYear}: Showing ${empires.length} empires:`, empires.map(e => e.name));
+    const landmarks = getLandmarksForYear(selectedYear);
+    setVisibleLandmarks(landmarks);
+    console.log(`Year ${selectedYear}: Showing ${landmarks.length} landmarks`);
   }, [selectedYear]);
 
   const handleMapClick = useCallback((event) => {
@@ -113,6 +138,14 @@ export default function GlobeMap({
       onGuess(newPin);
     }
   }, [onGuess]);
+
+  const handleLandmarkClick = useCallback((landmark) => {
+    setSelectedLandmark(landmark);
+  }, []);
+
+  const handleClosePopup = useCallback(() => {
+    setSelectedLandmark(null);
+  }, []);
 
   return (
     <div className="h-full w-full relative">
@@ -176,36 +209,21 @@ export default function GlobeMap({
           }}
         />
 
-        {/* Historical Empire Overlays - TIME-TRAVEL FEATURE! */}
-        {visibleEmpires.map((empire, index) => {
-          const geojson = createEmpireGeoJSON(empire);
-          return (
-            <Source
-              key={`empire-${index}`}
-              id={`empire-${index}`}
-              type="geojson"
-              data={geojson}
-            >
-              <Layer
-                id={`empire-fill-${index}`}
-                type="fill"
-                paint={{
-                  'fill-color': empire.color,
-                  'fill-opacity': empire.opacity
-                }}
-              />
-              <Layer
-                id={`empire-border-${index}`}
-                type="line"
-                paint={{
-                  'line-color': empire.color,
-                  'line-width': 2,
-                  'line-opacity': 0.8
-                }}
-              />
-            </Source>
-          );
-        })}
+        {/* Landmark Markers */}
+        {showLandmarks && visibleLandmarks.map((landmark) => (
+          <Marker
+            key={landmark.id}
+            longitude={landmark.coordinates.lng}
+            latitude={landmark.coordinates.lat}
+            anchor="center"
+          >
+            <LandmarkMarker 
+              landmark={landmark} 
+              onClick={handleLandmarkClick}
+            />
+          </Marker>
+        ))}
+
         {/* Player's Golden Pin */}
         {playerPin && (
           <Marker 
@@ -239,6 +257,21 @@ export default function GlobeMap({
         )}
       </Map>
 
+      {/* Map Controls */}
+      <MapControls 
+        onToggleLandmarks={setShowLandmarks}
+        onToggleCities={() => {}} // Placeholder for future feature
+        onToggleLabels={() => {}} // Placeholder for future feature
+      />
+
+      {/* Landmark Popup */}
+      {selectedLandmark && (
+        <LandmarkPopup 
+          landmark={selectedLandmark}
+          onClose={handleClosePopup}
+        />
+      )}
+
       {/* Globe instruction overlay */}
       <div 
         className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-xs font-medium pointer-events-none"
@@ -249,38 +282,8 @@ export default function GlobeMap({
           backdropFilter: 'blur(8px)'
         }}
       >
-        🌍 Drag to rotate • Click to place pin • Scroll to zoom
+        🌍 Drag to rotate • Click landmarks for info • Click map to place pin • Scroll to zoom
       </div>
-
-      {/* Historical Era Indicator - TIME-TRAVEL FEATURE! */}
-      {visibleEmpires.length > 0 && (
-        <div 
-          className="absolute top-4 left-4 px-4 py-3 rounded-lg text-sm font-medium pointer-events-none"
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            color: '#d4af37',
-            border: '2px solid rgba(212, 175, 55, 0.5)',
-            backdropFilter: 'blur(8px)',
-            boxShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
-          }}
-        >
-          <div className="font-bold mb-1">⏰ Historical View Active</div>
-          <div className="text-xs text-gray-300">
-            Showing {visibleEmpires.length} empire{visibleEmpires.length > 1 ? 's' : ''}:
-          </div>
-          <div className="text-xs mt-1">
-            {visibleEmpires.map((empire, i) => (
-              <div key={i} className="flex items-center gap-2 mt-1">
-                <div 
-                  className="w-3 h-3 rounded-sm" 
-                  style={{ backgroundColor: empire.color }}
-                />
-                <span className="text-white">{empire.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         .mapboxgl-canvas {
@@ -288,6 +291,16 @@ export default function GlobeMap({
         }
         .mapboxgl-ctrl-logo {
           display: none !important;
+        }
+        @keyframes gentle-pulse {
+          0%, 100% {
+            transform: scale(1);
+            filter: drop-shadow(0 2px 8px rgba(212, 175, 55, 0.6));
+          }
+          50% {
+            transform: scale(1.05);
+            filter: drop-shadow(0 2px 12px rgba(212, 175, 55, 0.9));
+          }
         }
       `}</style>
     </div>
