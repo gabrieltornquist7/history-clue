@@ -2281,7 +2281,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
               <div className="text-center">
                 <p className="text-sm text-gray-400">Potential Score</p>
                 <p className="text-2xl font-bold text-yellow-400">
-                  {myScore.toLocaleString()}
+                  {(myScore ?? 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -2326,14 +2326,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
               <div className="text-center flex-1">
                 <p className="text-xs text-gray-400">You</p>
                 <p className="text-xl font-bold text-green-400">
-                  {battleState.myTotalScore.toLocaleString()}
+                  {(battleState.myTotalScore ?? 0).toLocaleString()}
                 </p>
               </div>
               <div className="text-gray-500 text-2xl font-bold">VS</div>
               <div className="text-center flex-1">
                 <p className="text-xs text-gray-400">Them</p>
                 <p className="text-xl font-bold text-blue-400">
-                  {battleState.oppTotalScore.toLocaleString()}
+                  {(battleState.oppTotalScore ?? 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -2468,13 +2468,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Your Total</p>
                       <p className="text-3xl font-bold text-green-400">
-                        {battleState.myTotalScore.toLocaleString()}
+                        {(battleState.myTotalScore ?? 0).toLocaleString()}
                       </p>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Their Total</p>
                       <p className="text-3xl font-bold text-blue-400">
-                        {battleState.oppTotalScore.toLocaleString()}
+                        {(battleState.oppTotalScore ?? 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -2485,9 +2485,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
                       <div key={idx} className="flex justify-between items-center bg-gray-800/30 rounded p-3">
                         <span className="text-gray-400">Round {round.round}</span>
                         <div className="flex gap-4">
-                          <span className="text-green-400">{round.myScore.toLocaleString()}</span>
+                          <span className="text-green-400">{(round.myScore ?? 0).toLocaleString()}</span>
                           <span className="text-gray-500">-</span>
-                          <span className="text-blue-400">{round.oppScore.toLocaleString()}</span>
+                          <span className="text-blue-400">{(round.oppScore ?? 0).toLocaleString()}</span>
                         </div>
                         <span className="text-yellow-400">
                           {round.winner === 'me' ? '✓' : round.winner === 'opponent' ? '✗' : '='}
@@ -2518,13 +2518,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Your Score</p>
                       <p className="text-2xl font-bold text-green-400">
-                        {roundResult.myScore.toLocaleString()}
+                        {(roundResult.myScore ?? 0).toLocaleString()}
                       </p>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Their Score</p>
                       <p className="text-2xl font-bold text-blue-400">
-                        {roundResult.oppScore.toLocaleString()}
+                        {(roundResult.oppScore ?? 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -2535,14 +2535,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
                       <div>
                         <p className="text-xs text-gray-500">You</p>
                         <p className="text-xl font-bold text-green-400">
-                          {battleState.myTotalScore.toLocaleString()}
+                          {(battleState.myTotalScore ?? 0).toLocaleString()}
                         </p>
                       </div>
                       <div className="flex items-center text-gray-500">-</div>
                       <div>
                         <p className="text-xs text-gray-500">Them</p>
                         <p className="text-xl font-bold text-blue-400">
-                          {battleState.oppTotalScore.toLocaleString()}
+                          {(battleState.oppTotalScore ?? 0).toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -2641,8 +2641,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
               Round {battleState.currentRoundNum} of {battleState.totalRounds}
             </div>
             <div className="flex justify-center gap-4 mt-2 text-sm">
-              <span className="text-green-400">You: {battleState.myTotalScore.toLocaleString()}</span>
-              <span className="text-blue-400">Them: {battleState.oppTotalScore.toLocaleString()}</span>
+              <span className="text-green-400">You: {(battleState.myTotalScore ?? 0).toLocaleString()}</span>
+              <span className="text-blue-400">Them: {(battleState.oppTotalScore ?? 0).toLocaleString()}</span>
             </div>
           </div>
 

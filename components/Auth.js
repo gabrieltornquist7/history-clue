@@ -16,18 +16,23 @@ export default function Auth({ setView }) {
     event.preventDefault();
     setLoading(true);
     if (isSigningUp) {
-      if (!username) {
-        alert('Please enter a username.');
+      if (!username || username.trim().length < 3) {
+        alert('Username must be at least 3 characters long.');
         setLoading(false);
         return;
       }
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { username: username } },
       });
-      if (error) alert(error.error_description || error.message);
-      else alert('Check your email for the confirmation link!');
+      if (error) {
+        console.error('Signup error:', error);
+        alert(`Signup failed: ${error.message}\n\nPlease try again or contact support if the issue persists.`);
+      } else {
+        console.log('Signup successful:', data);
+        alert('Account created! Check your email for the confirmation link!');
+      }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -124,9 +129,11 @@ export default function Auth({ setView }) {
                     className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700/30 rounded-md text-white placeholder-gray-500 focus:border-yellow-500/50 focus:outline-none transition-all"
                     style={{ backdropFilter: 'blur(4px)' }}
                     type="text"
-                    placeholder="Choose your username"
+                    placeholder="Choose your username (min 3 characters)"
                     value={username}
                     required
+                    minLength={3}
+                    autoComplete="username"
                     onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
@@ -146,6 +153,7 @@ export default function Auth({ setView }) {
                   placeholder="Enter your email"
                   value={email}
                   required
+                  autoComplete="email"
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
@@ -161,7 +169,7 @@ export default function Auth({ setView }) {
                   className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700/30 rounded-md text-white placeholder-gray-500 focus:border-yellow-500/50 focus:outline-none transition-all"
                   style={{ backdropFilter: 'blur(4px)' }}
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete={isSigningUp ? 'new-password' : 'current-password'}
                   placeholder="Enter your password"
                   value={password}
                   required
