@@ -71,6 +71,10 @@ export default function MainMenu({ setView, session, onSignOut }) {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        @keyframes liveBattleShine {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
       `}</style>
 
       {/* Header */}
@@ -173,18 +177,85 @@ export default function MainMenu({ setView, session, onSignOut }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   onClick={() => setView("endless")}
-                  className="px-5 py-3.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 relative group border border-gray-700/20"
+                  className="px-5 py-4 text-white font-medium rounded-md transition-all duration-300 relative group border overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)",
+                    borderColor: 'rgba(59, 130, 246, 0.4)',
+                    boxShadow: '0 4px 20px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(59, 130, 246, 0.1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(59, 130, 246, 0.45), inset 0 1px 0 rgba(59, 130, 246, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(59, 130, 246, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                  }}
                 >
-                  {currentUserProfile?.endless_mode_level
-                    ? `Level ${currentUserProfile.endless_mode_level}`
-                    : 'Endless Mode'
-                  }
+                  {/* Animated subtle shine */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: "linear-gradient(115deg, transparent 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%)",
+                      backgroundSize: "200% 100%",
+                      animation: "dailyShine 4s infinite"
+                    }}
+                  ></div>
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="text-left">
+                      <div className="font-bold text-base">Endless Mode</div>
+                      <div className="text-xs text-blue-300 mt-0.5">
+                        {currentUserProfile?.endless_mode_level ? 'Continue your journey' : 'Start your journey'}
+                      </div>
+                    </div>
+                    {currentUserProfile?.endless_mode_level && (
+                      <div
+                        className="px-2.5 py-1 rounded font-bold text-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                          color: 'white',
+                          boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)'
+                        }}
+                      >
+                        L{currentUserProfile.endless_mode_level}
+                      </div>
+                    )}
+                  </div>
                 </button>
                 <button
                   onClick={() => setView("challenge")}
-                  className="px-5 py-3.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 relative group border border-gray-700/20"
+                  className="px-5 py-4 text-white font-medium rounded-md transition-all duration-300 relative group border overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(147, 51, 234, 0.1) 100%)",
+                    borderColor: 'rgba(168, 85, 247, 0.4)',
+                    boxShadow: '0 4px 20px rgba(168, 85, 247, 0.25), inset 0 1px 0 rgba(168, 85, 247, 0.1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(168, 85, 247, 0.45), inset 0 1px 0 rgba(168, 85, 247, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(168, 85, 247, 0.25), inset 0 1px 0 rgba(168, 85, 247, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                  }}
                 >
-                  Challenge Friend
+                  {/* Animated subtle shine */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: "linear-gradient(115deg, transparent 0%, rgba(168, 85, 247, 0.2) 50%, transparent 100%)",
+                      backgroundSize: "200% 100%",
+                      animation: "dailyShine 4s infinite"
+                    }}
+                  ></div>
+                  <div className="relative z-10">
+                    <div className="font-bold text-base">Challenge Friend</div>
+                    <div className="text-xs text-purple-300 mt-0.5">3-round showdown</div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -208,23 +279,55 @@ export default function MainMenu({ setView, session, onSignOut }) {
               </div>
               <button
                 onClick={() => setView("liveLobby")}
-                className="w-full px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group border border-pink-600/15"
+                className="w-full px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg, #b00050 0%, #d81b60 100%)",
+                  boxShadow: "0 8px 32px rgba(176, 0, 80, 0.4), 0 0 0 1px rgba(216, 27, 96, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 12px 48px rgba(176, 0, 80, 0.6), 0 0 30px rgba(216, 27, 96, 0.5)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(176, 0, 80, 0.4), 0 0 0 1px rgba(216, 27, 96, 0.3)";
                 }}
               >
-                <div className="flex items-center justify-between">
+                {/* Animated pink/magenta shine effect */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: "linear-gradient(115deg, transparent 0%, rgba(236, 72, 153, 0.4) 50%, transparent 100%)",
+                    backgroundSize: "200% 100%",
+                    animation: "liveBattleShine 2.5s infinite",
+                  }}
+                ></div>
+                <div className="flex items-center justify-between relative z-10">
                   <div className="text-left">
                     <div className="text-lg font-bold">Live Battle</div>
-                    <div className="text-xs text-gray-400 mt-1.5">
+                    <div className="text-xs text-pink-200 mt-1.5">
                       Real-time multiplayer
                     </div>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <span className="bg-white text-pink-800 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                      BETA 
+                    <span 
+                      className="px-3 py-1 rounded-full text-xs font-bold"
+                      style={{
+                        background: "linear-gradient(135deg, #ec4899 0%, #db2777 100%)",
+                        color: "#fff",
+                        boxShadow: "0 0 20px rgba(236, 72, 153, 0.7)",
+                        textShadow: "0 0 10px rgba(0, 0, 0, 0.3)"
+                      }}
+                    >
+                      NEW
                     </span>
-                    <div className="w-1.5 h-1.5 bg-pink-300 rounded-full animate-pulse"></div>
+                    <div 
+                      className="w-2 h-2 rounded-full animate-pulse"
+                      style={{
+                        backgroundColor: "#ec4899",
+                        boxShadow: "0 0 12px rgba(236, 72, 153, 0.9)"
+                      }}
+                    ></div>
                   </div>
                 </div>
               </button>
