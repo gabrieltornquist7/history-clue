@@ -103,6 +103,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
   // Server-synced timer state
   const [serverRoundStartTime, setServerRoundStartTime] = useState(null);
   const [battleGameState, setBattleGameState] = useState('waiting'); // waiting, ready, active, round_complete, transitioning, completed
+  const [timerCapAppliedAt, setTimerCapAppliedAt] = useState(null); // Track when cap was applied
 
   const timerRef = useRef(null);
   const currentRoundId = useRef(null);
@@ -221,10 +222,12 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 console.log('Opponent submitted first! Reducing timer cap to 45s');
                 // Opponent made first guess, set timer cap to 45s
                 setTimerCap(45);
+                // CRITICAL: Track when cap was applied for countdown calculation
+                setTimerCapAppliedAt(Date.now());
                 // CRITICAL: Force immediate timer update to reflect the cap
                 setMyTimer(prev => {
                   const newTimer = Math.min(prev, 45);
-                  console.log(`[Timer Cap Applied] prev=${prev}s -> new=${newTimer}s`);
+                  console.log(`[Timer Cap Applied] prev=${prev}s -> new=${newTimer}s, capAppliedAt=${Date.now()}`);
                   return newTimer;
                 });
                 // Mark that we know opponent submitted first
@@ -582,22 +585,42 @@ export default function LiveBattleView({ session, battleId, setView }) {
       }
 
       // Immediately sync timer with server time
-      const remaining = calculateTimeRemaining(serverRoundStartTime);
+      let remaining;
+      if (timerCapAppliedAt) {
+        // If cap was applied, count down from when it was applied
+        const elapsedSinceCap = Math.floor((Date.now() - timerCapAppliedAt) / 1000);
+      remaining = Math.max(0, 45 - elapsedSinceCap);
+      console.log(`[Timer Init] Using cap time: elapsedSinceCap=${elapsedSinceCap}s, remaining=${remaining}s`);
+    } else {
+      // Normal calculation from round start
+      remaining = calculateTimeRemaining(serverRoundStartTime);
       const cappedRemaining = Math.min(remaining, timerCap);
-      console.log(`[Timer Init] remaining=${remaining}s, timerCap=${timerCap}s, final=${cappedRemaining}s`);
-    setMyTimer(cappedRemaining);
+      remaining = cappedRemaining;
+      console.log(`[Timer Init] Using round start: remaining=${remaining}s, timerCap=${timerCap}s`);
+    }
+    setMyTimer(remaining);
 
       // Update timer every second based on server timestamp
       timerRef.current = setInterval(() => {
-        const newRemaining = calculateTimeRemaining(serverRoundStartTime);
-        const cappedNewRemaining = Math.min(newRemaining, timerCap);
-        // Log when cap is actively limiting the timer
-        if (newRemaining > timerCap) {
-          console.log(`[Timer Update] CAPPED: ${newRemaining}s -> ${cappedNewRemaining}s (cap=${timerCap}s)`);
+        let newRemaining;
+        if (timerCapAppliedAt) {
+          // If cap was applied, count down from when it was applied
+          const elapsedSinceCap = Math.floor((Date.now() - timerCapAppliedAt) / 1000);
+          newRemaining = Math.max(0, 45 - elapsedSinceCap);
+          console.log(`[Timer Tick] Cap mode: elapsed=${elapsedSinceCap}s, remaining=${newRemaining}s`);
+        } else {
+          // Normal calculation from round start
+          newRemaining = calculateTimeRemaining(serverRoundStartTime);
+          const cappedNewRemaining = Math.min(newRemaining, timerCap);
+          // Log when cap is actively limiting the timer
+          if (newRemaining > timerCap) {
+            console.log(`[Timer Tick] CAPPED: ${newRemaining}s -> ${cappedNewRemaining}s (cap=${timerCap}s)`);
+          }
+          newRemaining = cappedNewRemaining;
         }
-        setMyTimer(cappedNewRemaining);
+        setMyTimer(newRemaining);
 
-        if (cappedNewRemaining <= 0) {
+        if (newRemaining <= 0) {
           clearInterval(timerRef.current);
           if (!myGuess) {
             handleAutoSubmit();
@@ -614,7 +637,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         clearInterval(timerRef.current);
       }
     };
-  }, [serverRoundStartTime, battleGameState, myGuess, timerCap]); // Added timerCap to dependencies
+  }, [serverRoundStartTime, battleGameState, myGuess, timerCap, timerCapAppliedAt]); // Added timerCapAppliedAt
 
   // Battle updates subscription for Player 2 to detect new rounds
   useEffect(() => {
@@ -705,6 +728,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 setSelectedYear(0);
                 setGuessCoords(null);
                 setFirstGuessSubmitted(false);
+                setTimerCapAppliedAt(null); // Reset cap applied time
 
                 // Update game data
                 setGameData(prev => ({
@@ -1367,6 +1391,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       setRoundResult(null);
       setMyTimer(180);
       setTimerCap(180); // Reset timer cap
+      setTimerCapAppliedAt(null); // Reset cap applied time
       setMyClues([1]);
       setMyScore(10000);
       setSelectedYear(0);
@@ -1632,6 +1657,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       setRoundResult(null);
       setMyTimer(180);
       setTimerCap(180); // Reset timer cap for new round
+      setTimerCapAppliedAt(null); // Reset cap applied time
       setMyClues([1]);
       setMyScore(10000);
       setSelectedYear(0);
@@ -1978,6 +2004,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       setGameFinished(false);
       setRoundResult(null);
       setFirstGuessSubmitted(false);
+      setTimerCapAppliedAt(null); // Reset cap applied time
 
       // Load new puzzle
       const loadNewPuzzle = async () => {
