@@ -697,7 +697,7 @@ export default function Page() {
                     <h2 className="text-xl font-bold text-white">HistoryClue has launched!</h2>
                   </div>
                   <p className="text-gray-300 leading-relaxed">
-                    We're thrilled to have you here! HistoryClue is now live and ready for history enthusiasts around the world. 
+                    We&apos;re thrilled to have you here! HistoryClue is now live and ready for history enthusiasts around the world. 
                     Try the Daily Challenge, compete in Live Battles, or explore Endless Mode. Thank you for being part of our community!
                   </p>
                   <p className="text-xs text-gray-400 mt-3">October 2025</p>
