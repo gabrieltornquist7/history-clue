@@ -112,7 +112,7 @@ export default function GlobeMap({
         onMove={evt => setViewState(evt.viewState)}
         onClick={handleMapClick}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle="mapbox://styles/mapbox/dark-v11"
+        mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
         projection="globe"
         cursor={cursorStyle}
         onMouseDown={() => setCursorStyle('grabbing')}
