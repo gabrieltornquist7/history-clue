@@ -4,14 +4,6 @@
 export default function LandmarkPopup({ landmark, onClose }) {
   if (!landmark) return null;
 
-  // Format the year for display
-  const formatYear = (year) => {
-    if (year < 0) {
-      return `${Math.abs(year)} BC`;
-    }
-    return `${year} AD`;
-  };
-
   return (
     <>
       {/* Backdrop - click to close */}
@@ -65,29 +57,9 @@ export default function LandmarkPopup({ landmark, onClose }) {
 
         {/* Content */}
         <div className="px-6 py-4">
-          <div className="mb-4">
-            <div 
-              className="inline-block px-3 py-1 rounded-full text-xs font-medium mb-3"
-              style={{
-                backgroundColor: 'rgba(212, 175, 55, 0.2)',
-                color: '#d4af37',
-                border: '1px solid rgba(212, 175, 55, 0.3)'
-              }}
-            >
-              Built: {formatYear(landmark.yearBuilt)}
-            </div>
-          </div>
-
           <p className="text-gray-300 leading-relaxed">
             {landmark.description}
           </p>
-
-          {/* Coordinates */}
-          <div className="mt-4 pt-4 border-t border-gray-700">
-            <p className="text-xs text-gray-500">
-              📍 {landmark.coordinates.lat.toFixed(4)}°, {landmark.coordinates.lng.toFixed(4)}°
-            </p>
-          </div>
         </div>
 
         {/* Footer */}

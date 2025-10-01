@@ -73,33 +73,33 @@ export default function MapControls({ onToggleLandmarks, onToggleCities, onToggl
         <span>Landmarks</span>
       </button>
 
-      {/* Cities Toggle (Coming Soon) */}
+      {/* Cities Toggle */}
       <button
         onClick={handleToggleCities}
-        disabled
-        className="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 opacity-50 cursor-not-allowed"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-105"
         style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          color: '#666',
-          border: '1px solid rgba(102, 102, 102, 0.3)'
+          backgroundColor: showCities ? 'rgba(212, 175, 55, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+          color: showCities ? '#1a1a1a' : '#d4af37',
+          border: '1px solid ' + (showCities ? '#d4af37' : 'rgba(212, 175, 55, 0.3)'),
+          boxShadow: showCities ? '0 0 20px rgba(212, 175, 55, 0.5)' : 'none'
         }}
-        title="Coming soon: Ancient cities"
+        title="Toggle ancient cities"
       >
         <span className="text-base">🏙️</span>
         <span>Cities</span>
       </button>
 
-      {/* Labels Toggle (Coming Soon) */}
+      {/* Labels Toggle */}
       <button
         onClick={handleToggleLabels}
-        disabled
-        className="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 opacity-50 cursor-not-allowed"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-105"
         style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          color: '#666',
-          border: '1px solid rgba(102, 102, 102, 0.3)'
+          backgroundColor: showLabels ? 'rgba(212, 175, 55, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+          color: showLabels ? '#1a1a1a' : '#d4af37',
+          border: '1px solid ' + (showLabels ? '#d4af37' : 'rgba(212, 175, 55, 0.3)'),
+          boxShadow: showLabels ? '0 0 20px rgba(212, 175, 55, 0.5)' : 'none'
         }}
-        title="Coming soon: Empire labels"
+        title="Toggle empire labels"
       >
         <span className="text-base">🗺️</span>
         <span>Labels</span>
