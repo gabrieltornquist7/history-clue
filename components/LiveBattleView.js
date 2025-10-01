@@ -1065,14 +1065,20 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const showResults = (myGuessData, oppGuessData) => {
     console.log('Showing results:', { myGuessData, oppGuessData });
 
-    // Safeguard: Don't show results if we don't have valid opponent data
-    if (!oppGuessData || oppGuessData.score === undefined || oppGuessData.score === null) {
-      console.warn('Cannot show results - missing opponent score data');
+    // Safeguard: Don't show results if we don't have valid data
+    if (!myGuessData || !oppGuessData) {
+      console.warn('Cannot show results - missing guess data');
+      return;
+    }
+    
+    if (myGuessData.score === undefined || myGuessData.score === null || 
+        oppGuessData.score === undefined || oppGuessData.score === null) {
+      console.warn('Cannot show results - missing score data');
       return;
     }
 
-    const myRoundScore = myGuessData.score || 0;
-    const oppRoundScore = oppGuessData.score || 0;
+    const myRoundScore = myGuessData.score ?? 0;
+    const oppRoundScore = oppGuessData.score ?? 0;
     const currentRoundNum = gameData.currentRound?.round_no || 1;
 
     // Update battle state with round results
@@ -2104,6 +2110,17 @@ export default function LiveBattleView({ session, battleId, setView }) {
     return `${yearNum} CE`;
   };
 
+  // Ensure battleState is defined
+  if (!battleState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <div className="text-xl text-yellow-400">Initializing...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading screen with detailed status
   if (loading || loadingStates.battle || loadingStates.currentRound) {
     let statusMessage = 'Connecting to Battle...';
@@ -2641,8 +2658,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
               Round {battleState.currentRoundNum} of {battleState.totalRounds}
             </div>
             <div className="flex justify-center gap-4 mt-2 text-sm">
-              <span className="text-green-400">You: {(battleState.myTotalScore ?? 0).toLocaleString()}</span>
-              <span className="text-blue-400">Them: {(battleState.oppTotalScore ?? 0).toLocaleString()}</span>
+              <span className="text-green-400">You: {((battleState?.myTotalScore ?? 0)).toLocaleString()}</span>
+              <span className="text-blue-400">Them: {((battleState?.oppTotalScore ?? 0)).toLocaleString()}</span>
             </div>
           </div>
 
