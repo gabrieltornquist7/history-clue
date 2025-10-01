@@ -811,6 +811,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
     }
 
     const isPlayer1 = session.user.id === gameData.battle.player1;
+    const scoreField = isPlayer1 ? 'p1_score' : 'p2_score';
     const completionField = isPlayer1 ? 'player1_completed_at' : 'player2_completed_at';
 
     // Debug session before update
@@ -824,7 +825,9 @@ export default function LiveBattleView({ session, battleId, setView }) {
       userIsAuthorized: currentSession?.user?.id === gameData.battle.player1 || currentSession?.user?.id === gameData.battle.player2,
       sessionError,
       isPlayer1,
+      scoreField,
       completionField,
+      finalScore,
       roundId: currentRoundId.current
     });
 
@@ -834,6 +837,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
     }
 
     const updatePayload = {
+      [scoreField]: finalScore,
       [completionField]: new Date().toISOString()
     };
 
@@ -931,8 +935,8 @@ export default function LiveBattleView({ session, battleId, setView }) {
           return;
         }
 
-        // Check if both players have scores (both completed)
-        const bothCompleted = currentRound.p1_score !== null && currentRound.p2_score !== null;
+        // Check if both players have completed (using completion timestamps)
+        const bothCompleted = currentRound.player1_completed_at && currentRound.player2_completed_at;
 
         if (bothCompleted) {
           console.log('Both players completed! Showing results');
