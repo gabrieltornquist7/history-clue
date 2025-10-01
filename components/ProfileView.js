@@ -272,7 +272,17 @@ export default function ProfileView({ setView, session, userId = null }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen relative" style={{ background: "linear-gradient(145deg,#0d0d0d,#1a1a1a 40%,#2a2a2a)" }}>
+      <div 
+        className="min-h-screen relative"
+        style={{
+          background: `
+            linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+            radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+          `,
+          backgroundBlendMode: "overlay",
+        }}
+      >
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <div className="text-2xl font-serif text-white mb-4">Loading profile...</div>
@@ -284,7 +294,39 @@ export default function ProfileView({ setView, session, userId = null }) {
   }
 
   return (
-    <div className="min-h-screen relative" style={{ background: "linear-gradient(145deg,#0d0d0d,#1a1a1a 40%,#2a2a2a)" }}>
+    <div 
+      className="min-h-screen relative"
+      style={{
+        background: `
+          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+        `,
+        backgroundBlendMode: "overlay",
+      }}
+    >
+      {/* Metallic shine overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+          backgroundSize: "200% 200%",
+          animation: "shine 12s linear infinite",
+        }}
+      ></div>
+
+      <style jsx>{`
+        @keyframes shine {
+          0% {
+            background-position: 200% 0;
+          }
+          100% {
+            background-position: -200% 0;
+          }
+        }
+      `}</style>
+
       <GlassBackButton
         onClick={() => {
           console.log('[ProfileView] Back button clicked');
@@ -315,7 +357,7 @@ export default function ProfileView({ setView, session, userId = null }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {/* Profile Card */}
           <div className="lg:col-span-1">
-            <div className="backdrop-blur rounded-xl shadow-2xl border" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+            <div className="backdrop-blur rounded-xl shadow-2xl border bg-black/70 border-white/5">
               <div className="p-6 text-center">
                 <div className="w-32 h-32 mx-auto mb-4 relative group">
                   <AvatarImage
@@ -373,7 +415,7 @@ export default function ProfileView({ setView, session, userId = null }) {
 
           {/* Stats & Achievements */}
           <div className="lg:col-span-2 space-y-8">
-            <div className="backdrop-blur rounded-xl shadow-2xl border p-6" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+            <div className="backdrop-blur rounded-xl shadow-2xl border p-6 bg-black/70 border-white/5">
               <h3 className="text-xs font-semibold uppercase text-yellow-500 mb-6">Player Stats</h3>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="col-span-2 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
@@ -402,7 +444,7 @@ export default function ProfileView({ setView, session, userId = null }) {
 
             {/* Displayed Badges */}
             {!badgesLoading && displayedBadges.length > 0 && (
-              <div className="backdrop-blur rounded-xl shadow-2xl border p-6" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+              <div className="backdrop-blur rounded-xl shadow-2xl border p-6 bg-black/70 border-white/5">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xs font-semibold uppercase text-yellow-500">Featured Badges</h3>
                   <button
@@ -450,7 +492,7 @@ export default function ProfileView({ setView, session, userId = null }) {
 
             {/* Recently Earned */}
             {!badgesLoading && recentBadges.length > 0 && (
-              <div className="backdrop-blur rounded-xl shadow-2xl border p-6" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+              <div className="backdrop-blur rounded-xl shadow-2xl border p-6 bg-black/70 border-white/5">
                 <h3 className="text-xs font-semibold uppercase text-yellow-500 mb-6">Recently Earned</h3>
                 <div className="space-y-3">
                   {recentBadges.map((userBadge) => {
@@ -481,7 +523,7 @@ export default function ProfileView({ setView, session, userId = null }) {
 
             {/* No Badges Yet */}
             {!badgesLoading && displayedBadges.length === 0 && recentBadges.length === 0 && (
-              <div className="backdrop-blur rounded-xl shadow-2xl border p-8 text-center" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+              <div className="backdrop-blur rounded-xl shadow-2xl border p-8 text-center bg-black/70 border-white/5">
                 <div className="text-6xl mb-4">🏅</div>
                 <h3 className="text-xl font-serif text-white mb-2">No Badges Yet</h3>
                 <p className="text-gray-400 mb-6">
