@@ -1876,15 +1876,16 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 </span>
               </p>
               <p className="text-gray-300">
-                <span className="font-semibold">Potential Score:</span> 
-                <span 
-                  className="font-bold ml-2"
-                  style={{ 
-                    color: '#d4af37',
-                    textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
-                  }}
-                >
-                  {score.toLocaleString()}
+              <span className="font-semibold">Potential Score:</span> 
+              <span 
+              className="font-bold ml-2"
+              style={{ 
+              color: '#d4af37',
+              textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+              }}
+              >
+              {score.toLocaleString()}
+                </span>
                 </p>
               </div>
               <div className="flex gap-4">
