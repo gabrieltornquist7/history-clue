@@ -29,7 +29,7 @@ const CONTINENTS = [
   { label: 'Oceania', lat: -25.0, lng: 135.0 },
 ];
 
-const Map = dynamic(() => import('./Map'), { ssr: false });
+const GlobeMap = dynamic(() => import('./GlobeMap'), { ssr: false });
 
 const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -976,7 +976,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                 style={{ border: '2px solid rgba(255, 255, 255, 0.1)' }}
               >
                 <div className={isMapFullscreen ? "h-96" : "h-64 sm:h-80"}>
-                  <Map onGuess={handleMapGuess} guessCoords={guessCoords} />
+                  <GlobeMap onGuess={handleMapGuess} guessCoords={guessCoords} />
                 </div>
               </div>
             </div>
