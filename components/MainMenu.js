@@ -82,15 +82,11 @@ export default function MainMenu({ setView, session, onSignOut }) {
         <div className="flex-1"></div>
         <div className="text-center">
           <h1
-            className="text-5xl font-serif font-bold mb-2 relative inline-block"
+            className="text-5xl font-serif font-bold text-white mb-2 relative inline-block"
             style={{
               letterSpacing: "0.05em",
-              background: "linear-gradient(135deg, #ffffff 0%, #f5f5f5 50%, #e0e0e0 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              textShadow: "0 0 40px rgba(212, 175, 55, 0.3)",
-              filter: "drop-shadow(0 2px 8px rgba(212, 175, 55, 0.4)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.1))"
+              textShadow: "0 0 30px rgba(255, 255, 255, 0.6), 0 0 60px rgba(255, 255, 255, 0.3), 0 2px 8px rgba(255, 255, 255, 0.2)",
+              filter: "drop-shadow(0 0 20px rgba(255, 255, 255, 0.4))"
             }}
           >
             HistoryClue
@@ -228,7 +224,10 @@ export default function MainMenu({ setView, session, onSignOut }) {
                           boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)'
                         }}
                       >
-                        L{currentUserProfile.endless_mode_level}
+                        {currentUserProfile.endless_mode_level < 100 
+                          ? `LEVEL ${currentUserProfile.endless_mode_level}`
+                          : `L${currentUserProfile.endless_mode_level}`
+                        }
                       </div>
                     )}
                   </div>
