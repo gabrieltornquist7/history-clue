@@ -1,4 +1,4 @@
-// components/LiveLobbyView.js - OPTIMIZED VERSION WITH PROFILE CACHE
+// components/LiveLobbyView.js - PREMIUM VISUAL UPDATE
 "use client";
 console.log('LiveLobbyView.js file is loading');
 import { useState, useEffect, useRef } from 'react';
@@ -547,13 +547,14 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
       className="min-h-screen relative"
       style={{
         background: `
-          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
-          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
-          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
-        `,
-        backgroundBlendMode: "overlay",
+          linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+          radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+          radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+          radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+        `
       }}
     >
+      {/* Metallic shine overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -562,141 +563,265 @@ export default function LiveLobbyView({ session, setView, setActiveLiveMatch }) 
           animation: "shine 12s linear infinite",
         }}
       />
+      
       <style jsx>{`
         @keyframes shine {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        @keyframes slideUp {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        .slide-up {
+          animation: slideUp 0.6s ease-out;
+        }
+        .pulse-glow {
+          animation: pulse 2s ease-in-out infinite;
+        }
       `}</style>
 
       <div className="relative z-10">
-      {/* Audio element for join sound */}
-      <audio id="join-sound" preload="none">
-      </audio>
-      <GlassBackButton
-        onClick={() => {
-          console.log('[LiveLobbyView] Back button clicked');
-          if (setView && typeof setView === 'function') {
-            setView('menu');
-          } else {
-            console.error('[LiveLobbyView] setView is not a function:', setView);
-          }
-        }}
-        fallbackUrl="/"
-      />
+        {/* Audio element for join sound */}
+        <audio id="join-sound" preload="none">
+        </audio>
+        
+        <GlassBackButton
+          onClick={() => {
+            console.log('[LiveLobbyView] Back button clicked');
+            if (setView && typeof setView === 'function') {
+              setView('menu');
+            } else {
+              console.error('[LiveLobbyView] setView is not a function:', setView);
+            }
+          }}
+          fallbackUrl="/"
+        />
 
-      {/* Header */}
-      <header className="p-4 sm:p-6 lg:p-8 relative z-10">
-        <div className="text-center">
-          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white mb-2">
-            Live Battle
-          </h1>
-          <p className="text-sm text-gray-300">Real-time multiplayer</p>
-        </div>
-      </header>
-
-      <div className="px-4 sm:px-8 pb-4 sm:pb-8 relative z-10">
-        <div className="max-w-2xl mx-auto">
-          
-          {!mode && (
-            <div className="space-y-6">
-              {/* Join by Code */}
-              <div 
-                className="backdrop-blur rounded-lg p-8 border"
-                style={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}
-              >
-                <h2 className="text-2xl font-serif font-bold text-white mb-4">Join by Code</h2>
-                <p className="text-gray-300 mb-6">
-                  Enter a friend&apos;s invite code to join their battle.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="text"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    placeholder="Enter invite code"
-                    className="w-full sm:flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                    maxLength={6}
-                  />
-                  <button
-                    onClick={handleJoinByCode}
-                    disabled={!inviteCode.trim() || joinLoading}
-                    className="px-6 py-3 bg-green-700 text-white font-medium rounded-md hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all"
-                  >
-                    {joinLoading ? 'Joining...' : 'Join'}
-                  </button>
-                </div>
-                {joinLoading && <p className="text-yellow-400 mt-2">Connecting to battle...</p>}
-              </div>
-
-              {/* Create Invite */}
-              <div 
-                className="backdrop-blur rounded-lg p-8 border"
-                style={{ 
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}
-              >
-                <h2 className="text-2xl font-serif font-bold text-white mb-4">Challenge Friends</h2>
-                <button
-                  onClick={handleCreateInvite}
-                  className="w-full px-6 py-3 bg-blue-700 text-white font-medium rounded-md hover:bg-blue-600"
-                >
-                  Create Invite Code
-                </button>
-              </div>
-            </div>
-          )}
-
-
-          {mode === 'waiting' && generatedInvite && (
-            <div 
-              className="backdrop-blur rounded-lg p-8 border text-center"
+        {/* Header */}
+        <header className="p-4 sm:p-6 lg:p-8 relative z-10">
+          <div className="text-center max-w-2xl mx-auto">
+            <h1 
+              className="text-3xl sm:text-4xl font-serif font-bold text-white mb-2" 
               style={{ 
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.05)'
+                letterSpacing: '0.02em',
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
               }}
             >
-              <h2 className="text-2xl font-serif font-bold text-white mb-4">Battle Created</h2>
-              <p className="text-gray-300 mb-6">Share this code with your opponent:</p>
-              
-              <div className="bg-gray-900 rounded-lg p-4 mb-6 border-2 border-yellow-500">
-                <p className="text-3xl font-bold text-yellow-400 tracking-wider">
-                  {generatedInvite.invite_code}
-                </p>
-              </div>
+              Live Battle
+            </h1>
+            <p className="text-sm sm:text-base text-gray-300">
+              Challenge friends to real-time multiplayer battles
+            </p>
+          </div>
+        </header>
 
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => navigator.clipboard.writeText(generatedInvite.invite_code)}
-                  className="px-6 py-3 bg-blue-700 text-white font-medium rounded-md hover:bg-blue-600"
-                >
-                  Copy Code
-                </button>
-                <button
-                  onClick={() => {
-                    if (pollIntervalRef.current) {
-                      clearInterval(pollIntervalRef.current);
-                      pollIntervalRef.current = null;
-                    }
-                    setMode(null);
-                    setGeneratedInvite(null);
+        <div className="px-4 sm:px-8 pb-8 relative z-10">
+          <div className="max-w-2xl mx-auto">
+            
+            {!mode && (
+              <div className="space-y-6">
+                {/* Join by Code */}
+                <div 
+                  className="backdrop-blur rounded-lg p-6 sm:p-8 border slide-up hover:border-yellow-500/20 transition-all duration-300"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
                   }}
-                  className="px-6 py-3 bg-gray-700 text-white font-medium rounded-md hover:bg-gray-600"
                 >
-                  Cancel
-                </button>
-              </div>
-              
-              <p className="text-sm text-gray-400 mt-4">Waiting for opponent to join...</p>
-            </div>
-          )}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ 
+                        backgroundColor: '#22c55e',
+                        boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)'
+                      }}
+                    ></div>
+                    <h2 
+                      className="text-xl sm:text-2xl font-serif font-bold text-white"
+                      style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.2)' }}
+                    >
+                      Join by Invite Code
+                    </h2>
+                  </div>
+                  <p className="text-gray-300 mb-6 text-sm sm:text-base">
+                    Enter your friend&apos;s 6-character invite code to join their battle.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                      placeholder="ABCD12"
+                      className="w-full sm:flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors text-lg tracking-wider"
+                      style={{ 
+                        color: '#d4af37',
+                        textShadow: inviteCode ? '0 0 10px rgba(212, 175, 55, 0.3)' : 'none'
+                      }}
+                      maxLength={6}
+                    />
+                    <button
+                      onClick={handleJoinByCode}
+                      disabled={!inviteCode.trim() || joinLoading}
+                      className="px-6 py-3 font-bold text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ 
+                        background: (!inviteCode.trim() || joinLoading) ? '#374151' : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                        boxShadow: (!inviteCode.trim() || joinLoading) ? 'none' : '0 10px 30px rgba(34, 197, 94, 0.3)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!e.target.disabled) {
+                          e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(34, 197, 94, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!e.target.disabled) {
+                          e.target.style.boxShadow = '0 10px 30px rgba(34, 197, 94, 0.3)';
+                        }
+                      }}
+                    >
+                      {joinLoading ? 'Joining...' : 'Join Battle'}
+                    </button>
+                  </div>
+                  {joinLoading && (
+                    <div className="mt-4 flex items-center gap-2 text-yellow-400">
+                      <div className="w-2 h-2 rounded-full bg-yellow-400 pulse-glow"></div>
+                      <p className="text-sm">Connecting to battle...</p>
+                    </div>
+                  )}
+                </div>
 
+                {/* Create Invite */}
+                <div 
+                  className="backdrop-blur rounded-lg p-6 sm:p-8 border slide-up hover:border-yellow-500/20 transition-all duration-300"
+                  style={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
+                    animationDelay: '0.1s'
+                  }}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ 
+                        backgroundColor: '#3b82f6',
+                        boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
+                      }}
+                    ></div>
+                    <h2 
+                      className="text-xl sm:text-2xl font-serif font-bold text-white"
+                      style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.2)' }}
+                    >
+                      Challenge Friends
+                    </h2>
+                  </div>
+                  <p className="text-gray-300 mb-6 text-sm sm:text-base">
+                    Create a unique invite code and share it with your friends.
+                  </p>
+                  <button
+                    onClick={handleCreateInvite}
+                    className="w-full px-6 py-4 font-bold text-white rounded-md transition-all duration-300"
+                    style={{ 
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(59, 130, 246, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)';
+                    }}
+                  >
+                    Create Invite Code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'waiting' && generatedInvite && (
+              <div 
+                className="backdrop-blur rounded-lg p-6 sm:p-8 border text-center slide-up"
+                style={{ 
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  border: '2px solid rgba(212, 175, 55, 0.3)',
+                  boxShadow: '0 0 50px rgba(0, 0, 0, 0.8)'
+                }}
+              >
+                <h2 
+                  className="text-2xl sm:text-3xl font-serif font-bold text-white mb-4"
+                  style={{ textShadow: '0 0 20px rgba(212, 175, 55, 0.3)' }}
+                >
+                  Battle Created
+                </h2>
+                <p className="text-gray-300 mb-6">Share this code with your opponent:</p>
+                
+                <div 
+                  className="bg-gray-900 rounded-lg p-6 mb-6 border-2"
+                  style={{ 
+                    borderColor: '#d4af37',
+                    boxShadow: '0 0 30px rgba(212, 175, 55, 0.2)'
+                  }}
+                >
+                  <p 
+                    className="text-4xl sm:text-5xl font-bold tracking-wider font-mono pulse-glow"
+                    style={{ 
+                      color: '#d4af37',
+                      textShadow: '0 0 20px rgba(212, 175, 55, 0.5)'
+                    }}
+                  >
+                    {generatedInvite.invite_code}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedInvite.invite_code);
+                      // Could add a "Copied!" toast here
+                    }}
+                    className="px-6 py-3 font-bold text-white rounded-md transition-all duration-300"
+                    style={{ 
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(59, 130, 246, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)';
+                    }}
+                  >
+                    📋 Copy Code
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (pollIntervalRef.current) {
+                        clearInterval(pollIntervalRef.current);
+                        pollIntervalRef.current = null;
+                      }
+                      setMode(null);
+                      setGeneratedInvite(null);
+                    }}
+                    className="px-6 py-3 bg-gray-800 text-gray-300 font-medium rounded-md hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-center gap-2 text-yellow-400">
+                  <div className="w-2 h-2 rounded-full bg-yellow-400 pulse-glow"></div>
+                  <p className="text-sm">Waiting for opponent to join...</p>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

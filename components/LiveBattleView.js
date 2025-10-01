@@ -2172,11 +2172,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
       className="min-h-screen relative text-white"
       style={{
         background: `
-          linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
-          radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
-          radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
-        `,
-        backgroundBlendMode: "overlay",
+          linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+          radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+          radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+          radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+        `
       }}
     >
       <div
@@ -2191,6 +2191,20 @@ export default function LiveBattleView({ session, battleId, setView }) {
         @keyframes shine {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
+        }
+        @keyframes slideUp {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        .slide-up {
+          animation: slideUp 0.6s ease-out;
+        }
+        .pulse-glow {
+          animation: pulse 2s ease-in-out infinite;
         }
       `}</style>
 
@@ -2209,10 +2223,25 @@ export default function LiveBattleView({ session, battleId, setView }) {
       />
 
       {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-700 p-4">
+      <div 
+        className="border-b p-4 slide-up"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          borderColor: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)'
+        }}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="text-center flex-1">
-            <h1 className="text-2xl font-serif font-bold text-yellow-400">Live Battle</h1>
+            <h1 
+              className="text-2xl font-serif font-bold text-yellow-400"
+              style={{
+                textShadow: '0 0 20px rgba(212, 175, 55, 0.5)',
+                letterSpacing: '0.02em'
+              }}
+            >
+              Live Battle
+            </h1>
             <p className="text-sm text-gray-300">vs {gameData.opponent?.username || 'Loading...'}</p>
             <div className="text-xs text-gray-400 mt-1">
               Round {battleState.currentRoundNum} of {battleState.totalRounds}
@@ -2261,13 +2290,25 @@ export default function LiveBattleView({ session, battleId, setView }) {
             </div>
 
             {/* Timer */}
-            <div className="text-center">
-              <p className="text-sm text-gray-400">Your Timer</p>
-              <p className={`text-2xl font-bold ${
-                myTimer <= 30 ? 'text-red-400' : 
-                myTimer <= 45 && firstGuessSubmitted ? 'text-orange-400' : 
-                'text-white'
-              }`}>
+            <div 
+              className="text-center p-3 rounded-lg"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                border: myTimer <= 30 ? '2px solid #ef4444' : myTimer <= 45 && firstGuessSubmitted ? '2px solid #f97316' : '2px solid rgba(212, 175, 55, 0.2)',
+                boxShadow: myTimer <= 30 ? '0 0 20px rgba(239, 68, 68, 0.3)' : myTimer <= 45 && firstGuessSubmitted ? '0 0 20px rgba(249, 115, 22, 0.3)' : '0 0 20px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <p className="text-xs text-gray-400 uppercase tracking-wide">Your Timer</p>
+              <p 
+                className={`text-3xl font-bold ${
+                  myTimer <= 30 ? 'text-red-400' : 
+                  myTimer <= 45 && firstGuessSubmitted ? 'text-orange-400' : 
+                  'text-white'
+                }`}
+                style={{
+                  textShadow: myTimer <= 30 ? '0 0 20px rgba(239, 68, 68, 0.5)' : myTimer <= 45 && firstGuessSubmitted ? '0 0 20px rgba(249, 115, 22, 0.5)' : '0 0 20px rgba(212, 175, 55, 0.3)'
+                }}
+              >
                 {formatTime(myTimer)}
               </p>
               {myTimer <= 45 && firstGuessSubmitted && !myGuess && (
@@ -2285,22 +2326,49 @@ export default function LiveBattleView({ session, battleId, setView }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left Panel - Clues */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-yellow-400">Clues</h2>
+            <div className="space-y-4 slide-up">
+              <h2 
+                className="text-xl font-bold text-yellow-400"
+                style={{
+                  textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+                }}
+              >
+                Clues
+              </h2>
               {[1, 2, 3, 4, 5].map((num) => {
                 const isUnlocked = myClues.includes(num);
                 const clueText = getClueText(num);
                 
                 return (
                   <div 
-                    key={num}
-                    className={`bg-gray-800 rounded-lg border-2 p-4 ${
-                      isUnlocked ? 'border-yellow-500' : 'border-gray-600'
-                    }`}
+                  key={num}
+                  className={`backdrop-blur rounded-lg p-4 transition-all duration-300`}
+                  style={{
+                    backgroundColor: isUnlocked ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+                    border: isUnlocked ? '2px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: isUnlocked ? '0 0 20px rgba(212, 175, 55, 0.1)' : 'none'
+                  }}
                   >
                     {isUnlocked ? (
-                      <div>
-                        <div className="text-yellow-400 font-bold mb-2">Clue {num}</div>
+                    <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <div 
+                          className="w-2 h-2 rounded-full"
+                          style={{ 
+                            backgroundColor: '#d4af37',
+                            boxShadow: '0 0 10px rgba(212, 175, 55, 0.5)'
+                          }}
+                        ></div>
+                        <span 
+                          className="font-bold"
+                          style={{ 
+                            color: '#d4af37',
+                            textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
+                          }}
+                        >
+                          Clue {num}
+                        </span>
+                      </div>
                         <p className="text-gray-300">{clueText}</p>
                       </div>
                     ) : (
@@ -2332,10 +2400,24 @@ export default function LiveBattleView({ session, battleId, setView }) {
             </div>
 
             {/* Center - Map and Controls */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-yellow-400">Map</h2>
+            <div className="space-y-4 slide-up" style={{ animationDelay: '0.1s' }}>
+              <h2 
+                className="text-xl font-bold text-yellow-400"
+                style={{
+                  textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+                }}
+              >
+                Map
+              </h2>
               
-              <div className="bg-gray-800 rounded-lg p-4">
+              <div 
+                className="backdrop-blur rounded-lg p-4 border hover:border-yellow-500/20 transition-all duration-300"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
+                }}
+              >
                 <div className="h-64 sm:h-80 rounded-lg overflow-hidden border border-gray-600">
                   <Map onGuess={handleMapGuess} guessCoords={guessCoords} />
                 </div>
@@ -2439,7 +2521,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
               </div>
 
               {/* Year Selector */}
-              <div className="bg-gray-800 rounded-lg p-4">
+              <div 
+                className="backdrop-blur rounded-lg p-4 border hover:border-yellow-500/20 transition-all duration-300"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)'
+                }}
+              >
                 <h3 className="text-lg font-bold text-white mb-2">Year Guess</h3>
                 <div className="flex items-center gap-3 mb-2">
                   <input
@@ -2582,18 +2671,46 @@ export default function LiveBattleView({ session, battleId, setView }) {
               <button 
                 onClick={() => handleGuessSubmit()}
                 disabled={!guessCoords || !!myGuess}
-                className="w-full px-6 py-3 bg-red-700 text-white font-bold rounded hover:bg-red-600 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                className="w-full px-6 py-4 font-bold text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ 
+                  background: !guessCoords || !!myGuess ? '#374151' : 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                  boxShadow: !guessCoords || !!myGuess ? 'none' : '0 10px 30px rgba(139, 0, 0, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }
+                }}
               >
                 {!guessCoords ? 'Place Pin on Map' : myGuess ? 'Guess Submitted' : 'Submit Guess'}
               </button>
             </div>
 
             {/* Right Panel - Status */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-yellow-400">Battle Status</h2>
+            <div className="space-y-4 slide-up" style={{ animationDelay: '0.2s' }}>
+              <h2 
+                className="text-xl font-bold text-yellow-400"
+                style={{
+                  textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+                }}
+              >
+                Battle Status
+              </h2>
               
               {/* Opponent Status Indicator */}
-              <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+              <div 
+                className="backdrop-blur rounded-lg p-4 border transition-all duration-300"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+                }}
+              >
                 <h3 className="font-bold text-blue-400 mb-2">
                   {gameData.opponent?.username || 'Opponent'}
                 </h3>
@@ -2616,7 +2733,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
               </div>
               
               {myGuess ? (
-                <div className="bg-green-800 rounded-lg p-4 border border-green-500">
+                <div 
+                  className="backdrop-blur rounded-lg p-4 border"
+                  style={{
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    border: '2px solid #22c55e',
+                    boxShadow: '0 0 20px rgba(34, 197, 94, 0.2)'
+                  }}
+                >
                   <h3 className="font-bold text-green-400 mb-2">Your Result</h3>
                   <p>Score: <span className="font-bold">{myGuess.score.toLocaleString()}</span></p>
                   <p>Distance: <span className="font-bold">{myGuess.distance}km</span></p>
@@ -2630,7 +2754,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   )}
                 </div>
               ) : (
-                <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+                <div 
+                  className="backdrop-blur rounded-lg p-4 border"
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                  }}
+                >
                   <h3 className="font-bold text-white mb-2">Your Turn</h3>
                   <p className="text-gray-300">Place your pin on the map, select a year, and submit your guess!</p>
                   {firstGuessSubmitted && (
