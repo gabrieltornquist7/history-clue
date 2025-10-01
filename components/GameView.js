@@ -1905,7 +1905,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {isCalculating && (
