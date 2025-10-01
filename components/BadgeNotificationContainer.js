@@ -2,19 +2,20 @@
 "use client";
 import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
 import BadgeEarnedNotification from './BadgeEarnedNotification';
-import { useRouter } from 'next/navigation';
 
-export default function BadgeNotificationContainer() {
+export default function BadgeNotificationContainer({ setView }) {
   const { badgeQueue, removeNotification } = useBadgeNotifications();
-  const router = useRouter();
 
   const handleViewBadge = (badgeId, notificationId) => {
     removeNotification(notificationId);
-    // Navigate to badge gallery with this badge focused
+    // Navigate to badge gallery using the view system
     if (typeof window !== 'undefined') {
       window.location.hash = `badge-${badgeId}`;
     }
-    router.push('/badges');
+    // Use setView to navigate to badges view
+    if (setView && typeof setView === 'function') {
+      setView('badges');
+    }
   };
 
   return (

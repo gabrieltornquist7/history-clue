@@ -760,7 +760,7 @@ export default function Page() {
 
   return (
     <BadgeNotificationProvider>
-      <BadgeNotificationContainer />
+      <BadgeNotificationContainer setView={handleSetView} />
       {incomingInvite && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div 
