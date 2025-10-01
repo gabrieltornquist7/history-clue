@@ -1652,7 +1652,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
           }}
         >
           {/* Header */}
-          <div className="p-6 border-b border-gray-700/30">
+          <div className="p-6 border-b border-gray-700/30" style={{ paddingLeft: '4rem' }}>
             <h1 
               className="text-2xl font-serif font-bold text-white mb-2" 
               style={{ 
