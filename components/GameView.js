@@ -63,6 +63,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [endlessModeLevel, setEndlessModeLevel] = useState(1);
   const [endlessLevelResults, setEndlessLevelResults] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [resultsStage, setResultsStage] = useState(0);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
   const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
@@ -207,6 +209,21 @@ export default function GameView({ setView, challenge = null, session, onChallen
     }
   }, [results, xpResults]);
 
+  // Staggered results animation
+  useEffect(() => {
+    if (results && !isCalculating) {
+      setResultsStage(0);
+      const timers = [
+        setTimeout(() => setResultsStage(1), 400),    // Answer info
+        setTimeout(() => setResultsStage(2), 800),    // Score
+        setTimeout(() => setResultsStage(3), 1200),   // Level/XP
+        setTimeout(() => setResultsStage(4), 1600),   // Coins
+        setTimeout(() => setResultsStage(5), 2000),   // Button
+      ];
+      return () => timers.forEach(t => clearTimeout(t));
+    }
+  }, [results, isCalculating]);
+
   useEffect(() => {
     const fetchPuzzleData = async () => {
       setResults(null);
@@ -313,6 +330,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const handleGuessSubmit = async () => {
     if (!puzzle || !puzzle.latitude || !puzzle.longitude) { alert("Error: Puzzle data is missing location coordinates."); return; }
     if (!guessCoords) { alert('Please place a pin on the map to make a guess.'); return; }
+
+    // Show calculating state
+    setShowConfirmModal(false);
+    setIsCalculating(true);
+
+    // Wait for a brief moment to show the calculating animation
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     const distance = getDistance(guessCoords.lat, guessCoords.lng, parseFloat(puzzle.latitude), parseFloat(puzzle.longitude));
     const maxDistance = 20000;
@@ -641,7 +665,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
       guess: { year: selectedYear },
       passedTarget: dailyPuzzleInfo ? finalScoreRounded >= dailyPuzzleInfo.scoreTarget : true
     });
-    setShowConfirmModal(false);
+    
+    setIsCalculating(false);
   };
 
   const handlePlayAgain = () => {
@@ -650,6 +675,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
     setXpResults(null);
     setResults(null);
     setEndlessLevelResults(null);
+    setResultsStage(0);
 
     if (challenge) onChallengeComplete();
     else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore);
@@ -809,6 +835,14 @@ export default function GameView({ setView, challenge = null, session, onChallen
             0% { opacity: 0; transform: translateY(20px); }
             100% { opacity: 1; transform: translateY(0); }
           }
+          @keyframes fadeInScale {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+          }
           .shimmer-lock {
             animation: shimmerLock 2s ease-in-out infinite;
           }
@@ -817,6 +851,9 @@ export default function GameView({ setView, challenge = null, session, onChallen
           }
           .slide-up {
             animation: slideUp 0.6s ease-out;
+          }
+          .fade-in-scale {
+            animation: fadeInScale 0.5s ease-out;
           }
         `}</style>
 
@@ -1367,123 +1404,148 @@ export default function GameView({ setView, challenge = null, session, onChallen
           </div>
         )}
 
-        {/* Results Modal */}
-        {results && (
+        {/* Calculating Screen */}
+        {isCalculating && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+            <div className="text-center">
+              <div className="mb-6">
+                <div className="w-20 h-20 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"
+                  style={{ animation: 'spin 1s linear infinite' }}
+                ></div>
+              </div>
+              <h3 
+                className="text-3xl font-serif font-bold text-white mb-2"
+                style={{ textShadow: '0 0 20px rgba(212, 175, 55, 0.5)' }}
+              >
+                Calculating Results...
+              </h3>
+              <p className="text-gray-400">Analyzing your guess</p>
+            </div>
+          </div>
+        )}
+
+        {/* Results Modal with Staggered Animation */}
+        {results && !isCalculating && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
             <div
-              className="backdrop-blur rounded-xl max-w-sm sm:max-w-md w-full text-center shadow-2xl slide-up flex flex-col"
+              className="backdrop-blur rounded-xl max-w-sm sm:max-w-md w-full text-center shadow-2xl flex flex-col"
               style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                backgroundColor: 'rgba(0, 0, 0, 0.95)',
                 border: '2px solid rgba(212, 175, 55, 0.3)',
                 boxShadow: '0 0 80px rgba(0, 0, 0, 0.8)',
                 maxHeight: '90vh'
               }}
             >
               {/* Fixed Header */}
-              <div className="p-4 sm:p-6 pb-0">
+              <div className="p-4 sm:p-6 pb-3">
                 <h2
-                  className="text-2xl sm:text-3xl font-serif font-bold text-white mb-4"
+                  className="text-2xl sm:text-3xl font-serif font-bold text-white"
                   style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.3)' }}
                 >
                   Round Complete
                 </h2>
               </div>
 
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 space-y-4" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+              {/* Scrollable Content with Staggered Reveals */}
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 space-y-3" style={{ maxHeight: 'calc(90vh - 160px)' }}>
               
-              {/* Daily Challenge Result */}
-              {dailyPuzzleInfo && (
-                <div 
-                  className="mb-6 p-4 rounded-lg border-2"
-                  style={{ 
-                    backgroundColor: results.passedTarget ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                    borderColor: results.passedTarget ? '#22c55e' : '#ef4444'
-                  }}
-                >
-                  <p className={`text-xl font-bold ${results.passedTarget ? 'text-green-400' : 'text-red-400'}`}>
-                    {results.passedTarget ? '✓ Target Reached!' : '✗ Target Missed'}
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Target: {dailyPuzzleInfo.scoreTarget.toLocaleString()} | 
-                    Your Score: {results.finalScore.toLocaleString()}
-                  </p>
+              {/* Answer Info - Stage 1 */}
+              {resultsStage >= 1 && (
+                <div className="fade-in-scale" style={{ animationDelay: '0s' }}>
+                  <div className="bg-black/30 rounded-lg p-4 space-y-3 border border-gray-700/30">
+                    {/* Daily Challenge Result if applicable */}
+                    {dailyPuzzleInfo && (
+                      <div 
+                        className="mb-3 p-3 rounded-lg border-2"
+                        style={{ 
+                          backgroundColor: results.passedTarget ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                          borderColor: results.passedTarget ? '#22c55e' : '#ef4444'
+                        }}
+                      >
+                        <p className={`text-lg font-bold ${results.passedTarget ? 'text-green-400' : 'text-red-400'}`}>
+                          {results.passedTarget ? '✓ Target Reached!' : '✗ Target Missed'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {dailyPuzzleInfo.scoreTarget.toLocaleString()} needed | {results.finalScore.toLocaleString()} scored
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="text-center">
+                      <h4 className="text-sm font-serif font-bold text-gray-400 mb-1">Correct Answer</h4>
+                      <p className="text-green-400 font-semibold text-base">{results.answer.city}, {results.answer.historical_entity}</p>
+                      <p className="text-green-400 font-semibold text-sm">{displayYear(results.answer.year)}</p>
+                    </div>
+                    <div className="text-center border-t border-gray-600/30 pt-3">
+                      <h4 className="text-sm font-serif font-bold text-gray-400 mb-1">Distance</h4>
+                      <p className="text-white text-sm">You were <span className="font-bold text-yellow-400">{results.distance} km</span> away</p>
+                    </div>
+                  </div>
                 </div>
               )}
-              
-              {/* Answer & Distance Info - Compact */}
-              <div className="bg-black/30 rounded-lg p-4 space-y-3">
-                <div className="text-center">
-                  <h4 className="text-base font-serif font-bold text-gray-300 mb-1">Correct Answer</h4>
-                  <p className="text-green-400 font-semibold text-lg">{results.answer.city}, {results.answer.historical_entity}</p>
-                  <p className="text-green-400 font-semibold text-sm">{displayYear(results.answer.year)}</p>
-                </div>
-                <div className="text-center border-t border-gray-600/30 pt-3">
-                  <h4 className="text-base font-serif font-bold text-gray-300 mb-1">Distance</h4>
-                  <p className="text-white">Your guess was <span className="font-bold text-yellow-400">{results.distance} km</span> away</p>
-                </div>
-              </div>
 
-              {/* Endless Mode Level Results */}
-              {endlessLevelResults && (
-                <div
-                  className="mb-6 p-4 rounded-lg border-2"
-                  style={{
-                    backgroundColor: endlessLevelResults.passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                    borderColor: endlessLevelResults.passed ? '#22c55e' : '#ef4444'
-                  }}
-                >
-                  <p className={`text-xl font-bold ${endlessLevelResults.passed ? 'text-green-400' : 'text-red-400'}`}>
-                    {endlessLevelResults.passed ? '✓ Level Passed!' : '✗ Level Not Passed'}
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Threshold: {endlessLevelResults.threshold.toLocaleString()} |
-                    Your Score: {endlessLevelResults.score.toLocaleString()}
-                  </p>
-                  {endlessLevelResults.passed && (
-                    <p className="font-bold text-lg text-green-400 animate-pulse mt-2">
-                      ENDLESS MODE LEVEL UP! Now Level {endlessLevelResults.newLevel}!
-                    </p>
+              {/* Final Score - Stage 2 */}
+              {resultsStage >= 2 && (
+                <div className="fade-in-scale" style={{ animationDelay: '0.4s' }}>
+                  <div
+                    className="p-4 rounded-lg border"
+                    style={{
+                      backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                      border: '2px solid rgba(212, 175, 55, 0.3)',
+                      boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
+                    }}
+                  >
+                    <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Final Score</p>
+                    <h3
+                      className="text-2xl sm:text-3xl font-serif font-bold"
+                      style={{
+                        color: '#d4af37',
+                        textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                      }}
+                    >
+                      {results.finalScore.toLocaleString()}
+                    </h3>
+                  </div>
+                </div>
+              )}
+
+              {/* Endless Level & XP - Stage 3 */}
+              {resultsStage >= 3 && (endlessLevelResults || xpResults) && (
+                <div className="fade-in-scale space-y-3" style={{ animationDelay: '0.8s' }}>
+                  {/* Endless Mode Level Results */}
+                  {endlessLevelResults && (
+                    <div
+                      className="p-3 rounded-lg border-2"
+                      style={{
+                        backgroundColor: endlessLevelResults.passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        borderColor: endlessLevelResults.passed ? '#22c55e' : '#ef4444'
+                      }}
+                    >
+                      <p className={`text-lg font-bold ${endlessLevelResults.passed ? 'text-green-400' : 'text-red-400'}`}>
+                        {endlessLevelResults.passed ? '✓ Level Passed!' : '✗ Try Again'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {endlessLevelResults.threshold.toLocaleString()} needed | {endlessLevelResults.score.toLocaleString()} scored
+                      </p>
+                      {endlessLevelResults.passed && (
+                        <p className="font-bold text-base text-green-400 mt-2">
+                          🎉 Now Level {endlessLevelResults.newLevel}!
+                        </p>
+                      )}
+                    </div>
                   )}
-                  <p className="text-xs text-gray-400 mt-2">
-                    Difficulty: {getDifficultyLabel(endlessLevelResults.passed ? endlessLevelResults.oldLevel : endlessLevelResults.newLevel)}
-                  </p>
-                </div>
-              )}
 
-              {/* Final Score - Prominent but Compact */}
-              <div
-                className="p-4 rounded-lg border text-center"
-                style={{
-                  backgroundColor: 'rgba(212, 175, 55, 0.1)',
-                  border: '2px solid rgba(212, 175, 55, 0.3)',
-                  boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
-                }}
-              >
-                <h3
-                  className="text-xl sm:text-2xl font-serif font-bold"
-                  style={{
-                    color: '#d4af37',
-                    textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
-                  }}
-                >
-                  Final Score: {results.finalScore.toLocaleString()}
-                </h3>
-              </div>
-              
-              {/* XP & Coins Rewards */}
-              {/* Debug logging */}
-              {console.log('Results screen - xpResults:', xpResults, 'coinResults:', coinResults)}
-              {(xpResults || coinResults) && (
-                <div className="space-y-3">
                   {/* XP Display */}
                   {xpResults && (
                     <div
-                      className="p-4 rounded-lg"
-                      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                      className="p-3 rounded-lg border"
+                      style={{ 
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        borderColor: 'rgba(212, 175, 55, 0.2)'
+                      }}
                     >
                       <p
-                        className="font-bold text-lg"
+                        className="font-bold text-base mb-2"
                         style={{
                           color: '#d4af37',
                           textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
@@ -1492,13 +1554,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
                         +{(xpResults.xp_gained && typeof xpResults.xp_gained === 'number') ? xpResults.xp_gained.toLocaleString() : '0'} XP
                       </p>
                       {xpResults.new_level && xpResults.old_level && xpResults.new_level > xpResults.old_level && (
-                        <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
-                          LEVEL UP! You are now Level {xpResults.new_level}!
+                        <p className="font-bold text-base text-green-400 mb-2">
+                          🎊 Level {xpResults.new_level}!
                         </p>
                       )}
-                      <div className="w-full bg-gray-700 rounded-full h-3 my-3 overflow-hidden">
+                      <div className="w-full bg-gray-700 rounded-full h-2 my-2 overflow-hidden">
                         <div
-                          className="h-3 rounded-full transition-all duration-500"
+                          className="h-2 rounded-full transition-all duration-1000"
                           style={{
                             width: `${(xpResults.new_xp && xpResults.xp_for_new_level && typeof xpResults.new_xp === 'number' && typeof xpResults.xp_for_new_level === 'number') ? (xpResults.new_xp / xpResults.xp_for_new_level) * 100 : 0}%`,
                             backgroundColor: '#d4af37',
@@ -1511,63 +1573,67 @@ export default function GameView({ setView, challenge = null, session, onChallen
                       </p>
                     </div>
                   )}
+                </div>
+              )}
 
-                  {/* Coins Display */}
-                  {coinResults && (
-                    <div
-                      className="p-4 rounded-lg border-2"
-                      style={{
-                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                        borderColor: 'rgba(255, 215, 0, 0.3)',
-                        boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)'
-                      }}
-                    >
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-2xl">🪙</span>
-                        <p
-                          className="font-bold text-xl"
-                          style={{
-                            color: '#ffd700',
-                            textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
-                          }}
-                        >
-                          +{(coinResults && coinResults.coinsEarned && typeof coinResults.coinsEarned === 'number') ? coinResults.coinsEarned.toLocaleString() : '0'} Coins
-                        </p>
-                      </div>
-                      <p className="text-sm text-gray-300 text-center">
-                        {coinResults && coinResults.gameMode === 'challenge_friend'
-                          ? (coinResults && coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
-                          : coinResults && coinResults.difficulty && typeof coinResults.difficulty === 'string'
-                          ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
-                          : 'Reward Earned'
-                        }
+              {/* Coins - Stage 4 */}
+              {resultsStage >= 4 && coinResults && (
+                <div className="fade-in-scale" style={{ animationDelay: '1.2s' }}>
+                  <div
+                    className="p-3 rounded-lg border-2"
+                    style={{
+                      backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                      borderColor: 'rgba(255, 215, 0, 0.3)',
+                      boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)'
+                    }}
+                  >
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <span className="text-xl">🪙</span>
+                      <p
+                        className="font-bold text-lg"
+                        style={{
+                          color: '#ffd700',
+                          textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
+                        }}
+                      >
+                        +{(coinResults && coinResults.coinsEarned && typeof coinResults.coinsEarned === 'number') ? coinResults.coinsEarned.toLocaleString() : '0'} Coins
                       </p>
                     </div>
-                  )}
+                    <p className="text-xs text-gray-300">
+                      {coinResults && coinResults.gameMode === 'challenge_friend'
+                        ? (coinResults && coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                        : coinResults && coinResults.difficulty && typeof coinResults.difficulty === 'string'
+                        ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty`
+                        : 'Reward Earned'
+                      }
+                    </p>
+                  </div>
                 </div>
               )}
               </div>
 
-              {/* Fixed Button at Bottom */}
-              <div className="p-4 sm:p-6 pt-2 border-t border-gray-700/30">
-                <button
-                  onClick={handlePlayAgain}
-                  className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300"
-                  style={{
-                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
-                  }}
-                >
-                  {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
-                </button>
-              </div>
+              {/* Button - Stage 5 */}
+              {resultsStage >= 5 && (
+                <div className="p-4 sm:p-6 pt-2 border-t border-gray-700/30 fade-in-scale" style={{ animationDelay: '1.6s' }}>
+                  <button
+                    onClick={handlePlayAgain}
+                    className="w-full px-8 py-3 font-bold text-white rounded-md transition-all duration-300"
+                    style={{
+                      background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                    }}
+                  >
+                    {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1575,7 +1641,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
     );
   }
 
-  // DESKTOP LAYOUT - Full-screen globe with floating controls
+  // DESKTOP LAYOUT - Keep as-is for space - mobile improvements work for desktop too
   return (
     <div 
       className="h-screen relative overflow-hidden"
@@ -1588,7 +1654,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
         `
       }}
     >
-      {/* Metallic shine overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -1620,11 +1685,18 @@ export default function GameView({ setView, challenge = null, session, onChallen
             box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
           }
         }
+        @keyframes fadeInScale {
+          0% { opacity: 0; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
+        }
         .shimmer-lock {
           animation: shimmerLock 2s ease-in-out infinite;
         }
         .gold-reveal {
           animation: goldReveal 0.5s ease-out;
+        }
+        .fade-in-scale {
+          animation: fadeInScale 0.5s ease-out;
         }
       `}</style>
 
@@ -1641,9 +1713,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
         fallbackUrl="/"
       />
 
-      {/* Desktop Layout: Two-column */}
       <div className="flex h-full">
-        {/* Left: Clues Panel */}
         <div 
           className="w-80 flex-shrink-0 overflow-y-auto"
           style={{
@@ -1651,7 +1721,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
             borderRight: '1px solid rgba(212, 175, 55, 0.2)'
           }}
         >
-          {/* Header */}
           <div className="p-6 border-b border-gray-700/30" style={{ paddingLeft: '4rem' }}>
             <h1 
               className="text-2xl font-serif font-bold text-white mb-2" 
@@ -1690,7 +1759,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
             )}
           </div>
 
-          {/* Clues */}
           <div className="p-4 space-y-3">
             {[1, 2, 3, 4, 5].map((num) => {
               const isUnlocked = unlockedClues.includes(num);
@@ -1764,21 +1832,15 @@ export default function GameView({ setView, challenge = null, session, onChallen
           </div>
         </div>
 
-        {/* Right: Full-screen Globe with Floating Controls */}
         <div className="flex-1 relative">
-          {/* Globe fills this entire area */}
           <GlobeMap 
             onGuess={handleMapGuess} 
             guessCoords={guessCoords}
             selectedYear={selectedYear}
           />
 
-          {/* Floating Continent Buttons */}
           <ContinentButtons onJumpToContinent={handleMapGuess} />
 
-          {/* MapControls already floats inside GlobeMap (top-right) */}
-
-          {/* Floating Bottom Control Bar */}
           <BottomControlBar
             year={selectedYear}
             onYearChange={handleYearChange}
@@ -1792,7 +1854,6 @@ export default function GameView({ setView, challenge = null, session, onChallen
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div 
@@ -1824,143 +1885,160 @@ export default function GameView({ setView, challenge = null, session, onChallen
                   }}
                 >
                   {score.toLocaleString()}
-                </span>
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-medium rounded-md hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleGuessSubmit}
-                className="flex-1 px-4 py-3 font-bold text-white rounded-md transition-colors"
-                style={{ background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)' }}
-              >
-                Confirm
-              </button>
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 font-medium rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleGuessSubmit}
+                  className="flex-1 px-4 py-3 font-bold text-white rounded-md transition-colors"
+                  style={{ background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)' }}
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Results Modal (Same for both mobile and desktop) */}
-      {results && (
+      {isCalculating && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+          <div className="text-center">
+            <div className="mb-6">
+              <div className="w-20 h-20 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"
+                style={{ animation: 'spin 1s linear infinite' }}
+              ></div>
+            </div>
+            <h3 
+              className="text-3xl font-serif font-bold text-white mb-2"
+              style={{ textShadow: '0 0 20px rgba(212, 175, 55, 0.5)' }}
+            >
+              Calculating Results...
+            </h3>
+            <p className="text-gray-400">Analyzing your guess</p>
+          </div>
+        </div>
+      )}
+
+      {results && !isCalculating && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div
             className="backdrop-blur rounded-xl max-w-sm sm:max-w-md w-full text-center shadow-2xl flex flex-col"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              backgroundColor: 'rgba(0, 0, 0, 0.95)',
               border: '2px solid rgba(212, 175, 55, 0.3)',
               boxShadow: '0 0 80px rgba(0, 0, 0, 0.8)',
               maxHeight: '90vh'
             }}
           >
-            {/* Fixed Header */}
-            <div className="p-4 sm:p-6 pb-0">
+            <div className="p-4 sm:p-6 pb-3">
               <h2
-                className="text-2xl sm:text-3xl font-serif font-bold text-white mb-4"
+                className="text-2xl sm:text-3xl font-serif font-bold text-white"
                 style={{ textShadow: '0 0 15px rgba(212, 175, 55, 0.3)' }}
               >
                 Round Complete
               </h2>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 space-y-4" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-2 space-y-3" style={{ maxHeight: 'calc(90vh - 160px)' }}>
             
-            {/* Daily Challenge Result */}
-            {dailyPuzzleInfo && (
-              <div 
-                className="mb-6 p-4 rounded-lg border-2"
-                style={{ 
-                  backgroundColor: results.passedTarget ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  borderColor: results.passedTarget ? '#22c55e' : '#ef4444'
-                }}
-              >
-                <p className={`text-xl font-bold ${results.passedTarget ? 'text-green-400' : 'text-red-400'}`}>
-                  {results.passedTarget ? '✓ Target Reached!' : '✗ Target Missed'}
-                </p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Target: {dailyPuzzleInfo.scoreTarget.toLocaleString()} | 
-                  Your Score: {results.finalScore.toLocaleString()}
-                </p>
+            {resultsStage >= 1 && (
+              <div className="fade-in-scale" style={{ animationDelay: '0s' }}>
+                <div className="bg-black/30 rounded-lg p-4 space-y-3 border border-gray-700/30">
+                  {dailyPuzzleInfo && (
+                    <div 
+                      className="mb-3 p-3 rounded-lg border-2"
+                      style={{ 
+                        backgroundColor: results.passedTarget ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        borderColor: results.passedTarget ? '#22c55e' : '#ef4444'
+                      }}
+                    >
+                      <p className={`text-lg font-bold ${results.passedTarget ? 'text-green-400' : 'text-red-400'}`}>
+                        {results.passedTarget ? '✓ Target Reached!' : '✗ Target Missed'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {dailyPuzzleInfo.scoreTarget.toLocaleString()} needed | {results.finalScore.toLocaleString()} scored
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div className="text-center">
+                    <h4 className="text-sm font-serif font-bold text-gray-400 mb-1">Correct Answer</h4>
+                    <p className="text-green-400 font-semibold text-base">{results.answer.city}, {results.answer.historical_entity}</p>
+                    <p className="text-green-400 font-semibold text-sm">{displayYear(results.answer.year)}</p>
+                  </div>
+                  <div className="text-center border-t border-gray-600/30 pt-3">
+                    <h4 className="text-sm font-serif font-bold text-gray-400 mb-1">Distance</h4>
+                    <p className="text-white text-sm">You were <span className="font-bold text-yellow-400">{results.distance} km</span> away</p>
+                  </div>
+                </div>
               </div>
             )}
-            
-            {/* Answer & Distance Info - Compact */}
-            <div className="bg-black/30 rounded-lg p-4 space-y-3">
-              <div className="text-center">
-                <h4 className="text-base font-serif font-bold text-gray-300 mb-1">Correct Answer</h4>
-                <p className="text-green-400 font-semibold text-lg">{results.answer.city}, {results.answer.historical_entity}</p>
-                <p className="text-green-400 font-semibold text-sm">{displayYear(results.answer.year)}</p>
-              </div>
-              <div className="text-center border-t border-gray-600/30 pt-3">
-                <h4 className="text-base font-serif font-bold text-gray-300 mb-1">Distance</h4>
-                <p className="text-white">Your guess was <span className="font-bold text-yellow-400">{results.distance} km</span> away</p>
-              </div>
-            </div>
 
-            {/* Endless Mode Level Results */}
-            {endlessLevelResults && (
-              <div
-                className="mb-6 p-4 rounded-lg border-2"
-                style={{
-                  backgroundColor: endlessLevelResults.passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  borderColor: endlessLevelResults.passed ? '#22c55e' : '#ef4444'
-                }}
-              >
-                <p className={`text-xl font-bold ${endlessLevelResults.passed ? 'text-green-400' : 'text-red-400'}`}>
-                  {endlessLevelResults.passed ? '✓ Level Passed!' : '✗ Level Not Passed'}
-                </p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Threshold: {endlessLevelResults.threshold.toLocaleString()} |
-                  Your Score: {endlessLevelResults.score.toLocaleString()}
-                </p>
-                {endlessLevelResults.passed && (
-                  <p className="font-bold text-lg text-green-400 animate-pulse mt-2">
-                    ENDLESS MODE LEVEL UP! Now Level {endlessLevelResults.newLevel}!
-                  </p>
+            {resultsStage >= 2 && (
+              <div className="fade-in-scale" style={{ animationDelay: '0.4s' }}>
+                <div
+                  className="p-4 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                    border: '2px solid rgba(212, 175, 55, 0.3)',
+                    boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
+                  }}
+                >
+                  <p className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Final Score</p>
+                  <h3
+                    className="text-2xl sm:text-3xl font-serif font-bold"
+                    style={{
+                      color: '#d4af37',
+                      textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
+                    }}
+                  >
+                    {results.finalScore.toLocaleString()}
+                  </h3>
+                </div>
+              </div>
+            )}
+
+            {resultsStage >= 3 && (endlessLevelResults || xpResults) && (
+              <div className="fade-in-scale space-y-3" style={{ animationDelay: '0.8s' }}>
+                {endlessLevelResults && (
+                  <div
+                    className="p-3 rounded-lg border-2"
+                    style={{
+                      backgroundColor: endlessLevelResults.passed ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      borderColor: endlessLevelResults.passed ? '#22c55e' : '#ef4444'
+                    }}
+                  >
+                    <p className={`text-lg font-bold ${endlessLevelResults.passed ? 'text-green-400' : 'text-red-400'}`}>
+                      {endlessLevelResults.passed ? '✓ Level Passed!' : '✗ Try Again'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {endlessLevelResults.threshold.toLocaleString()} needed | {endlessLevelResults.score.toLocaleString()} scored
+                    </p>
+                    {endlessLevelResults.passed && (
+                      <p className="font-bold text-base text-green-400 mt-2">
+                        🎉 Now Level {endlessLevelResults.newLevel}!
+                      </p>
+                    )}
+                  </div>
                 )}
-                <p className="text-xs text-gray-400 mt-2">
-                  Difficulty: {getDifficultyLabel(endlessLevelResults.passed ? endlessLevelResults.oldLevel : endlessLevelResults.newLevel)}
-                </p>
-              </div>
-            )}
 
-            {/* Final Score - Prominent but Compact */}
-            <div
-              className="p-4 rounded-lg border text-center"
-              style={{
-                backgroundColor: 'rgba(212, 175, 55, 0.1)',
-                border: '2px solid rgba(212, 175, 55, 0.3)',
-                boxShadow: '0 0 20px rgba(212, 175, 55, 0.1)'
-              }}
-            >
-              <h3
-                className="text-xl sm:text-2xl font-serif font-bold"
-                style={{
-                  color: '#d4af37',
-                  textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
-                }}
-              >
-                Final Score: {results.finalScore.toLocaleString()}
-              </h3>
-            </div>
-            
-            {/* XP & Coins Rewards */}
-            {(xpResults || coinResults) && (
-              <div className="space-y-3">
-                {/* XP Display */}
                 {xpResults && (
                   <div
-                    className="p-4 rounded-lg"
-                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                    className="p-3 rounded-lg border"
+                    style={{ 
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      borderColor: 'rgba(212, 175, 55, 0.2)'
+                    }}
                   >
                     <p
-                      className="font-bold text-lg"
+                      className="font-bold text-base mb-2"
                       style={{
                         color: '#d4af37',
                         textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
@@ -1969,13 +2047,13 @@ export default function GameView({ setView, challenge = null, session, onChallen
                       +{(xpResults.xp_gained && typeof xpResults.xp_gained === 'number') ? xpResults.xp_gained.toLocaleString() : '0'} XP
                     </p>
                     {xpResults.new_level && xpResults.old_level && xpResults.new_level > xpResults.old_level && (
-                      <p className="font-bold text-lg sm:text-2xl text-green-400 animate-pulse mt-2">
-                        LEVEL UP! You are now Level {xpResults.new_level}!
+                      <p className="font-bold text-base text-green-400 mb-2">
+                        🎊 Level {xpResults.new_level}!
                       </p>
                     )}
-                    <div className="w-full bg-gray-700 rounded-full h-3 my-3 overflow-hidden">
+                    <div className="w-full bg-gray-700 rounded-full h-2 my-2 overflow-hidden">
                       <div
-                        className="h-3 rounded-full transition-all duration-500"
+                        className="h-2 rounded-full transition-all duration-1000"
                         style={{
                           width: `${(xpResults.new_xp && xpResults.xp_for_new_level && typeof xpResults.new_xp === 'number' && typeof xpResults.xp_for_new_level === 'number') ? (xpResults.new_xp / xpResults.xp_for_new_level) * 100 : 0}%`,
                           backgroundColor: '#d4af37',
@@ -1988,63 +2066,65 @@ export default function GameView({ setView, challenge = null, session, onChallen
                     </p>
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Coins Display */}
-                {coinResults && (
-                  <div
-                    className="p-4 rounded-lg border-2"
-                    style={{
-                      backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                      borderColor: 'rgba(255, 215, 0, 0.3)',
-                      boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)'
-                    }}
-                  >
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="text-2xl">🪙</span>
-                      <p
-                        className="font-bold text-xl"
-                        style={{
-                          color: '#ffd700',
-                          textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
-                        }}
-                      >
-                        +{(coinResults && coinResults.coinsEarned && typeof coinResults.coinsEarned === 'number') ? coinResults.coinsEarned.toLocaleString() : '0'} Coins
-                      </p>
-                    </div>
-                    <p className="text-sm text-gray-300 text-center">
-                      {coinResults && coinResults.gameMode === 'challenge_friend'
-                        ? (coinResults && coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
-                        : coinResults && coinResults.difficulty && typeof coinResults.difficulty === 'string'
-                        ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty Reward`
-                        : 'Reward Earned'
-                      }
+            {resultsStage >= 4 && coinResults && (
+              <div className="fade-in-scale" style={{ animationDelay: '1.2s' }}>
+                <div
+                  className="p-3 rounded-lg border-2"
+                  style={{
+                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                    borderColor: 'rgba(255, 215, 0, 0.3)',
+                    boxShadow: '0 0 20px rgba(255, 215, 0, 0.1)'
+                  }}
+                >
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span className="text-xl">🪙</span>
+                    <p
+                      className="font-bold text-lg"
+                      style={{
+                        color: '#ffd700',
+                        textShadow: '0 0 15px rgba(255, 215, 0, 0.5)'
+                      }}
+                    >
+                      +{(coinResults && coinResults.coinsEarned && typeof coinResults.coinsEarned === 'number') ? coinResults.coinsEarned.toLocaleString() : '0'} Coins
                     </p>
                   </div>
-                )}
+                  <p className="text-xs text-gray-300">
+                    {coinResults && coinResults.gameMode === 'challenge_friend'
+                      ? (coinResults && coinResults.result === 'win' ? 'Challenge Victory!' : 'Challenge Complete')
+                      : coinResults && coinResults.difficulty && typeof coinResults.difficulty === 'string'
+                      ? `${coinResults.difficulty.charAt(0).toUpperCase() + coinResults.difficulty.slice(1)} Difficulty`
+                      : 'Reward Earned'
+                    }
+                  </p>
+                </div>
               </div>
             )}
             </div>
 
-            {/* Fixed Button at Bottom */}
-            <div className="p-4 sm:p-6 pt-2 border-t border-gray-700/30">
-              <button
-                onClick={handlePlayAgain}
-                className="w-full px-8 py-4 font-bold text-white rounded-md transition-all duration-300"
-                style={{
-                  background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
-                }}
-              >
-                {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
-              </button>
-            </div>
+            {resultsStage >= 5 && (
+              <div className="p-4 sm:p-6 pt-2 border-t border-gray-700/30 fade-in-scale" style={{ animationDelay: '1.6s' }}>
+                <button
+                  onClick={handlePlayAgain}
+                  className="w-full px-8 py-3 font-bold text-white rounded-md transition-all duration-300"
+                  style={{
+                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }}
+                >
+                  {challenge ? 'Back to Challenges' : dailyPuzzleInfo ? 'Continue' : 'Play Again'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
