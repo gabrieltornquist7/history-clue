@@ -1,8 +1,9 @@
 // components/GlobeMap.js
 "use client";
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Map, { Marker } from 'react-map-gl';
+import Map, { Marker, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { getEmpiresForYear, createEmpireGeoJSON } from '../lib/historicalData';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZnJlZW1hbjExMTExMSIsImEiOiJjbWc4MTRidHAwMnB3MmxzOHRueHFjdTA4In0.ZTM8iAIySz1g7IzCf0fNiA';
 
@@ -56,7 +57,8 @@ export default function GlobeMap({
   onGuess, 
   opponentPosition = null, 
   initialPosition = null, 
-  guessCoords = null 
+  guessCoords = null,
+  selectedYear = 2024 // Add selectedYear prop for time-travel feature
 }) {
   const mapRef = useRef(null);
   const [viewState, setViewState] = useState({
@@ -68,6 +70,7 @@ export default function GlobeMap({
   });
   const [playerPin, setPlayerPin] = useState(initialPosition);
   const [cursorStyle, setCursorStyle] = useState('grab');
+  const [visibleEmpires, setVisibleEmpires] = useState([]);
 
   // Update player pin when guessCoords changes (continent quick jump)
   useEffect(() => {
@@ -92,6 +95,13 @@ export default function GlobeMap({
       setPlayerPin(initialPosition);
     }
   }, [initialPosition]);
+
+  // Update visible empires based on selected year (TIME-TRAVEL FEATURE!)
+  useEffect(() => {
+    const empires = getEmpiresForYear(selectedYear);
+    setVisibleEmpires(empires);
+    console.log(`Year ${selectedYear}: Showing ${empires.length} empires:`, empires.map(e => e.name));
+  }, [selectedYear]);
 
   const handleMapClick = useCallback((event) => {
     const { lngLat } = event;
@@ -123,7 +133,79 @@ export default function GlobeMap({
         attributionControl={false}
         dragRotate={true}
         touchZoomRotate={true}
+        terrain={{ source: 'mapbox-dem', exaggeration: 1.5 }}
       >
+        {/* Terrain Source */}
+        <Source
+          id="mapbox-dem"
+          type="raster-dem"
+          url="mapbox://mapbox.mapbox-terrain-dem-v1"
+          tileSize={512}
+          maxzoom={14}
+        />
+
+        {/* 3D Buildings Layer */}
+        <Layer
+          id="3d-buildings"
+          type="fill-extrusion"
+          source="composite"
+          source-layer="building"
+          filter={['==', 'extrude', 'true']}
+          minzoom={15}
+          paint={{
+            'fill-extrusion-color': '#aaa',
+            'fill-extrusion-height': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              15,
+              0,
+              15.05,
+              ['get', 'height']
+            ],
+            'fill-extrusion-base': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              15,
+              0,
+              15.05,
+              ['get', 'min_height']
+            ],
+            'fill-extrusion-opacity': 0.6
+          }}
+        />
+
+        {/* Historical Empire Overlays - TIME-TRAVEL FEATURE! */}
+        {visibleEmpires.map((empire, index) => {
+          const geojson = createEmpireGeoJSON(empire);
+          return (
+            <Source
+              key={`empire-${index}`}
+              id={`empire-${index}`}
+              type="geojson"
+              data={geojson}
+            >
+              <Layer
+                id={`empire-fill-${index}`}
+                type="fill"
+                paint={{
+                  'fill-color': empire.color,
+                  'fill-opacity': empire.opacity
+                }}
+              />
+              <Layer
+                id={`empire-border-${index}`}
+                type="line"
+                paint={{
+                  'line-color': empire.color,
+                  'line-width': 2,
+                  'line-opacity': 0.8
+                }}
+              />
+            </Source>
+          );
+        })}
         {/* Player's Golden Pin */}
         {playerPin && (
           <Marker 
@@ -169,6 +251,36 @@ export default function GlobeMap({
       >
         🌍 Drag to rotate • Click to place pin • Scroll to zoom
       </div>
+
+      {/* Historical Era Indicator - TIME-TRAVEL FEATURE! */}
+      {visibleEmpires.length > 0 && (
+        <div 
+          className="absolute top-4 left-4 px-4 py-3 rounded-lg text-sm font-medium pointer-events-none"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            color: '#d4af37',
+            border: '2px solid rgba(212, 175, 55, 0.5)',
+            backdropFilter: 'blur(8px)',
+            boxShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+          }}
+        >
+          <div className="font-bold mb-1">⏰ Historical View Active</div>
+          <div className="text-xs text-gray-300">
+            Showing {visibleEmpires.length} empire{visibleEmpires.length > 1 ? 's' : ''}:
+          </div>
+          <div className="text-xs mt-1">
+            {visibleEmpires.map((empire, i) => (
+              <div key={i} className="flex items-center gap-2 mt-1">
+                <div 
+                  className="w-3 h-3 rounded-sm" 
+                  style={{ backgroundColor: empire.color }}
+                />
+                <span className="text-white">{empire.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .mapboxgl-canvas {

@@ -2419,7 +2419,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 }}
               >
                 <div className="h-64 sm:h-80 rounded-lg overflow-hidden border border-gray-600">
-                  <GlobeMap onGuess={handleMapGuess} guessCoords={guessCoords} />
+                  <GlobeMap 
+                    onGuess={handleMapGuess} 
+                    guessCoords={guessCoords}
+                    selectedYear={selectedYear}
+                  />
                 </div>
               </div>
 
