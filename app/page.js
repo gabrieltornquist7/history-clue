@@ -633,6 +633,118 @@ export default function Page() {
             </div>
           </div>
         );
+      case "news":
+        return (
+          <div 
+            className="min-h-screen relative flex items-center justify-center p-6"
+            style={{
+              background: `
+                linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
+                radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
+              `,
+              backgroundBlendMode: "overlay",
+            }}
+          >
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+                backgroundSize: "200% 200%",
+                animation: "shine 12s linear infinite",
+              }}
+            ></div>
+            
+            <style jsx>{`
+              @keyframes shine {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+              }
+            `}</style>
+
+            <div 
+              className="p-8 rounded-2xl shadow-2xl max-w-2xl relative z-10 backdrop-blur border"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <div className="text-center mb-6">
+                <h1 
+                  className="text-4xl font-serif font-bold mb-2"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+                  }}
+                >
+                  📰 News
+                </h1>
+                <p className="text-sm text-gray-400">Latest updates from HistoryClue</p>
+              </div>
+
+              {/* News items */}
+              <div className="space-y-6 text-left">
+                <div 
+                  className="p-5 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+                    borderColor: 'rgba(212, 175, 55, 0.2)'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">🎉</span>
+                    <h2 className="text-xl font-bold text-white">HistoryClue has launched!</h2>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed">
+                    We're thrilled to have you here! HistoryClue is now live and ready for history enthusiasts around the world. 
+                    Try the Daily Challenge, compete in Live Battles, or explore Endless Mode. Thank you for being part of our community!
+                  </p>
+                  <p className="text-xs text-gray-400 mt-3">October 2025</p>
+                </div>
+
+                <div 
+                  className="p-5 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgba(139, 0, 0, 0.1)',
+                    borderColor: 'rgba(139, 0, 0, 0.3)'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl">⚔️</span>
+                    <h2 className="text-xl font-bold text-white">Live Battle Mode (BETA)</h2>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed">
+                    Challenge your friends in real-time! Live Battle mode is now available in beta. 
+                    Experience the thrill of head-to-head competition with a 90-second countdown and pressure mechanics.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-3">October 2025</p>
+                </div>
+              </div>
+
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => handleSetView("menu")}
+                  className="px-7 py-3.5 font-bold text-white rounded-md transition-all duration-300"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    letterSpacing: '-0.02em',
+                    boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }}
+                >
+                  Back to Menu
+                </button>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return (
           <Suspense fallback={<LoadingSpinner message="Loading menu..." />}>

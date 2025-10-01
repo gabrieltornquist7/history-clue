@@ -124,15 +124,39 @@ export default function MainMenu({ setView, session, onSignOut }) {
               {/* Hero Button - Daily Challenge */}
               <button
                 onClick={() => setView("daily")}
-                className="w-full mb-5 px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group"
+                className="w-full mb-5 px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group overflow-hidden"
                 style={{
                   background: "linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)",
                   backgroundImage:
                     "linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, transparent 100%)",
                   fontFamily: "system-ui, -apple-system, sans-serif",
                   letterSpacing: "-0.02em",
+                  boxShadow: "0 8px 32px rgba(139, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.2)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 12px 48px rgba(139, 0, 0, 0.6), 0 0 20px rgba(212, 175, 55, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 8px 32px rgba(139, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.2)";
                 }}
               >
+                {/* Shine effect */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%)",
+                    backgroundSize: "200% 100%",
+                    animation: "dailyShine 3s infinite",
+                  }}
+                ></div>
+                <style jsx>{`
+                  @keyframes dailyShine {
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
+                  }
+                `}</style>
                 <div className="flex items-center justify-between">
                   <div className="text-left">
                     <div className="text-lg font-bold">Daily Challenge</div>
@@ -253,6 +277,12 @@ export default function MainMenu({ setView, session, onSignOut }) {
                     Profile
                   </button>
                   <button
+                    onClick={handleContactClick}
+                    className="px-5 py-2.5 text-gray-300 font-medium rounded-md border border-gray-600/30 hover:border-yellow-500/50 hover:text-white transition-all duration-300"
+                  >
+                    Contact
+                  </button>
+                  <button
                     onClick={onSignOut}
                     className="px-5 py-2.5 text-gray-400 hover:text-gray-200 font-medium transition-colors duration-300"
                   >
@@ -276,10 +306,10 @@ export default function MainMenu({ setView, session, onSignOut }) {
       <footer className="border-t border-gray-800/30 bg-black/20 backdrop-blur relative z-10">
         <div className="flex items-center justify-center py-4">
           <button
-            onClick={handleContactClick}
-            className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm"
+            onClick={() => setView("news")}
+            className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm flex items-center gap-2"
           >
-            Contact
+            <span className="text-xs">📰</span> News
           </button>
         </div>
       </footer>
