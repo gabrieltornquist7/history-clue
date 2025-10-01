@@ -319,8 +319,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
     if (distance < 50) finalScore += 2000; else if (distance < 200) finalScore += 1000;
     const finalScoreRounded = Math.min(15000, Math.round(finalScore));
 
-    // Initialize XP score for all game modes
-    let xpScore = finalScoreRounded;
+    // Initialize XP score for all game modes - DIVIDE BY 50 for reasonable progression
+    let xpScore = Math.round(finalScoreRounded / 50);
     let endlessLevelProgress = null;
 
     if (session?.user) {
@@ -329,7 +329,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
       if (!challenge && !dailyPuzzleInfo) {
         // This is endless mode
         const xpMultiplier = getXpMultiplier(endlessModeLevel);
-        xpScore = Math.round(finalScoreRounded * xpMultiplier);
+        xpScore = Math.round((finalScoreRounded / 50) * xpMultiplier);
 
         // Check if user passed the current endless mode level
         const threshold = getScoreThreshold(endlessModeLevel);
