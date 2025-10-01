@@ -75,6 +75,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   // Game state
   const [myTimer, setMyTimer] = useState(180);
+  const [timerCap, setTimerCap] = useState(180); // Cap for timer (reduces to 45 when opponent submits first)
   const [myClues, setMyClues] = useState([1]);
   const [myScore, setMyScore] = useState(10000);
   const [selectedYear, setSelectedYear] = useState(0);
@@ -217,12 +218,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
             case 'first_guess':
               console.log('[Realtime] First guess submitted by:', payload.playerId);
               if (payload.playerId !== session.user.id && !firstGuessSubmitted) {
-                console.log('Opponent submitted first! Reducing timer to 45s max');
-                // Opponent made first guess, reduce remaining time to 45s max
+                console.log('Opponent submitted first! Reducing timer cap to 45s');
+                // Opponent made first guess, set timer cap to 45s
+                setTimerCap(45);
+                // CRITICAL: Force immediate timer update to reflect the cap
                 setMyTimer(prev => {
-                  const newTime = Math.min(prev, 45);
-                  console.log(`Timer reduced from ${prev}s to ${newTime}s`);
-                  return newTime;
+                  const newTimer = Math.min(prev, 45);
+                  console.log(`[Timer Cap Applied] prev=${prev}s -> new=${newTimer}s`);
+                  return newTimer;
                 });
                 // Mark that we know opponent submitted first
                 setFirstGuessSubmitted(true);
@@ -580,14 +583,21 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
       // Immediately sync timer with server time
       const remaining = calculateTimeRemaining(serverRoundStartTime);
-      setMyTimer(remaining);
+      const cappedRemaining = Math.min(remaining, timerCap);
+      console.log(`[Timer Init] remaining=${remaining}s, timerCap=${timerCap}s, final=${cappedRemaining}s`);
+    setMyTimer(cappedRemaining);
 
       // Update timer every second based on server timestamp
       timerRef.current = setInterval(() => {
         const newRemaining = calculateTimeRemaining(serverRoundStartTime);
-        setMyTimer(newRemaining);
+        const cappedNewRemaining = Math.min(newRemaining, timerCap);
+        // Log when cap is actively limiting the timer
+        if (newRemaining > timerCap) {
+          console.log(`[Timer Update] CAPPED: ${newRemaining}s -> ${cappedNewRemaining}s (cap=${timerCap}s)`);
+        }
+        setMyTimer(cappedNewRemaining);
 
-        if (newRemaining <= 0) {
+        if (cappedNewRemaining <= 0) {
           clearInterval(timerRef.current);
           if (!myGuess) {
             handleAutoSubmit();
@@ -604,7 +614,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
         clearInterval(timerRef.current);
       }
     };
-  }, [serverRoundStartTime, battleGameState, myGuess]); // Added myGuess to dependencies
+  }, [serverRoundStartTime, battleGameState, myGuess, timerCap]); // Added timerCap to dependencies
 
   // Battle updates subscription for Player 2 to detect new rounds
   useEffect(() => {
@@ -1356,6 +1366,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       setGameFinished(false);
       setRoundResult(null);
       setMyTimer(180);
+      setTimerCap(180); // Reset timer cap
       setMyClues([1]);
       setMyScore(10000);
       setSelectedYear(0);
@@ -1620,6 +1631,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
       setGameFinished(false);
       setRoundResult(null);
       setMyTimer(180);
+      setTimerCap(180); // Reset timer cap for new round
       setMyClues([1]);
       setMyScore(10000);
       setSelectedYear(0);
