@@ -83,29 +83,18 @@ export default function MainMenu({ setView, session, onSignOut }) {
         <div className="flex-1"></div>
         <div className="text-center">
           {/* Logo */}
-          <div className="mb-4 flex justify-center">
+          <div className="flex justify-center">
             <Image
               src="/logo.png"
               alt="HistoryClue Logo"
-              width={300}
-              height={80}
+              width={270}
+              height={72}
               className="object-contain"
               style={{
                 filter: "drop-shadow(0 0 20px rgba(255, 255, 255, 0.4))"
               }}
             />
           </div>
-          <p
-            className="text-sm italic font-light"
-            style={{
-              color: "#d4af37",
-              opacity: 0.95,
-              letterSpacing: "0.08em",
-              textShadow: "0 0 15px rgba(212, 175, 55, 0.4)"
-            }}
-          >
-            Where in history are you?
-          </p>
         </div>
         <div className="flex-1 flex justify-end">
         </div>
