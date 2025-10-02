@@ -10,6 +10,15 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 export const metadata = {
   title: 'HistoryClue',
   description: 'Deduce the city and year from five clues.',
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'HistoryClue',
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({ children }) {
