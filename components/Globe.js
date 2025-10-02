@@ -181,100 +181,6 @@ export default function Globe() {
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
     scene.add(atmosphere);
 
-    // Add orbital rings for sci-fi effect
-    const ringGeometry = new THREE.TorusGeometry(1.3, 0.002, 16, 100);
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0x4488ff,
-      transparent: true,
-      opacity: 0.3,
-    });
-    
-    const ring1 = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring1.rotation.x = Math.PI / 2;
-    ring1.rotation.z = Math.PI / 6;
-    scene.add(ring1);
-    
-    const ring2 = new THREE.Mesh(ringGeometry, ringMaterial.clone());
-    ring2.rotation.x = Math.PI / 2;
-    ring2.rotation.z = -Math.PI / 6;
-    scene.add(ring2);
-
-    // Historical sites
-    const historicalSites = [
-      { lat: 51.5074, lon: -0.1278 },   // London
-      { lat: 41.9028, lon: 12.4964 },   // Rome
-      { lat: 37.9838, lon: 23.7275 },   // Athens
-      { lat: 30.0444, lon: 31.2357 },   // Cairo
-      { lat: 39.9042, lon: 116.4074 },  // Beijing
-      { lat: 35.6762, lon: 139.6503 },  // Tokyo
-      { lat: 28.6139, lon: 77.2090 },   // Delhi
-      { lat: 19.4326, lon: -99.1332 },  // Mexico City
-      { lat: 40.7128, lon: -74.0060 },  // New York
-      { lat: -23.5505, lon: -46.6333 }, // Sao Paulo
-    ];
-
-    // Convert lat/lon to 3D position
-    const latLonToVector3 = (lat, lon, radius) => {
-      const phi = (90 - lat) * (Math.PI / 180);
-      const theta = (lon + 180) * (Math.PI / 180);
-      return new THREE.Vector3(
-        -(radius * Math.sin(phi) * Math.cos(theta)),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta)
-      );
-    };
-
-    // Create pin markers (similar to game pins)
-    const pinMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.9,
-    });
-
-    historicalSites.forEach((site) => {
-      const pos = latLonToVector3(site.lat, site.lon, 1.0);
-      
-      // Create pin shape
-      const pinGroup = new THREE.Group();
-      
-      // Pin head (sphere)
-      const headGeometry = new THREE.SphereGeometry(0.015, 8, 8);
-      const head = new THREE.Mesh(headGeometry, pinMaterial);
-      head.position.y = 0.025;
-      pinGroup.add(head);
-      
-      // Pin body (cone/cylinder)
-      const bodyGeometry = new THREE.CylinderGeometry(0.003, 0.003, 0.025, 8);
-      const body = new THREE.Mesh(bodyGeometry, pinMaterial);
-      body.position.y = 0.0125;
-      pinGroup.add(body);
-      
-      // Pin point (small cone)
-      const pointGeometry = new THREE.ConeGeometry(0.005, 0.01, 8);
-      const point = new THREE.Mesh(pointGeometry, pinMaterial);
-      point.position.y = 0;
-      point.rotation.x = Math.PI;
-      pinGroup.add(point);
-      
-      // Position pin on globe
-      pinGroup.position.copy(pos);
-      pinGroup.lookAt(0, 0, 0);
-      pinGroup.rotateX(Math.PI);
-      
-      globe.add(pinGroup);
-      
-      // Add subtle glow around pin
-      const glowGeometry = new THREE.SphereGeometry(0.03, 8, 8);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffd700,
-        transparent: true,
-        opacity: 0.15,
-      });
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.position.copy(pos);
-      globe.add(glow);
-    });
-
     // Enhanced star field with different sizes
     const starGeometry = new THREE.BufferGeometry();
     const starVertices = [];
@@ -348,8 +254,6 @@ export default function Globe() {
       // Rotate globe and elements
       globe.rotation.y += rotationSpeed;
       atmosphere.rotation.y += rotationSpeed * 0.95;
-      ring1.rotation.z += rotationSpeed * 0.5;
-      ring2.rotation.z -= rotationSpeed * 0.5;
       stars.rotation.y += rotationSpeed * 0.05;
       stars.rotation.x += rotationSpeed * 0.02;
       
