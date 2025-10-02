@@ -50,8 +50,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   // Safe score formatter to prevent toLocaleString errors
   const safeScore = (value) => {
-    if (value === null || value === undefined || isNaN(value)) return '0';
-    return Number(value).toLocaleString();
+    // Handle all edge cases that could cause toLocaleString to fail
+    if (value === null || value === undefined || value === '' || typeof value === 'object') return '0';
+    const numValue = Number(value);
+    if (isNaN(numValue) || !isFinite(numValue)) return '0';
+    return numValue.toLocaleString();
   };
 
   // Debug function to check variable availability
@@ -2491,26 +2494,26 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Your Total</p>
                       <p className="text-3xl font-bold text-green-400">
-                        {safeScore(battleState.myTotalScore)}
+                        {safeScore(battleState?.myTotalScore ?? 0)}
                       </p>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Their Total</p>
                       <p className="text-3xl font-bold text-blue-400">
-                        {safeScore(battleState.oppTotalScore)}
+                        {safeScore(battleState?.oppTotalScore ?? 0)}
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <h3 className="text-lg font-bold text-center text-gray-300">Round Breakdown</h3>
-                    {battleState.roundScores.map((round, idx) => (
+                    {(battleState?.roundScores || []).map((round, idx) => (
                       <div key={idx} className="flex justify-between items-center bg-gray-800/30 rounded p-3">
-                        <span className="text-gray-400">Round {round.round}</span>
+                        <span className="text-gray-400">Round {round?.round ?? idx + 1}</span>
                         <div className="flex gap-4">
-                          <span className="text-green-400">{safeScore(round.myScore)}</span>
+                          <span className="text-green-400">{safeScore(round?.myScore ?? 0)}</span>
                           <span className="text-gray-500">-</span>
-                          <span className="text-blue-400">{safeScore(round.oppScore)}</span>
+                          <span className="text-blue-400">{safeScore(round?.oppScore ?? 0)}</span>
                         </div>
                         <span className="text-yellow-400">
                           {round.winner === 'me' ? '✓' : round.winner === 'opponent' ? '✗' : '='}
@@ -2541,13 +2544,13 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Your Score</p>
                       <p className="text-2xl font-bold text-green-400">
-                        {safeScore(roundResult.myScore)}
+                        {safeScore(roundResult?.myScore ?? 0)}
                       </p>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <p className="text-sm text-gray-400">Their Score</p>
                       <p className="text-2xl font-bold text-blue-400">
-                        {safeScore(roundResult.oppScore)}
+                        {safeScore(roundResult?.oppScore ?? 0)}
                       </p>
                     </div>
                   </div>
@@ -2558,14 +2561,14 @@ export default function LiveBattleView({ session, battleId, setView }) {
                       <div>
                         <p className="text-xs text-gray-500">You</p>
                         <p className="text-xl font-bold text-green-400">
-                          {safeScore(battleState.myTotalScore)}
+                          {safeScore(battleState?.myTotalScore ?? 0)}
                         </p>
                       </div>
                       <div className="flex items-center text-gray-500">-</div>
                       <div>
                         <p className="text-xs text-gray-500">Them</p>
                         <p className="text-xl font-bold text-blue-400">
-                          {safeScore(battleState.oppTotalScore)}
+                          {safeScore(battleState?.oppTotalScore ?? 0)}
                         </p>
                       </div>
                     </div>
