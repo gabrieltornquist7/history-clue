@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import GlassBackButton from './GlassBackButton';
 import { getBadgeEmoji, getRarityColor, getRarityLabel } from '../lib/badgeUtils';
 import TitleDisplay from './TitleDisplay';
+import AvatarWithFrame from './AvatarWithFrame';
 
 // Helper function to get shop title colors based on rarity
 const getShopTitleColor = (rarity) => {
@@ -23,7 +24,7 @@ export default function ProfileSettingsView({ setView, session }) {
   const [profile, setProfile] = useState(null);
   const [selectedTitle, setSelectedTitle] = useState("");
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('titles'); // 'titles' or 'badges'
+  const [activeTab, setActiveTab] = useState('titles'); // 'titles', 'badges', or 'frames'
 
   // Badge state
   const [userBadges, setUserBadges] = useState([]);
@@ -34,6 +35,12 @@ export default function ProfileSettingsView({ setView, session }) {
   const [shopTitles, setShopTitles] = useState([]);
   const [allTitles, setAllTitles] = useState([]); // Combined titles from both systems
   const [selectedTitleText, setSelectedTitleText] = useState('');
+
+  // Frame state
+  const [ownedFrames, setOwnedFrames] = useState([]);
+  const [equippedFrame, setEquippedFrame] = useState(null);
+  const [framesLoading, setFramesLoading] = useState(false);
+  const [userAvatar, setUserAvatar] = useState(null);
 
   useEffect(() => {
     async function getProfileData() {
@@ -46,7 +53,7 @@ export default function ProfileSettingsView({ setView, session }) {
       try {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("username, selected_title")
+          .select("username, selected_title, equipped_avatar_frame, avatar_url")
           .eq("id", session.user.id)
           .single();
 
@@ -58,6 +65,8 @@ export default function ProfileSettingsView({ setView, session }) {
 
         setProfile(profileData);
         setSelectedTitle(profileData?.selected_title || "");
+        setEquippedFrame(profileData?.equipped_avatar_frame || null);
+        setUserAvatar(profileData?.avatar_url || session.user.user_metadata?.avatar_url);
 
         // FETCH BADGE-EARNED TITLES (from title_definitions)
         const { data: userTitlesData, error: userTitlesError } = await supabase
@@ -136,6 +145,8 @@ export default function ProfileSettingsView({ setView, session }) {
   useEffect(() => {
     if (activeTab === 'badges') {
       loadUserBadges();
+    } else if (activeTab === 'frames') {
+      loadUserFrames();
     }
   }, [activeTab, session?.user?.id]);
 
@@ -160,6 +171,35 @@ export default function ProfileSettingsView({ setView, session }) {
       console.error('[ProfileSettings] Error loading badges:', error);
     } finally {
       setBadgesLoading(false);
+    }
+  };
+
+  const loadUserFrames = async () => {
+    setFramesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_purchases')
+        .select(`
+          item_id,
+          shop_items!inner(
+            id,
+            name,
+            rarity,
+            category
+          )
+        `)
+        .eq('user_id', session.user.id)
+        .eq('shop_items.category', 'avatar_frame');
+
+      if (!error) {
+        setOwnedFrames(data || []);
+      } else {
+        console.error('[ProfileSettings] Error loading frames:', error);
+      }
+    } catch (error) {
+      console.error('[ProfileSettings] Error loading frames:', error);
+    } finally {
+      setFramesLoading(false);
     }
   };
 
@@ -210,6 +250,23 @@ export default function ProfileSettingsView({ setView, session }) {
     } else {
       // Reload badges to reflect changes
       loadUserBadges();
+    }
+  };
+
+  const handleFrameEquip = async (frameId) => {
+    if (!session?.user?.id) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ equipped_avatar_frame: frameId })
+      .eq('id', session.user.id);
+
+    if (error) {
+      console.error('[ProfileSettings] Error equipping frame:', error);
+      alert('Error equipping frame');
+    } else {
+      setEquippedFrame(frameId);
+      alert('Frame equipped successfully!');
     }
   };
 
@@ -326,7 +383,7 @@ export default function ProfileSettingsView({ setView, session }) {
                 border: '1px solid rgba(255, 255, 255, 0.05)',
               }}
             >
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap space-x-2">
                 <button
                   onClick={() => setActiveTab('titles')}
                   className={`relative px-5 py-2.5 font-medium rounded-md transition-all duration-300 ${
@@ -337,6 +394,22 @@ export default function ProfileSettingsView({ setView, session }) {
                 >
                   🏆 Titles
                   {activeTab === 'titles' && (
+                    <div
+                      className="absolute bottom-0 left-5 right-5 h-px"
+                      style={{ backgroundColor: '#d4af37' }}
+                    ></div>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('frames')}
+                  className={`relative px-5 py-2.5 font-medium rounded-md transition-all duration-300 ${
+                    activeTab === 'frames'
+                      ? 'bg-gray-800 text-white border border-gray-700/30'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-900/50'
+                  }`}
+                >
+                  🖼️ Frames
+                  {activeTab === 'frames' && (
                     <div
                       className="absolute bottom-0 left-5 right-5 h-px"
                       style={{ backgroundColor: '#d4af37' }}
@@ -546,6 +619,136 @@ export default function ProfileSettingsView({ setView, session }) {
             </div>
           )}
 
+          {/* Frames Tab */}
+          {activeTab === 'frames' && (
+            <div className="backdrop-blur rounded-xl shadow-2xl border slide-up p-8 bg-black/70 border-white/5">
+              <h2 className="text-xs font-semibold uppercase mb-4 text-yellow-400/80 tracking-widest">
+                Avatar Frames
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                Select a frame to customize your avatar
+              </p>
+
+              {framesLoading ? (
+                <div className="text-center py-12">
+                  <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-400">Loading frames...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Current Frame Preview */}
+                  <div className="p-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10 mb-6">
+                    <h3 className="text-lg font-semibold text-white mb-4 text-center">
+                      Current Frame
+                    </h3>
+                    <div className="flex justify-center">
+                      <AvatarWithFrame 
+                        url={userAvatar}
+                        frameId={equippedFrame}
+                        size="w-32 h-32"
+                      />
+                    </div>
+                    {equippedFrame && (
+                      <p className="text-center text-sm text-gray-400 mt-3">
+                        {ownedFrames.find(f => f.shop_items.id === equippedFrame)?.shop_items.name || 'Frame'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Frame Selection Grid */}
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* No Frame Option */}
+                    <div
+                      onClick={() => handleFrameEquip(null)}
+                      className={`p-4 rounded-lg border cursor-pointer transition-all flex flex-col items-center ${
+                        equippedFrame === null
+                          ? 'border-yellow-500 bg-yellow-500/10 shadow-lg'
+                          : 'border-gray-700/30 bg-gray-800/30 hover:border-gray-600/50'
+                      }`}
+                    >
+                      <AvatarWithFrame 
+                        url={userAvatar}
+                        frameId={null}
+                        size="w-20 h-20"
+                      />
+                      <p className="text-xs text-gray-400 mt-2 text-center">
+                        No Frame
+                      </p>
+                      {equippedFrame === null && (
+                        <span className="text-xs text-yellow-500 font-bold mt-1">
+                          ✓ Equipped
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Owned Frames */}
+                    {ownedFrames.map((frame) => {
+                      const frameItem = frame.shop_items;
+                      const isEquipped = equippedFrame === frameItem.id;
+
+                      return (
+                        <div
+                          key={frameItem.id}
+                          onClick={() => handleFrameEquip(frameItem.id)}
+                          className={`p-4 rounded-lg border cursor-pointer transition-all flex flex-col items-center ${
+                            isEquipped
+                              ? 'border-yellow-500 bg-yellow-500/10 shadow-lg'
+                              : 'border-gray-700/30 bg-gray-800/30 hover:border-gray-600/50'
+                          }`}
+                        >
+                          <AvatarWithFrame 
+                            url={userAvatar}
+                            frameId={frameItem.id}
+                            size="w-20 h-20"
+                          />
+                          <p className="text-xs text-white mt-2 text-center font-medium">
+                            {frameItem.name}
+                          </p>
+                          <span 
+                            className="text-xs mt-1 px-2 py-0.5 rounded-full"
+                            style={{
+                              color: frameItem.rarity === 'legendary' ? '#eab308' :
+                                     frameItem.rarity === 'epic' ? '#a855f7' :
+                                     frameItem.rarity === 'rare' ? '#3b82f6' : '#9ca3af',
+                              backgroundColor: frameItem.rarity === 'legendary' ? 'rgba(234, 179, 8, 0.1)' :
+                                               frameItem.rarity === 'epic' ? 'rgba(168, 85, 247, 0.1)' :
+                                               frameItem.rarity === 'rare' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(156, 163, 175, 0.1)'
+                            }}
+                          >
+                            {frameItem.rarity}
+                          </span>
+                          {isEquipped && (
+                            <span className="text-xs text-yellow-500 font-bold mt-1">
+                              ✓ Equipped
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {ownedFrames.length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">🖼️</div>
+                      <p className="text-xl font-serif text-white mb-4">
+                        No Frames Yet
+                      </p>
+                      <p className="text-gray-400 max-w-md mx-auto mb-6">
+                        You haven&apos;t purchased any avatar frames yet. Visit the Shop to get some!
+                      </p>
+                      <button
+                        onClick={() => setView("shop")}
+                        className="px-6 py-3 bg-yellow-600 text-black font-bold rounded-md hover:bg-yellow-500 transition-all"
+                      >
+                        Visit Shop
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {/* Badges Tab */}
           {activeTab === 'badges' && (
             <div className="backdrop-blur rounded-xl shadow-2xl border slide-up p-8 bg-black/70 border-white/5">
@@ -650,6 +853,21 @@ export default function ProfileSettingsView({ setView, session }) {
                 <p>• Selected title shows on your profile & leaderboards</p>
                 <p>• Rarer titles let you stand out more</p>
                 <p>• Change your title anytime here</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'frames' && ownedFrames.length > 0 && (
+            <div className="mt-8 backdrop-blur rounded-xl shadow-2xl border p-6 bg-black/70 border-white/5 slide-up">
+              <h3 className="text-xs font-semibold uppercase mb-4 text-yellow-400/80 tracking-widest">
+                Tips
+              </h3>
+              <div className="space-y-3 text-sm text-gray-400">
+                <p>• Frames display on your profile, leaderboard, and in battles</p>
+                <p>• Higher rarity frames have special animations</p>
+                <p>• VIP members get exclusive animated frames</p>
+                <p>• Click any frame to equip it instantly</p>
+                <p>• You can remove your frame by selecting "No Frame"</p>
               </div>
             </div>
           )}

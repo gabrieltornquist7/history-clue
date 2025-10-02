@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { AvatarImage } from "../lib/avatarHelpers";
+import AvatarWithFrame from './AvatarWithFrame';
 import PageWrapper from "./ui/PageWrapper";
 import Card from "./ui/Card";
 import GlassBackButton from './GlassBackButton';
@@ -38,7 +38,7 @@ export default function ProfileView({ setView, session, userId = null }) {
           supabase
             .from("profiles")
             .select(
-              "username, avatar_url, xp, level, is_founder, titles, selected_title, coins"
+              "username, avatar_url, xp, level, is_founder, titles, selected_title, coins, equipped_avatar_frame, vip_tier"
             )
             .eq("id", profileId)
             .single(),
@@ -367,10 +367,10 @@ export default function ProfileView({ setView, session, userId = null }) {
             <div className="backdrop-blur rounded-xl shadow-2xl border bg-black/70 border-white/5">
               <div className="p-6 text-center">
                 <div className="w-32 h-32 mx-auto mb-4 relative group">
-                  <AvatarImage
+                  <AvatarWithFrame
                     url={profile?.avatar_url}
+                    frameId={profile?.equipped_avatar_frame}
                     size="w-32 h-32"
-                    className="border-2 border-yellow-500"
                   />
                   {!userId && (
                     <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
@@ -388,6 +388,19 @@ export default function ProfileView({ setView, session, userId = null }) {
                   )}
                 </div>
                 <h2 className="text-2xl font-serif font-bold text-white mb-1">{profile?.username || "Anonymous"}</h2>
+                {profile?.vip_tier && profile.vip_tier !== 'none' && (
+                  <div className="mb-2">
+                    <span 
+                      className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+                      style={{
+                        backgroundColor: profile.vip_tier === 'gold' ? '#FFD700' : profile.vip_tier === 'silver' ? '#C0C0C0' : '#CD7F32',
+                        color: '#000'
+                      }}
+                    >
+                      {profile.vip_tier} VIP ✨
+                    </span>
+                  </div>
+                )}
                 {titleText && (
                   <div className="mb-4 flex justify-center">
                     <TitleDisplay 

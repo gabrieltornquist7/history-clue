@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { AvatarImage } from '../lib/avatarHelpers';
+import AvatarWithFrame from './AvatarWithFrame';
 import UserProfileView from './UserProfileView';
 import GlassBackButton from './GlassBackButton';
 
@@ -28,7 +28,7 @@ export default function FriendsView({ setView, session }) {
     // Fetch friendships with user profiles
     const { data: friendshipsRaw } = await supabase
       .from('friendships')
-      .select('*, user1:user_id_1(id, username, avatar_url), user2:user_id_2(id, username, avatar_url)')
+      .select('*, user1:user_id_1(id, username, avatar_url, equipped_avatar_frame), user2:user_id_2(id, username, avatar_url, equipped_avatar_frame)')
       .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
 
     if (friendshipsRaw) {
@@ -60,7 +60,7 @@ export default function FriendsView({ setView, session }) {
 
     const { data } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
+      .select('id, username, avatar_url, equipped_avatar_frame')
       .ilike('username', `%${searchQuery}%`)
       .neq('id', currentUserId)
       .limit(10);
@@ -204,7 +204,7 @@ export default function FriendsView({ setView, session }) {
                     {searchResults.map(user => (
                       <div key={user.id} className="flex items-center justify-between p-3 bg-gray-900/50 rounded-md">
                         <div className="flex items-center gap-3">
-                          <AvatarImage url={user.avatar_url} size="w-8 h-8" />
+                          <AvatarWithFrame url={user.avatar_url} frameId={user.equipped_avatar_frame} size="w-8 h-8" />
                           <span className="text-white font-medium">{user.username}</span>
                         </div>
                         <button
@@ -269,7 +269,7 @@ export default function FriendsView({ setView, session }) {
                               onClick={() => setViewingProfile(friend.id)}
                               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                             >
-                              <AvatarImage url={friend.avatar_url} size="w-10 h-10" />
+                              <AvatarWithFrame url={friend.avatar_url} frameId={friend.equipped_avatar_frame} size="w-10 h-10" />
                               <span className="text-white font-medium hover:text-yellow-400 transition-colors">
                                 {friend.username}
                               </span>
@@ -304,7 +304,7 @@ export default function FriendsView({ setView, session }) {
                         pendingRequests.map(request => (
                           <div key={request.id} className="flex items-center justify-between p-4 bg-gray-900/30 rounded-lg">
                             <div className="flex items-center gap-3">
-                              <AvatarImage url={request.avatar_url} size="w-10 h-10" />
+                              <AvatarWithFrame url={request.avatar_url} frameId={request.equipped_avatar_frame} size="w-10 h-10" />
                               <div>
                                 <div className="text-white font-medium">{request.username}</div>
                                 <div className="text-xs text-gray-400">Wants to be friends</div>

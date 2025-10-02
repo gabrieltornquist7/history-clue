@@ -2,7 +2,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { AvatarImage } from '../lib/avatarHelpers';
+import AvatarWithFrame from './AvatarWithFrame';
 import GlassBackButton from './GlassBackButton';
 import UserProfileView from './UserProfileView';
 import TitleDisplay from './TitleDisplay';
@@ -90,7 +90,8 @@ export default function LeaderboardView({ setView, session }) {
             username,
             avatar_url,
             endless_mode_level,
-            equipped_title
+            equipped_title,
+            equipped_avatar_frame
           `)
           .order('endless_mode_level', { ascending: false });
 
@@ -109,7 +110,8 @@ export default function LeaderboardView({ setView, session }) {
           profiles: {
             username: profile.username,
             avatar_url: profile.avatar_url,
-            equipped_title: profile.equipped_title
+            equipped_title: profile.equipped_title,
+            equipped_avatar_frame: profile.equipped_avatar_frame
           }
         }));
 
@@ -326,10 +328,11 @@ export default function LeaderboardView({ setView, session }) {
                           
                           {/* Avatar with special effect for top 3 */}
                           <div className="relative">
-                            <AvatarImage
+                            <AvatarWithFrame
                               url={entry.profiles?.avatar_url}
+                              frameId={entry.profiles?.equipped_avatar_frame}
                               size="w-12 h-12 sm:w-14 sm:h-14"
-                              className={`border-2 ${topStyle ? topStyle.borderColor.replace('rgba', 'border-yellow') : 'border-yellow-500'} transition-transform group-hover:scale-110`}
+                              className="transition-transform group-hover:scale-110"
                             />
                             {isTopThree && (
                               <div 
