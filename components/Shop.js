@@ -594,11 +594,11 @@ export default function Shop({ setView, session }) {
                   Upgrade to <span className="text-yellow-400 font-bold">{purchaseModal.name}</span>?
                 </p>
                 <p className="text-sm text-gray-400 mb-4">
-                  This is a permanent upgrade. You'll start earning bonus coins immediately!
+                  This is a permanent upgrade. You&apos;ll start earning bonus coins immediately!
                 </p>
                 {VIP_BENEFITS[purchaseModal.id] && (
                   <div className="mb-4 bg-black/50 rounded-lg p-4 text-left">
-                    <h4 className="text-xs font-bold uppercase text-yellow-400 mb-2 text-center">You'll Get:</h4>
+                    <h4 className="text-xs font-bold uppercase text-yellow-400 mb-2 text-center">You&apos;ll Get:</h4>
                     <ul className="text-sm text-gray-300 space-y-1">
                       {VIP_BENEFITS[purchaseModal.id].map((benefit, idx) => (
                         <li key={idx}>✓ {benefit}</li>

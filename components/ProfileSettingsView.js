@@ -867,7 +867,7 @@ export default function ProfileSettingsView({ setView, session }) {
                 <p>• Higher rarity frames have special animations</p>
                 <p>• VIP members get exclusive animated frames</p>
                 <p>• Click any frame to equip it instantly</p>
-                <p>• You can remove your frame by selecting "No Frame"</p>
+                <p>• You can remove your frame by selecting &quot;No Frame&quot;</p>
               </div>
             </div>
           )}
