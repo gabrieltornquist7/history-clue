@@ -1,7 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
+
+// Lazy load the Globe component
+const Globe = lazy(() => import("./Globe"));
 
 export default function MainMenu({ setView, session, onSignOut }) {
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -48,6 +51,12 @@ export default function MainMenu({ setView, session, onSignOut }) {
         `
       }}
     >
+      {/* Globe - Desktop Only */}
+      <div className="hidden lg:block">
+        <Suspense fallback={null}>
+          <Globe />
+        </Suspense>
+      </div>
       {/* Metallic shine overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
