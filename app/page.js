@@ -465,7 +465,7 @@ export default function Page() {
             <LiveLobbyView
               session={session}
               setView={handleSetView}
-              setActiveLiveMatch={setActiveLiveMatch}
+              setBattleId={setActiveLiveMatch}
             />
           </Suspense>
         );
