@@ -378,17 +378,16 @@ useEffect(() => {
   if (loading) {
     return (
       <div 
-        className="min-h-screen relative"
+        className="min-h-screen relative flex items-center justify-center"
         style={{
           background: `
-            linear-gradient(145deg, #0d0d0d 0%, #1a1a1a 40%, #2a2a2a 100%),
-            radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.05), transparent 50%),
-            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.04), transparent 50%)
-          `,
-          backgroundBlendMode: "overlay",
+            linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+            radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+            radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+            radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+          `
         }}
       >
-        {/* Metallic shine overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -405,11 +404,9 @@ useEffect(() => {
           }
         `}</style>
 
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <div className="text-2xl font-serif text-white mb-4">Loading friend matches...</div>
-            <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          </div>
+        <div className="text-center relative z-10">
+          <div className="text-2xl font-serif text-white mb-4">Loading friend matches...</div>
+          <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );
@@ -442,7 +439,7 @@ useEffect(() => {
       <header className="p-8 relative z-10">
         <div className="text-center max-w-7xl mx-auto">
           <h1
-            className="text-4xl sm:text-5xl font-serif font-bold text-white mb-2"
+            className="text-4xl sm:text-5xl font-serif font-bold text-white mb-3"
             style={{
               letterSpacing: '0.02em',
               textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
@@ -451,29 +448,31 @@ useEffect(() => {
             Friend Matches
           </h1>
           <p
-            className="text-sm italic font-light"
+            className="text-base text-gray-300 mb-6"
             style={{
-              color: '#d4af37',
-              opacity: 0.9,
-              letterSpacing: '0.05em'
+              letterSpacing: '0.02em'
             }}
           >
-            Challenge friends • Compete for glory
+            Challenge friends and compete for glory
           </p>
-          <div className="mt-6">
-            <button
-              onClick={handleInvite}
-              className="px-6 py-3 font-bold text-white rounded-md transition-all duration-300"
-              style={{
-                background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                letterSpacing: '-0.02em',
-                boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
-              }}
-            >
-              Invite Friend
-            </button>
-          </div>
+          <button
+            onClick={handleInvite}
+            className="px-8 py-3 font-bold text-white rounded-md transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              letterSpacing: '-0.02em',
+              boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+            }}
+          >
+            🔗 Invite Friend
+          </button>
         </div>
       </header>
 
@@ -541,16 +540,22 @@ useEffect(() => {
                   }}
                 >
                   <div className="p-6">
-                    <h2 
-                      className="text-xs font-semibold uppercase mb-6"
-                      style={{
-                        color: '#d4af37',
-                        opacity: 0.8,
-                        letterSpacing: '0.15em'
-                      }}
-                    >
-                      Online Friends
-                    </h2>
+                    <div className="flex items-center gap-2 mb-6">
+                      <div 
+                        className="w-2 h-2 rounded-full animate-pulse"
+                        style={{ backgroundColor: '#d4af37' }}
+                      ></div>
+                      <h2 
+                        className="text-xs font-semibold uppercase"
+                        style={{
+                          color: '#d4af37',
+                          opacity: 0.9,
+                          letterSpacing: '0.15em'
+                        }}
+                      >
+                        Online Friends
+                      </h2>
+                    </div>
                     <div className="space-y-3 max-h-64 overflow-y-auto">
                       {onlineFriendProfiles.length > 0 ? onlineFriendProfiles.map(friend => (
                         <div 
@@ -572,39 +577,24 @@ useEffect(() => {
                               </div>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button 
-                              onClick={() => startLiveMatch(friend.id)} 
-                              className="px-4 py-2.5 font-bold text-white rounded-md transition-all duration-300 relative group border border-pink-600/15"
-                              style={{
-                                background: 'linear-gradient(135deg, #b00050 0%, #d81b60 100%)',
-                                fontFamily: 'system-ui, -apple-system, sans-serif',
-                                letterSpacing: '-0.02em'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.borderColor = 'rgba(216, 27, 96, 0.4)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.borderColor = 'rgba(216, 27, 96, 0.15)';
-                              }}
-                            >
-                              Live Battle
-                            </button>
-                            <button 
-                              onClick={() => sendChallenge(friend.id)} 
-                              className="px-4 py-2.5 bg-gray-900 text-white font-medium rounded-md hover:bg-gray-800 transition-all duration-300 border border-gray-700/20 relative group"
-                              style={{
-                                fontFamily: 'system-ui, -apple-system, sans-serif',
-                                letterSpacing: '-0.01em'
-                              }}
-                            >
-                              Challenge
-                              <div 
-                                className="absolute bottom-0 left-4 right-4 h-px transition-opacity duration-300 opacity-0 group-hover:opacity-100"
-                                style={{ backgroundColor: '#d4af37' }}
-                              ></div>
-                            </button>
-                          </div>
+                          <button 
+                            onClick={() => sendChallenge(friend.id)} 
+                            className="w-full px-4 py-2.5 font-bold text-white rounded-md transition-all duration-300 relative group"
+                            style={{
+                              background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                              fontFamily: 'system-ui, -apple-system, sans-serif',
+                              letterSpacing: '-0.02em',
+                              boxShadow: '0 4px 12px rgba(139, 0, 0, 0.3)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 6px 16px rgba(139, 0, 0, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.boxShadow = '0 4px 12px rgba(139, 0, 0, 0.3)';
+                            }}
+                          >
+                            Challenge
+                          </button>
                         </div>
                       )) : (
                         <p className="text-center text-gray-400 italic py-8">No friends are currently online.</p>
