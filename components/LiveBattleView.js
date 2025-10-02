@@ -50,11 +50,16 @@ export default function LiveBattleView({ session, battleId, setView }) {
 
   // Safe score formatter to prevent toLocaleString errors
   const safeScore = (value) => {
-    // Handle all edge cases that could cause toLocaleString to fail
-    if (value === null || value === undefined || value === '' || typeof value === 'object') return '0';
-    const numValue = Number(value);
-    if (isNaN(numValue) || !isFinite(numValue)) return '0';
-    return numValue.toLocaleString();
+    try {
+      // Handle all edge cases that could cause toLocaleString to fail
+      if (value === null || value === undefined || value === '' || typeof value === 'object') return '0';
+      const numValue = Number(value);
+      if (isNaN(numValue) || !isFinite(numValue)) return '0';
+      return numValue.toLocaleString();
+    } catch (error) {
+      console.warn('safeScore error:', error, 'value:', value);
+      return '0';
+    }
   };
 
   // Debug function to check variable availability
@@ -2288,7 +2293,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                       <div className="flex justify-between items-center">
                         <span className="text-gray-400">🔒 Unlock Clue {num}</span>
                         <span className="text-yellow-500 font-bold">
-                          {CLUE_COSTS[num]}
+                          {safeScore(CLUE_COSTS[num] ?? 0)}
                         </span>
                       </div>
                     </button>
