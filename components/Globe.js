@@ -22,7 +22,7 @@ export default function Globe() {
       0.1,
       1000
     );
-    camera.position.z = 3;
+    camera.position.z = 2.5;
 
     // Renderer setup
     const renderer = new THREE.WebGLRenderer({ 
@@ -34,42 +34,88 @@ export default function Globe() {
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
 
-    // Create globe
+    // Create realistic Earth globe
     const geometry = new THREE.SphereGeometry(1, 64, 64);
     
-    // Create a more sophisticated material with multiple layers
+    // Create realistic Earth-like material
     const material = new THREE.MeshPhongMaterial({
-      color: 0x2a4a6a,
-      emissive: 0x112233,
-      shininess: 25,
-      transparent: true,
-      opacity: 0.85,
+      color: 0x1a5490, // Ocean blue
+      emissive: 0x0a1f3d,
+      emissiveIntensity: 0.1,
+      shininess: 15,
+      specular: 0x333333,
     });
 
     const globe = new THREE.Mesh(geometry, material);
     scene.add(globe);
 
-    // Add atmosphere glow
-    const atmosphereGeometry = new THREE.SphereGeometry(1.15, 64, 64);
-    const atmosphereMaterial = new THREE.MeshBasicMaterial({
-      color: 0xd4af37,
-      transparent: true,
-      opacity: 0.15,
+    // Add continents as darker patches
+    const continentMaterial = new THREE.MeshPhongMaterial({
+      color: 0x2d5a3d, // Forest green for land
+      emissive: 0x1a2f1f,
+      emissiveIntensity: 0.2,
+    });
+
+    // Create simplified continent shapes
+    const createContinent = (lat, lon, size) => {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lon + 180) * (Math.PI / 180);
+      
+      const continentGeom = new THREE.SphereGeometry(size, 16, 16);
+      const continent = new THREE.Mesh(continentGeom, continentMaterial);
+      
+      const x = -(1.005 * Math.sin(phi) * Math.cos(theta));
+      const y = 1.005 * Math.cos(phi);
+      const z = 1.005 * Math.sin(phi) * Math.sin(theta);
+      
+      continent.position.set(x, y, z);
+      continent.lookAt(0, 0, 0);
+      globe.add(continent);
+    };
+
+    // Add simplified continents
+    createContinent(40, -95, 0.25);  // North America
+    createContinent(-15, -60, 0.22); // South America
+    createContinent(50, 15, 0.28);   // Europe
+    createContinent(15, 25, 0.35);   // Africa
+    createContinent(45, 85, 0.32);   // Asia
+    createContinent(-25, 135, 0.2);  // Australia
+
+    // Add subtle atmosphere glow
+    const atmosphereGeometry = new THREE.SphereGeometry(1.08, 64, 64);
+    const atmosphereMaterial = new THREE.ShaderMaterial({
+      uniforms: {},
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        void main() {
+          float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+          gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+        }
+      `,
       side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
     });
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
     scene.add(atmosphere);
 
-    // Add grid lines for Earth-like appearance
+    // Add latitude/longitude grid lines (subtle)
     const gridMaterial = new THREE.LineBasicMaterial({
-      color: 0xd4af37,
+      color: 0xffffff,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.08,
     });
 
     // Latitude lines
-    for (let i = 0; i < 9; i++) {
-      const lat = (i / 8) * Math.PI - Math.PI / 2;
+    for (let i = 1; i < 9; i++) {
+      const lat = (i / 9) * Math.PI - Math.PI / 2;
       const radius = Math.cos(lat);
       const y = Math.sin(lat);
       
@@ -110,15 +156,15 @@ export default function Globe() {
       globe.add(line);
     }
 
-    // Add some "landmark" dots representing historical locations
-    const dotGeometry = new THREE.SphereGeometry(0.015, 8, 8);
+    // Add city lights/markers (small golden dots)
+    const dotGeometry = new THREE.SphereGeometry(0.01, 8, 8);
     const dotMaterial = new THREE.MeshBasicMaterial({
-      color: 0xd4af37,
+      color: 0xffaa00,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.6,
     });
 
-    // Historical locations (lat, lon) - major ancient civilizations
+    // Historical locations
     const historicalSites = [
       { lat: 51.5074, lon: -0.1278 },   // London
       { lat: 41.9028, lon: 12.4964 },   // Rome
@@ -136,47 +182,62 @@ export default function Globe() {
       const phi = (90 - site.lat) * (Math.PI / 180);
       const theta = (site.lon + 180) * (Math.PI / 180);
       
-      const x = -(1.01 * Math.sin(phi) * Math.cos(theta));
-      const y = 1.01 * Math.cos(phi);
-      const z = 1.01 * Math.sin(phi) * Math.sin(theta);
+      const x = -(1.015 * Math.sin(phi) * Math.cos(theta));
+      const y = 1.015 * Math.cos(phi);
+      const z = 1.015 * Math.sin(phi) * Math.sin(theta);
       
       const dot = new THREE.Mesh(dotGeometry, dotMaterial);
       dot.position.set(x, y, z);
       globe.add(dot);
-
-      // Add glow to each dot
-      const glowGeometry = new THREE.SphereGeometry(0.025, 8, 8);
-      const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xd4af37,
-        transparent: true,
-        opacity: 0.3,
-      });
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.position.set(x, y, z);
-      globe.add(glow);
     });
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Add stars in background
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.7,
+      transparent: true,
+      opacity: 0.8,
+    });
+
+    const starVertices = [];
+    for (let i = 0; i < 1000; i++) {
+      const x = (Math.random() - 0.5) * 2000;
+      const y = (Math.random() - 0.5) * 2000;
+      const z = (Math.random() - 0.5) * 2000;
+      starVertices.push(x, y, z);
+    }
+
+    starGeometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(starVertices, 3)
+    );
+
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+
+    // Realistic lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 3, 5);
-    scene.add(directionalLight);
+    // Sun-like directional light
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(5, 3, 5);
+    scene.add(sunLight);
 
-    // Add a subtle rim light from the side
-    const rimLight = new THREE.DirectionalLight(0xd4af37, 0.3);
-    rimLight.position.set(-5, 0, 2);
-    scene.add(rimLight);
+    // Subtle fill light from opposite side
+    const fillLight = new THREE.DirectionalLight(0x6699ff, 0.3);
+    fillLight.position.set(-5, -2, -5);
+    scene.add(fillLight);
 
     // Animation
-    let rotationSpeed = 0.0005;
+    const rotationSpeed = 0.0003;
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
       
-      // Slow rotation
       globe.rotation.y += rotationSpeed;
-      atmosphere.rotation.y += rotationSpeed * 0.8;
+      atmosphere.rotation.y += rotationSpeed * 0.95;
+      stars.rotation.y += rotationSpeed * 0.05;
       
       renderer.render(scene, camera);
     };
@@ -204,6 +265,8 @@ export default function Globe() {
       material.dispose();
       atmosphereGeometry.dispose();
       atmosphereMaterial.dispose();
+      starGeometry.dispose();
+      starMaterial.dispose();
     };
   }, []);
 
@@ -213,8 +276,7 @@ export default function Globe() {
       className="fixed inset-0 pointer-events-none"
       style={{ 
         zIndex: 1,
-        opacity: 0.6,
-        filter: 'blur(0.5px)'
+        opacity: 0.4,
       }}
     />
   );
