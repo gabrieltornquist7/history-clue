@@ -16,7 +16,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-leaflet": "^5.0.0",
-    "react-map-gl": "^7.1.7"
+    "react-map-gl": "^7.1.7",
+    "three": "^0.128.0"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.20",
