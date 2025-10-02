@@ -464,7 +464,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
   
   // Desktop layout
   return (
-    <div className="h-screen relative overflow-hidden" style={{ background: `linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)` }}>
+    <div className="h-screen relative overflow-hidden flex flex-col" style={{ background: `linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)` }}>
       <GlassBackButton onClick={handleExit} fallbackUrl="/" />
       
       <BattleHeader
@@ -476,9 +476,10 @@ export default function LiveBattleView({ battleId, session, setView }) {
         timerCapped={timerCapped}
       />
       
-      <div className="flex h-[calc(100vh-200px)]">
+      <div className="flex flex-1 overflow-hidden">
         {/* Left Panel - Clues */}
-        <div className="w-80 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
+        <div className="w-80 flex flex-col overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
           {[1, 2, 3, 4, 5].map((num) => {
             const isUnlocked = unlockedClues.includes(num);
             const clueText = getClueText(num);
@@ -493,22 +494,22 @@ export default function LiveBattleView({ battleId, session, setView }) {
                 }}
               >
                 {isUnlocked ? (
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
-                      <span className="font-serif font-bold text-sm" style={{ color: '#d4af37' }}>Clue {num}</span>
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
+                      <span className="font-serif font-bold text-xs" style={{ color: '#d4af37' }}>Clue {num}</span>
                     </div>
-                    <p className="text-gray-300 text-sm">{clueText}</p>
+                    <p className="text-gray-300 text-xs leading-relaxed">{clueText}</p>
                   </div>
                 ) : (
                   <button 
-                    className="w-full p-3 text-left hover:bg-white/5"
+                    className="w-full p-2.5 text-left hover:bg-white/5 transition-colors disabled:opacity-50"
                     onClick={() => handleUnlockClue(num)}
                     disabled={submitted}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-sm">Unlock {num}</span>
-                      <span className="text-yellow-500 font-bold text-sm">{CLUE_COSTS[num].toLocaleString()}</span>
+                      <span className="text-white text-xs">Unlock Clue {num}</span>
+                      <span className="text-yellow-500 font-bold text-xs">{CLUE_COSTS[num].toLocaleString()}</span>
                     </div>
                   </button>
                 )}
@@ -516,29 +517,44 @@ export default function LiveBattleView({ battleId, session, setView }) {
             );
           })}
           
-          {/* Score */}
-          <div className="backdrop-blur rounded-lg border p-4 text-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-            <p className="text-sm text-gray-400 mb-1">Score</p>
-            <p className="text-2xl font-bold" style={{ color: '#d4af37' }}>{score.toLocaleString()}</p>
           </div>
           
-          {!submitted && (
-            <button 
-              onClick={() => setShowConfirmModal(true)}
-              disabled={!guessCoords}
-              className="w-full px-6 py-3 font-bold text-white rounded-md"
-              style={{ background: guessCoords ? 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)' : '#374151' }}
-            >
-              Submit
-            </button>
-          )}
-          
-          {submitted && (
-            <div className="text-center py-4">
-              <p className="text-green-400 font-bold">✓ Submitted!</p>
-              <p className="text-gray-400 text-sm">Waiting...</p>
+          {/* Bottom sticky section with score and button */}
+          <div className="p-4 space-y-2 border-t" style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', borderColor: 'rgba(212, 175, 55, 0.2)' }}>
+            {/* Score */}
+            <div className="backdrop-blur rounded-lg border p-3 text-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+              <p className="text-xs text-gray-400 mb-1">Potential Score</p>
+              <p className="text-xl font-bold" style={{ color: '#d4af37' }}>{score.toLocaleString()}</p>
             </div>
-          )}
+            
+            {!submitted && (
+              <button 
+                onClick={() => setShowConfirmModal(true)}
+                disabled={!guessCoords}
+                className="w-full px-6 py-3 font-bold text-white rounded-md transition-all"
+                style={{ background: guessCoords ? 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)' : '#374151' }}
+                onMouseEnter={(e) => {
+                  if (guessCoords) {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 8px 20px rgba(139, 0, 0, 0.6)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                {!guessCoords ? 'Place Pin First' : 'Submit Guess'}
+              </button>
+            )}
+            
+            {submitted && (
+              <div className="text-center py-3 bg-green-900/20 rounded-lg border border-green-500/30">
+                <p className="text-green-400 font-bold text-lg">✓ Submitted!</p>
+                <p className="text-gray-400 text-xs mt-1">Waiting for opponent...</p>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Center - Map */}
