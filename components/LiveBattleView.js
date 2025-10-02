@@ -2810,7 +2810,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                 <div className="text-center">
                   <p className="text-sm text-gray-400">Potential Score</p>
                   <p className="text-2xl font-bold text-yellow-400">
-                    {myScore.toLocaleString()}
+                    {safeScore(myScore)}
                   </p>
                 </div>
               </div>
@@ -3163,7 +3163,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   }}
                 >
                   <h3 className="font-bold text-green-400 mb-2">Your Result</h3>
-                  <p>Score: <span className="font-bold">{myGuess.score.toLocaleString()}</span></p>
+                  <p>Score: <span className="font-bold">{safeScore(myGuess.score)}</span></p>
                   <p>Distance: <span className="font-bold">{myGuess.distance}km</span></p>
                   {!oppGuess && (
                     <div className="mt-2">
@@ -3220,20 +3220,20 @@ export default function LiveBattleView({ session, battleId, setView }) {
                   <div className="bg-gray-800 rounded-lg p-4">
                     <div className="flex justify-between mb-2">
                       <span>Your Round Score:</span>
-                      <span className="font-bold">{roundResult.myScore.toLocaleString()}</span>
+                      <span className="font-bold">{safeScore(roundResult.myScore)}</span>
                     </div>
                     <div className="flex justify-between mb-3">
                       <span>Opponent Round Score:</span>
-                      <span className="font-bold">{roundResult.oppScore.toLocaleString()}</span>
+                      <span className="font-bold">{safeScore(roundResult.oppScore)}</span>
                     </div>
                     <hr className="border-gray-600 my-3" />
                     <div className="flex justify-between mb-2 text-lg font-bold">
                       <span>Your Total:</span>
-                      <span className="text-green-400">{battleState.myTotalScore.toLocaleString()}</span>
+                      <span className="text-green-400">{safeScore(battleState.myTotalScore)}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold">
                       <span>Their Total:</span>
-                      <span className="text-blue-400">{battleState.oppTotalScore.toLocaleString()}</span>
+                      <span className="text-blue-400">{safeScore(battleState.oppTotalScore)}</span>
                     </div>
                   </div>
 
@@ -3279,11 +3279,11 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     <h4 className="text-lg font-bold mb-4 text-yellow-400">Final Scores</h4>
                     <div className="flex justify-between mb-2 text-xl font-bold">
                       <span>You:</span>
-                      <span className="text-green-400">{battleState.myTotalScore.toLocaleString()}</span>
+                      <span className="text-green-400">{safeScore(battleState.myTotalScore)}</span>
                     </div>
                     <div className="flex justify-between mb-4 text-xl font-bold">
                       <span>Opponent:</span>
-                      <span className="text-blue-400">{battleState.oppTotalScore.toLocaleString()}</span>
+                      <span className="text-blue-400">{safeScore(battleState.oppTotalScore)}</span>
                     </div>
 
                     <hr className="border-gray-600 my-4" />
@@ -3292,7 +3292,7 @@ export default function LiveBattleView({ session, battleId, setView }) {
                     {battleState.roundScores.map((round, idx) => (
                       <div key={idx} className="flex justify-between text-sm mb-1">
                         <span>Round {round.round}:</span>
-                        <span>{round.myScore.toLocaleString()} - {round.oppScore.toLocaleString()}</span>
+                        <span>{safeScore(round.myScore)} - {safeScore(round.oppScore)}</span>
                         <span className={`ml-2 ${
                           round.winner === 'me' ? 'text-green-400' :
                           round.winner === 'opponent' ? 'text-red-400' : 'text-yellow-400'
