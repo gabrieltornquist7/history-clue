@@ -1,6 +1,19 @@
 // components/BottomControlBar.js
 "use client";
 
+// Safe score formatter
+const safeScore = (value) => {
+  try {
+    if (value === null || value === undefined || value === '' || typeof value === 'object') return '0';
+    const numValue = Number(value);
+    if (isNaN(numValue) || !isFinite(numValue)) return '0';
+    return numValue.toLocaleString();
+  } catch (error) {
+    console.warn('safeScore error in BottomControlBar:', error, 'value:', value);
+    return '0';
+  }
+};
+
 const historicalEras = [
   { label: 'Ancient', value: -2500, tooltip: '~3000 BCE - 500 CE' },
   { label: 'Classical', value: -300, tooltip: '~800 BCE - 500 CE' },
@@ -133,7 +146,7 @@ export default function BottomControlBar({
             <div className="text-sm">
               <span className="text-gray-400">Potential Score: </span>
               <span className="font-bold text-xl" style={{ color: '#d4af37', textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}>
-                {score.toLocaleString()}
+                {safeScore(score)}
               </span>
             </div>
           </div>
