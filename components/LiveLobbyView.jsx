@@ -1,6 +1,7 @@
 // components/LiveLobbyView.jsx
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { createBattle, joinBattle, findBattleByInviteCode } from '../lib/battleDatabase';
 import GlassBackButton from './GlassBackButton';
 
@@ -60,7 +61,7 @@ export default function LiveLobbyView({ session, setView, setBattleId }) {
       setJoinError(result.error);
     } else {
       setBattleId(result.battleId);
-      setView('battle');
+      setView('liveGame');
     }
     
     setLoading(false);
@@ -69,6 +70,37 @@ export default function LiveLobbyView({ session, setView, setBattleId }) {
   const copyInviteCode = () => {
     navigator.clipboard.writeText(createdCode);
   };
+  
+  // Realtime subscription to detect when opponent joins
+  useEffect(() => {
+    if (!mode || mode !== 'create' || !createdCode) return;
+    
+    // Subscribe to battle updates
+    const channel = supabase
+      .channel(`battle-lobby:${createdCode}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'battles',
+          filter: `invite_code=eq.${createdCode}`
+        },
+        (payload) => {
+          console.log('Battle updated:', payload);
+          // If player2 has joined and status is active, redirect to game
+          if (payload.new.player2_id && payload.new.status === 'active') {
+            setBattleId(payload.new.id);
+            setView('liveGame');
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mode, createdCode, setBattleId, setView]);
   
   if (mode === 'create' && createdCode) {
     return (
