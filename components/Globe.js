@@ -34,15 +34,11 @@ export default function Globe() {
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
 
-    // Create globe with more interesting shader
-    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    // Create main globe with rich shader
+    const geometry = new THREE.SphereGeometry(1, 128, 128);
     
-    // Enhanced shader material with more visual interest
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        color1: { value: new THREE.Color(0x1a5490) }, // Ocean blue
-        color2: { value: new THREE.Color(0x0d2847) }, // Deep blue
-        color3: { value: new THREE.Color(0x2a6fa8) }, // Lighter blue
         time: { value: 0 }
       },
       vertexShader: `
@@ -57,45 +53,95 @@ export default function Globe() {
         }
       `,
       fragmentShader: `
-        uniform vec3 color1;
-        uniform vec3 color2;
-        uniform vec3 color3;
         uniform float time;
         varying vec2 vUv;
         varying vec3 vNormal;
         varying vec3 vPosition;
         
-        // Simple noise function
-        float noise(vec2 p) {
-          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        // Improved noise functions
+        float random(vec2 st) {
+          return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+        }
+        
+        float noise(vec2 st) {
+          vec2 i = floor(st);
+          vec2 f = fract(st);
+          float a = random(i);
+          float b = random(i + vec2(1.0, 0.0));
+          float c = random(i + vec2(0.0, 1.0));
+          float d = random(i + vec2(1.0, 1.0));
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        }
+        
+        float fbm(vec2 st) {
+          float value = 0.0;
+          float amplitude = 0.5;
+          for (int i = 0; i < 5; i++) {
+            value += amplitude * noise(st);
+            st *= 2.0;
+            amplitude *= 0.5;
+          }
+          return value;
         }
         
         void main() {
-          // Create varied gradient
-          float mixValue = vUv.y;
-          vec3 color = mix(color2, color1, mixValue);
-          color = mix(color, color3, vUv.y * vUv.y * 0.5);
+          // Create landmass-like patterns
+          vec2 noiseCoord = vUv * 8.0;
+          float landPattern = fbm(noiseCoord + time * 0.0001);
           
-          // Add subtle noise for texture
-          float noiseValue = noise(vUv * 100.0 + time * 0.001) * 0.03;
-          color += noiseValue;
+          // Ocean and land colors
+          vec3 deepOcean = vec3(0.05, 0.15, 0.35);
+          vec3 shallowOcean = vec3(0.1, 0.3, 0.5);
+          vec3 coastline = vec3(0.15, 0.4, 0.55);
+          vec3 land = vec3(0.2, 0.35, 0.25);
+          vec3 mountains = vec3(0.25, 0.25, 0.2);
           
-          // Add bands/stripes for more interest
-          float bands = sin(vUv.y * 30.0) * 0.015;
-          color += bands;
+          // Create terrain
+          float terrain = landPattern;
+          vec3 baseColor;
+          
+          if (terrain < 0.35) {
+            baseColor = mix(deepOcean, shallowOcean, terrain / 0.35);
+          } else if (terrain < 0.45) {
+            baseColor = mix(shallowOcean, coastline, (terrain - 0.35) / 0.1);
+          } else if (terrain < 0.6) {
+            baseColor = mix(coastline, land, (terrain - 0.45) / 0.15);
+          } else {
+            baseColor = mix(land, mountains, (terrain - 0.6) / 0.4);
+          }
+          
+          // Add subtle animated clouds
+          float cloudPattern = fbm(vUv * 12.0 + time * 0.0002);
+          vec3 clouds = vec3(1.0) * smoothstep(0.6, 0.8, cloudPattern) * 0.3;
+          baseColor += clouds;
+          
+          // Add polar ice caps
+          float latitude = abs(vUv.y - 0.5) * 2.0;
+          if (latitude > 0.85) {
+            float iceMix = (latitude - 0.85) / 0.15;
+            baseColor = mix(baseColor, vec3(0.9, 0.95, 1.0), iceMix * 0.7);
+          }
           
           // Lighting
-          vec3 light = normalize(vec3(1.0, 0.5, 1.0));
-          float dProd = max(0.2, dot(vNormal, light));
+          vec3 lightDir = normalize(vec3(1.0, 0.5, 1.0));
+          float diffuse = max(dot(vNormal, lightDir), 0.0);
+          float ambient = 0.4;
+          float lighting = ambient + diffuse * 0.6;
           
-          // Enhanced specular highlight
+          // Rim lighting
+          float rim = 1.0 - max(dot(vNormal, vec3(0.0, 0.0, 1.0)), 0.0);
+          rim = pow(rim, 3.0) * 0.3;
+          
+          // Specular highlight (water reflection)
           vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
-          vec3 reflectDir = reflect(-light, vNormal);
-          float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+          vec3 reflectDir = reflect(-lightDir, vNormal);
+          float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
+          if (terrain > 0.45) spec = 0.0; // Only on water
           
-          color = color * dProd + vec3(spec * 0.3);
+          vec3 finalColor = baseColor * lighting + vec3(rim) + vec3(spec * 0.4);
           
-          gl_FragColor = vec4(color, 1.0);
+          gl_FragColor = vec4(finalColor, 1.0);
         }
       `,
     });
@@ -103,8 +149,8 @@ export default function Globe() {
     const globe = new THREE.Mesh(geometry, material);
     scene.add(globe);
 
-    // Enhanced atmosphere glow
-    const atmosphereGeometry = new THREE.SphereGeometry(1.1, 64, 64);
+    // Atmospheric glow with multiple layers
+    const atmosphereGeometry = new THREE.SphereGeometry(1.15, 64, 64);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       uniforms: {},
       vertexShader: `
@@ -117,8 +163,8 @@ export default function Globe() {
       fragmentShader: `
         varying vec3 vNormal;
         void main() {
-          float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5);
-          gl_FragColor = vec4(0.4, 0.7, 1.0, 1.0) * intensity;
+          float intensity = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+          gl_FragColor = vec4(0.3, 0.6, 0.9, 1.0) * intensity;
         }
       `,
       side: THREE.BackSide,
@@ -128,64 +174,32 @@ export default function Globe() {
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
     scene.add(atmosphere);
 
-    // Grid lines with slightly better visibility
-    const gridMaterial = new THREE.LineBasicMaterial({
-      color: 0x88ccff,
+    // Add orbital rings for sci-fi effect
+    const ringGeometry = new THREE.TorusGeometry(1.3, 0.002, 16, 100);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0x4488ff,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.3,
     });
+    
+    const ring1 = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring1.rotation.x = Math.PI / 2;
+    ring1.rotation.z = Math.PI / 6;
+    scene.add(ring1);
+    
+    const ring2 = new THREE.Mesh(ringGeometry, ringMaterial.clone());
+    ring2.rotation.x = Math.PI / 2;
+    ring2.rotation.z = -Math.PI / 6;
+    scene.add(ring2);
 
-    // Latitude lines
-    for (let i = 1; i < 9; i++) {
-      const lat = (i / 9) * Math.PI - Math.PI / 2;
-      const radius = Math.cos(lat);
-      const y = Math.sin(lat);
-      
-      const points = [];
-      for (let j = 0; j <= 64; j++) {
-        const angle = (j / 64) * Math.PI * 2;
-        points.push(new THREE.Vector3(
-          radius * Math.cos(angle),
-          y,
-          radius * Math.sin(angle)
-        ));
-      }
-      
-      const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(lineGeometry, gridMaterial);
-      globe.add(line);
-    }
-
-    // Longitude lines
-    for (let i = 0; i < 16; i++) {
-      const points = [];
-      const angle = (i / 16) * Math.PI * 2;
-      
-      for (let j = 0; j <= 32; j++) {
-        const lat = (j / 32) * Math.PI - Math.PI / 2;
-        const radius = Math.cos(lat);
-        const y = Math.sin(lat);
-        
-        points.push(new THREE.Vector3(
-          radius * Math.cos(angle),
-          y,
-          radius * Math.sin(angle)
-        ));
-      }
-      
-      const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(lineGeometry, gridMaterial);
-      globe.add(line);
-    }
-
-    // Golden dots for historical cities
-    const dotGeometry = new THREE.SphereGeometry(0.01, 8, 8);
-    const dotMaterial = new THREE.MeshBasicMaterial({
+    // Animated connection lines between cities
+    const connectionMaterial = new THREE.LineBasicMaterial({
       color: 0xffd700,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.2,
     });
 
+    const connections = [];
     const historicalSites = [
       { lat: 51.5074, lon: -0.1278 },   // London
       { lat: 41.9028, lon: 12.4964 },   // Rome
@@ -199,87 +213,152 @@ export default function Globe() {
       { lat: -23.5505, lon: -46.6333 }, // Sao Paulo
     ];
 
-    historicalSites.forEach(site => {
-      const phi = (90 - site.lat) * (Math.PI / 180);
-      const theta = (site.lon + 180) * (Math.PI / 180);
-      
-      const x = -(1.015 * Math.sin(phi) * Math.cos(theta));
-      const y = 1.015 * Math.cos(phi);
-      const z = 1.015 * Math.sin(phi) * Math.sin(theta);
-      
-      const dot = new THREE.Mesh(dotGeometry, dotMaterial);
-      dot.position.set(x, y, z);
-      globe.add(dot);
+    // Convert lat/lon to 3D position
+    const latLonToVector3 = (lat, lon, radius) => {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lon + 180) * (Math.PI / 180);
+      return new THREE.Vector3(
+        -(radius * Math.sin(phi) * Math.cos(theta)),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
+    };
 
-      // Glow around dots
-      const glowGeometry = new THREE.SphereGeometry(0.02, 8, 8);
+    // Create pulsing city markers
+    historicalSites.forEach((site, i) => {
+      const pos = latLonToVector3(site.lat, site.lon, 1.02);
+      
+      // Main marker
+      const markerGeometry = new THREE.SphereGeometry(0.012, 8, 8);
+      const markerMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffd700,
+        transparent: true,
+        opacity: 1,
+      });
+      const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+      marker.position.copy(pos);
+      globe.add(marker);
+      
+      // Pulsing glow
+      const glowGeometry = new THREE.SphereGeometry(0.025, 8, 8);
       const glowMaterial = new THREE.MeshBasicMaterial({
         color: 0xffd700,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.4,
       });
       const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.position.set(x, y, z);
+      glow.position.copy(pos);
+      glow.userData.pulseOffset = i * 0.5;
       globe.add(glow);
+      connections.push(glow);
+      
+      // Draw connections to nearby cities
+      if (i < historicalSites.length - 1) {
+        const nextPos = latLonToVector3(historicalSites[i + 1].lat, historicalSites[i + 1].lon, 1.02);
+        const points = [];
+        const steps = 20;
+        for (let j = 0; j <= steps; j++) {
+          const t = j / steps;
+          const point = new THREE.Vector3().lerpVectors(pos, nextPos, t);
+          point.normalize().multiplyScalar(1.02 + Math.sin(t * Math.PI) * 0.1);
+          points.push(point);
+        }
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(lineGeometry, connectionMaterial);
+        globe.add(line);
+      }
     });
 
-    // Brighter stars
+    // Enhanced star field with different sizes
     const starGeometry = new THREE.BufferGeometry();
-    const starMaterial = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 0.7,
-      transparent: true,
-      opacity: 0.85,
-    });
-
     const starVertices = [];
-    for (let i = 0; i < 1000; i++) {
+    const starSizes = [];
+    
+    for (let i = 0; i < 2000; i++) {
       const x = (Math.random() - 0.5) * 2000;
       const y = (Math.random() - 0.5) * 2000;
       const z = (Math.random() - 0.5) * 2000;
       starVertices.push(x, y, z);
+      starSizes.push(Math.random() * 2 + 0.5);
     }
 
-    starGeometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(starVertices, 3)
-    );
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    starGeometry.setAttribute('size', new THREE.Float32BufferAttribute(starSizes, 1));
+    
+    const starMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 }
+      },
+      vertexShader: `
+        attribute float size;
+        varying float vSize;
+        void main() {
+          vSize = size;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size;
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        varying float vSize;
+        void main() {
+          float dist = length(gl_PointCoord - vec2(0.5));
+          if (dist > 0.5) discard;
+          float alpha = 1.0 - (dist * 2.0);
+          float twinkle = sin(time * vSize * 2.0) * 0.3 + 0.7;
+          gl_FragColor = vec4(1.0, 1.0, 1.0, alpha * twinkle);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+    });
 
     const stars = new THREE.Points(starGeometry, starMaterial);
     scene.add(stars);
 
-    // Enhanced lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // Lighting setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    directionalLight.position.set(5, 3, 5);
-    scene.add(directionalLight);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(5, 3, 5);
+    scene.add(sunLight);
 
-    // Rim light for depth
-    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.4);
+    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.5);
     rimLight.position.set(-3, 1, -3);
     scene.add(rimLight);
 
     // Animation
     let time = 0;
-    const rotationSpeed = 0.0003;
+    const rotationSpeed = 0.0004;
     const animate = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
       
       time += 0.01;
       material.uniforms.time.value = time;
+      starMaterial.uniforms.time.value = time;
       
+      // Rotate globe and elements
       globe.rotation.y += rotationSpeed;
       atmosphere.rotation.y += rotationSpeed * 0.95;
+      ring1.rotation.z += rotationSpeed * 0.5;
+      ring2.rotation.z -= rotationSpeed * 0.5;
       stars.rotation.y += rotationSpeed * 0.05;
       stars.rotation.x += rotationSpeed * 0.02;
+      
+      // Pulse city markers
+      connections.forEach((glow) => {
+        const scale = 1 + Math.sin(time * 2 + glow.userData.pulseOffset) * 0.3;
+        glow.scale.set(scale, scale, scale);
+        glow.material.opacity = 0.3 + Math.sin(time * 2 + glow.userData.pulseOffset) * 0.2;
+      });
       
       renderer.render(scene, camera);
     };
     animate();
 
-    // Handle window resize
+    // Handle resize
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -297,12 +376,6 @@ export default function Globe() {
         mountRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      geometry.dispose();
-      material.dispose();
-      atmosphereGeometry.dispose();
-      atmosphereMaterial.dispose();
-      starGeometry.dispose();
-      starMaterial.dispose();
     };
   }, []);
 
@@ -312,7 +385,7 @@ export default function Globe() {
       className="fixed inset-0 pointer-events-none"
       style={{ 
         zIndex: 1,
-        opacity: 0.4,
+        opacity: 0.5,
       }}
     />
   );
