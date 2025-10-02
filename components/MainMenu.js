@@ -88,7 +88,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
       `}</style>
 
       {/* Header */}
-      <header className="flex items-center justify-between p-8 pb-4 relative z-10">
+      <header className="flex items-center justify-between p-8 pb-2 relative z-10">
         <div className="flex-1"></div>
         <div className="text-center">
           {/* Logo */}
@@ -110,7 +110,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
       </header>
 
       {/* Main Content */}
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)] p-8 pt-4 relative z-10">
+      <div className="flex items-center justify-center min-h-[calc(100vh-200px)] p-8 pt-2 relative z-10">
         <div className="w-full max-w-md">
           {/* Main Action Card */}
           <div
