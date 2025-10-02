@@ -179,7 +179,7 @@ export default function BattleHeader({
               {oppScore?.toLocaleString() || 0}
             </p>
           </div>
-          }
+          </div>
           
           {/* Timer */}
           {timer !== null && (

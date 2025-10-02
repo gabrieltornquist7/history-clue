@@ -136,7 +136,7 @@ export default function LiveLobbyView({ session, setView, setBattleId }) {
           />
         </div>
         
-        <style jsx>{`
+        <style jsx global>{`
           @keyframes pulse {
             0%, 100% { transform: scale(1); opacity: 0.5; }
             50% { transform: scale(1.1); opacity: 0.8; }
@@ -154,6 +154,13 @@ export default function LiveLobbyView({ session, setView, setBattleId }) {
               opacity: 1;
               transform: scale(1);
             }
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
           }
         `}</style>
         
@@ -274,12 +281,6 @@ export default function LiveLobbyView({ session, setView, setBattleId }) {
             <p className="text-gray-400 text-sm font-medium">Waiting for opponent to join...</p>
             <p className="text-gray-500 text-xs mt-1">Battle will start automatically</p>
           </div>
-          
-          <style jsx>{`
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-          `}</style>
           
           {/* Cancel Button */}
           <button
@@ -626,12 +627,6 @@ export default function LiveLobbyView({ session, setView, setBattleId }) {
                 animation: 'shimmer 3s linear infinite'
               }}
             />
-            <style jsx>{`
-              @keyframes shimmer {
-                0% { background-position: -200% center; }
-                100% { background-position: 200% center; }
-              }
-            `}</style>
             
             {loading ? (
               <span className="flex items-center justify-center gap-2">
