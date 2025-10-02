@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import GlassBackButton from './GlassBackButton';
+import TitleDisplay from './TitleDisplay';
 
 const RARITY_COLORS = {
   common: { border: 'rgba(156, 163, 175, 0.3)', glow: 'rgba(156, 163, 175, 0.1)', text: '#9ca3af' },
@@ -268,16 +269,16 @@ export default function Shop({ setView, session }) {
                     </span>
                   </div>
 
-                  {/* Item Name */}
-                  <h3 
-                    className="text-xl font-serif font-bold mb-2"
-                    style={{ 
-                      color: '#d4af37',
-                      textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
-                    }}
-                  >
-                    {item.name}
-                  </h3>
+                  {/* Item Name with Title Display */}
+                  <div className="mb-4 flex justify-center">
+                    <TitleDisplay 
+                      title={item.name}
+                      rarity={item.rarity}
+                      showIcon={true}
+                      size="default"
+                      animated={true}
+                    />
+                  </div>
 
                   {/* Description */}
                   <p className="text-gray-400 text-sm mb-4 italic">

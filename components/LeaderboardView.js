@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { AvatarImage } from '../lib/avatarHelpers';
 import GlassBackButton from './GlassBackButton';
 import UserProfileView from './UserProfileView';
+import TitleDisplay from './TitleDisplay';
 
 export default function LeaderboardView({ setView, session }) {
   console.log('[LeaderboardView] Rendered with setView:', typeof setView);
@@ -12,6 +13,7 @@ export default function LeaderboardView({ setView, session }) {
   const [endlessLeaderboard, setEndlessLeaderboard] = useState([]);
   const [error, setError] = useState(null);
   const [viewingUserId, setViewingUserId] = useState(null);
+  const [titleData, setTitleData] = useState({});
 
   // Endless Mode Level System (same as GameView)
   const getEndlessDifficulty = (level) => {
@@ -115,6 +117,46 @@ export default function LeaderboardView({ setView, session }) {
 
         console.log('Successfully fetched leaderboard:', leaderboardData);
         setEndlessLeaderboard(leaderboardData || []);
+
+        // Fetch title data for all equipped titles
+        const uniqueTitleIds = [...new Set(
+          leaderboardData
+            ?.filter(entry => entry.profiles?.equipped_title)
+            .map(entry => entry.profiles.equipped_title)
+        )];
+
+        if (uniqueTitleIds.length > 0) {
+          const titleDataMap = {};
+
+          // Fetch from title_definitions
+          const { data: titleDefs } = await supabase
+            .from('title_definitions')
+            .select('id, title_text, rarity')
+            .in('id', uniqueTitleIds);
+
+          titleDefs?.forEach(title => {
+            titleDataMap[title.id] = {
+              text: title.title_text,
+              rarity: title.rarity || 'legendary'
+            };
+          });
+
+          // Fetch from shop_items
+          const { data: shopItems } = await supabase
+            .from('shop_items')
+            .select('id, name, rarity')
+            .in('id', uniqueTitleIds)
+            .eq('category', 'title');
+
+          shopItems?.forEach(item => {
+            titleDataMap[item.id] = {
+              text: item.name,
+              rarity: item.rarity
+            };
+          });
+
+          setTitleData(titleDataMap);
+        }
 
       } catch (err) {
         if (ignore) return;
@@ -322,7 +364,19 @@ export default function LeaderboardView({ setView, session }) {
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs sm:text-sm text-gray-400 group-hover:text-yellow-500 transition-colors">
+                            {/* Title Display */}
+                            {entry.profiles?.equipped_title && titleData[entry.profiles.equipped_title] && (
+                              <div className="mt-1">
+                                <TitleDisplay 
+                                  title={titleData[entry.profiles.equipped_title].text}
+                                  rarity={titleData[entry.profiles.equipped_title].rarity}
+                                  showIcon={true}
+                                  size="small"
+                                  animated={false}
+                                />
+                              </div>
+                            )}
+                            <div className="text-xs sm:text-sm text-gray-400 group-hover:text-yellow-500 transition-colors mt-1">
                               Endless Mode • Click to view profile
                             </div>
                           </div>

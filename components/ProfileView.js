@@ -7,6 +7,7 @@ import PageWrapper from "./ui/PageWrapper";
 import Card from "./ui/Card";
 import GlassBackButton from './GlassBackButton';
 import { getBadgeEmoji, getRarityColor, formatTimeAgo } from '../lib/badgeUtils';
+import TitleDisplay from './TitleDisplay';
 
 export default function ProfileView({ setView, session, userId = null }) {
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ export default function ProfileView({ setView, session, userId = null }) {
   const [badgesLoading, setBadgesLoading] = useState(true);
   const [titleText, setTitleText] = useState('');
   const [titleColor, setTitleColor] = useState('#FFD700');
+  const [titleRarity, setTitleRarity] = useState('common');
 
   const profileId = userId || session?.user?.id;
 
@@ -81,12 +83,13 @@ export default function ProfileView({ setView, session, userId = null }) {
     getProfileData();
   }, [profileId]);
 
-  // Fetch title display text and color
+  // Fetch title display text, color, and rarity
   useEffect(() => {
     async function fetchTitleData() {
       if (!profile?.selected_title) {
         setTitleText('');
         setTitleColor('#FFD700');
+        setTitleRarity('common');
         return;
       }
 
@@ -94,7 +97,7 @@ export default function ProfileView({ setView, session, userId = null }) {
         // First, try to fetch from title_definitions (badge-earned titles)
         const { data: titleDef } = await supabase
           .from('title_definitions')
-          .select('title_text, color_hex')
+          .select('title_text, color_hex, rarity')
           .eq('id', profile.selected_title)
           .maybeSingle();
 
@@ -102,6 +105,7 @@ export default function ProfileView({ setView, session, userId = null }) {
           // Found in title_definitions
           setTitleText(titleDef.title_text);
           setTitleColor(titleDef.color_hex || '#FFD700');
+          setTitleRarity(titleDef.rarity || 'legendary');
         } else {
           // Not found in title_definitions, try shop_items (shop-purchased titles)
           const { data: shopItem } = await supabase
@@ -114,6 +118,7 @@ export default function ProfileView({ setView, session, userId = null }) {
           if (shopItem) {
             // Found in shop_items
             setTitleText(shopItem.name);
+            setTitleRarity(shopItem.rarity);
             // Use rarity-based colors for shop titles
             const shopColors = {
               common: '#9ca3af',
@@ -126,12 +131,14 @@ export default function ProfileView({ setView, session, userId = null }) {
             // Fallback to raw value if not found in either table
             setTitleText(profile.selected_title);
             setTitleColor('#FFD700');
+            setTitleRarity('legendary');
           }
         }
       } catch (error) {
         console.error('Error fetching title data:', error);
         setTitleText(profile.selected_title);
         setTitleColor('#FFD700');
+        setTitleRarity('common');
       }
     }
 
@@ -382,15 +389,15 @@ export default function ProfileView({ setView, session, userId = null }) {
                 </div>
                 <h2 className="text-2xl font-serif font-bold text-white mb-1">{profile?.username || "Anonymous"}</h2>
                 {titleText && (
-                  <p 
-                    className="text-sm mb-4 font-semibold"
-                    style={{ 
-                      color: titleColor,
-                      textShadow: `0 0 10px ${titleColor}44`
-                    }}
-                  >
-                    {titleText}
-                  </p>
+                  <div className="mb-4 flex justify-center">
+                    <TitleDisplay 
+                      title={titleText}
+                      rarity={titleRarity}
+                      showIcon={true}
+                      size="large"
+                      animated={true}
+                    />
+                  </div>
                 )}
                 <div className="mb-6">
                   <span className="text-yellow-500 font-bold">Level {xpCalculations.currentLevel}</span>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import GlassBackButton from './GlassBackButton';
 import { getBadgeEmoji, getRarityColor, getRarityLabel } from '../lib/badgeUtils';
+import TitleDisplay from './TitleDisplay';
 
 // Helper function to get shop title colors based on rarity
 const getShopTitleColor = (rarity) => {
@@ -373,12 +374,22 @@ export default function ProfileSettingsView({ setView, session }) {
                 <div className="space-y-6">
                   {/* Current Selection */}
                   <div className="p-6 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
-                    <h3 className="text-lg font-semibold text-white mb-2">
-                      Current Title
+                    <h3 className="text-lg font-semibold text-white mb-3">
+                      Current Title Preview
                     </h3>
-                    <p className="text-2xl font-serif text-yellow-400">
-                      {selectedTitleText || "No title selected"}
-                    </p>
+                    <div className="flex justify-center">
+                      {selectedTitleText ? (
+                        <TitleDisplay 
+                          title={selectedTitleText}
+                          rarity={allTitles.find(t => t.id === selectedTitle)?.rarity || 'common'}
+                          showIcon={true}
+                          size="large"
+                          animated={true}
+                        />
+                      ) : (
+                        <p className="text-gray-400">No title selected</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Title Select */}
@@ -422,21 +433,26 @@ export default function ProfileSettingsView({ setView, session }) {
                               setSelectedTitle(title.id);
                               setSelectedTitleText(title.display_name);
                             }}
-                            className={`p-3 rounded-lg border cursor-pointer mb-2 ${
+                            className={`p-4 rounded-lg border cursor-pointer mb-2 ${
                               selectedTitle === title.id
-                                ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-                                : "border-gray-700/30 bg-gray-800/30 text-gray-300 hover:border-gray-600/50 hover:bg-gray-800/50"
+                                ? "border-yellow-500/50 bg-yellow-500/10"
+                                : "border-gray-700/30 bg-gray-800/30 hover:border-gray-600/50 hover:bg-gray-800/50"
                             }`}
-                            style={{
-                              color: selectedTitle === title.id ? title.color : undefined
-                            }}
                           >
-                            {title.display_name}{" "}
-                            {selectedTitle === title.id && (
-                              <span className="ml-2 text-xs text-yellow-500">
-                                ✓ Selected
-                              </span>
-                            )}
+                            <div className="flex items-center justify-between">
+                              <TitleDisplay 
+                                title={title.display_name}
+                                rarity={title.rarity}
+                                showIcon={true}
+                                size="default"
+                                animated={selectedTitle === title.id}
+                              />
+                              {selectedTitle === title.id && (
+                                <span className="text-xs text-yellow-500 font-bold ml-2">
+                                  ✓ Selected
+                                </span>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -455,29 +471,26 @@ export default function ProfileSettingsView({ setView, session }) {
                               setSelectedTitle(title.id);
                               setSelectedTitleText(title.display_name);
                             }}
-                            className={`p-3 rounded-lg border cursor-pointer mb-2 ${
+                            className={`p-4 rounded-lg border cursor-pointer mb-2 ${
                               selectedTitle === title.id
                                 ? "border-yellow-500/50 bg-yellow-500/10"
                                 : "border-gray-700/30 bg-gray-800/30 hover:border-gray-600/50 hover:bg-gray-800/50"
                             }`}
-                            style={{
-                              color: selectedTitle === title.id ? title.color : '#9ca3af'
-                            }}
                           >
-                            <span className="flex items-center justify-between">
-                              <span style={{ color: title.color }}>{title.display_name}</span>
-                              <span className="text-xs px-2 py-1 rounded" style={{ 
-                                backgroundColor: `${title.color}22`,
-                                color: title.color
-                              }}>
-                                {title.rarity}
-                              </span>
-                            </span>
-                            {selectedTitle === title.id && (
-                              <span className="ml-2 text-xs text-yellow-500">
-                                ✓ Selected
-                              </span>
-                            )}
+                            <div className="flex items-center justify-between">
+                              <TitleDisplay 
+                                title={title.display_name}
+                                rarity={title.rarity}
+                                showIcon={true}
+                                size="default"
+                                animated={selectedTitle === title.id}
+                              />
+                              {selectedTitle === title.id && (
+                                <span className="text-xs text-yellow-500 font-bold ml-2">
+                                  ✓ Selected
+                                </span>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
