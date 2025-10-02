@@ -415,12 +415,18 @@ export default function MainMenu({ setView, session, onSignOut }) {
 
       {/* Footer Bar */}
       <footer className="border-t border-gray-800/30 bg-black/20 backdrop-blur relative z-10">
-        <div className="flex items-center justify-center py-4">
+        <div className="flex items-center justify-center gap-8 py-4">
           <button
             onClick={() => setView("news")}
             className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm flex items-center gap-2"
           >
             <span className="text-xs">📰</span> News
+          </button>
+          <button
+            onClick={() => setView("info")}
+            className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm flex items-center gap-2"
+          >
+            <span className="text-xs">ℹ️</span> Info
           </button>
         </div>
       </footer>

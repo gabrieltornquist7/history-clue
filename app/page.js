@@ -745,6 +745,148 @@ export default function Page() {
             </div>
           </div>
         );
+      case "info":
+        return (
+          <div 
+            className="min-h-screen relative flex items-center justify-center p-6"
+            style={{
+              background: `
+                linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%),
+                radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.015) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(212, 175, 55, 0.01) 0%, transparent 50%),
+                radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, transparent 70%)
+              `
+            }}
+          >
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.08) 100%)",
+                backgroundSize: "200% 200%",
+                animation: "shine 12s linear infinite",
+              }}
+            ></div>
+            
+            <style jsx>{`
+              @keyframes shine {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+              }
+            `}</style>
+
+            <div 
+              className="p-8 rounded-2xl shadow-2xl max-w-2xl relative z-10 backdrop-blur border"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
+              }}
+            >
+              <div className="text-center mb-6">
+                <h1 
+                  className="text-4xl font-serif font-bold mb-2"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+                  }}
+                >
+                  ℹ️ Info
+                </h1>
+                <p className="text-sm text-gray-400">Helpful tips and guides</p>
+              </div>
+
+              {/* Info sections */}
+              <div className="space-y-6 text-left">
+                <div 
+                  className="p-5 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                    borderColor: 'rgba(59, 130, 246, 0.2)'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">📱</span>
+                    <h2 className="text-xl font-bold text-white">Install as App (iOS)</h2>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed mb-3">
+                    Experience HistoryClue like a native app! Follow these steps to add it to your home screen:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 text-gray-300">
+                    <li>Tap the <strong className="text-blue-400">Share button</strong> (square with arrow) in Safari</li>
+                    <li>Scroll down and tap <strong className="text-blue-400">&quot;Add to Home Screen&quot;</strong></li>
+                    <li>Tap <strong className="text-blue-400">&quot;Add&quot;</strong> in the top right corner</li>
+                    <li>Open HistoryClue from your home screen - no browser bars!</li>
+                  </ol>
+                  <div className="mt-3 p-3 bg-black/30 rounded border border-blue-500/20">
+                    <p className="text-xs text-blue-300">💡 <strong>Tip:</strong> Once installed, the app works offline and feels just like a native app!</p>
+                  </div>
+                </div>
+
+                <div 
+                  className="p-5 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgba(34, 197, 94, 0.05)',
+                    borderColor: 'rgba(34, 197, 94, 0.2)'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">🤖</span>
+                    <h2 className="text-xl font-bold text-white">Install as App (Android)</h2>
+                  </div>
+                  <p className="text-gray-300 leading-relaxed mb-3">
+                    Add HistoryClue to your Android home screen:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 text-gray-300">
+                    <li>Tap the <strong className="text-green-400">menu icon</strong> (three dots) in Chrome</li>
+                    <li>Tap <strong className="text-green-400">&quot;Add to Home screen&quot;</strong></li>
+                    <li>Tap <strong className="text-green-400">&quot;Add&quot;</strong> to confirm</li>
+                    <li>Launch HistoryClue from your home screen!</li>
+                  </ol>
+                </div>
+
+                <div 
+                  className="p-5 rounded-lg border"
+                  style={{
+                    backgroundColor: 'rgba(168, 85, 247, 0.05)',
+                    borderColor: 'rgba(168, 85, 247, 0.2)'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">🎮</span>
+                    <h2 className="text-xl font-bold text-white">How to Play</h2>
+                  </div>
+                  <ul className="space-y-2 text-gray-300">
+                    <li>• <strong className="text-purple-400">Daily Challenge:</strong> Complete 5 progressive puzzles each day</li>
+                    <li>• <strong className="text-purple-400">Endless Mode:</strong> Play continuously and level up</li>
+                    <li>• <strong className="text-purple-400">Live Battle:</strong> Real-time multiplayer with 3 rounds</li>
+                    <li>• <strong className="text-purple-400">Challenge Friend:</strong> Private 1v1 competition</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => handleSetView("menu")}
+                  className="px-7 py-3.5 font-bold text-white rounded-md transition-all duration-300"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    letterSpacing: '-0.02em',
+                    boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
+                  }}
+                >
+                  Back to Menu
+                </button>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return (
           <Suspense fallback={<LoadingSpinner message="Loading menu..." />}>
