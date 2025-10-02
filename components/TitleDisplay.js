@@ -6,7 +6,6 @@ const RARITY_CONFIGS = {
   common: {
     textColor: '#9ca3af', // gray
     glowColor: 'rgba(156, 163, 175, 0.2)',
-    icon: '📜',
     animation: 'none',
     fontSize: 'text-sm',
     fontWeight: 'font-medium'
@@ -14,7 +13,6 @@ const RARITY_CONFIGS = {
   rare: {
     textColor: '#60a5fa', // blue
     glowColor: 'rgba(96, 165, 250, 0.4)',
-    icon: '⚔️',
     animation: 'pulse-soft',
     fontSize: 'text-sm',
     fontWeight: 'font-semibold'
@@ -22,7 +20,6 @@ const RARITY_CONFIGS = {
   epic: {
     textColor: '#a78bfa', // purple
     glowColor: 'rgba(167, 139, 250, 0.5)',
-    icon: '✨',
     animation: 'shimmer',
     fontSize: 'text-base',
     fontWeight: 'font-bold'
@@ -30,11 +27,33 @@ const RARITY_CONFIGS = {
   legendary: {
     textColor: '#d4af37', // gold
     glowColor: 'rgba(212, 175, 55, 0.6)',
-    icon: '👑',
     animation: 'legendary-glow',
     fontSize: 'text-base',
     fontWeight: 'font-bold'
   }
+};
+
+// Custom emoji mapping for each specific title
+const TITLE_EMOJIS = {
+  // Shop titles
+  'The Explorer': '🧭',
+  'History Buff': '📚',
+  'Time Traveler': '⏰',
+  'The Archaeologist': '⛏️',
+  'Master Detective': '🔍',
+  'Ancient Scholar': '📜',
+  'Master Cartographer': '🗺️',
+  'Renaissance Mind': '🎨',
+  'The Oracle': '🔮',
+  'Legendary Historian': '📖',
+  
+  // Badge titles
+  'Founder': '🔥',
+  'Developer': '💻',
+  'Centurion': '⚔️',
+  'Champion': '🏆',
+  'Eternally Dedicated': '💎',
+  'Master Geographer': '🌍'
 };
 
 // Special title configurations (for unique titles like Founder)
@@ -42,7 +61,6 @@ const SPECIAL_TITLES = {
   'Founder': {
     textColor: '#FF6B35',
     glowColor: 'rgba(255, 107, 53, 0.6)',
-    icon: '🔥',
     animation: 'founder-pulse',
     fontSize: 'text-base',
     fontWeight: 'font-bold'
@@ -61,6 +79,9 @@ export default function TitleDisplay({
   // Check if this is a special title
   const isSpecial = SPECIAL_TITLES[title];
   const config = isSpecial || RARITY_CONFIGS[rarity.toLowerCase()] || RARITY_CONFIGS.common;
+  
+  // Get the custom emoji for this title, or fall back to generic rarity emoji
+  const emoji = TITLE_EMOJIS[title] || '✨';
   
   // Generate particles for legendary titles
   useEffect(() => {
@@ -107,7 +128,7 @@ export default function TitleDisplay({
           className={`title-icon ${animationClass}`}
           style={{ fontSize: size === 'large' ? '1.5rem' : size === 'small' ? '0.875rem' : '1rem' }}
         >
-          {config.icon}
+          {emoji}
         </span>
       )}
 
@@ -135,22 +156,6 @@ export default function TitleDisplay({
           </span>
         )}
       </span>
-
-      {/* Rarity stars */}
-      <div className="flex gap-0.5">
-        {Array.from({ length: getRarityStars(rarity) }).map((_, i) => (
-          <span
-            key={i}
-            className={animated ? "text-xs animate-twinkle" : "text-xs"}
-            style={{
-              color: config.textColor,
-              animationDelay: `${i * 0.2}s`
-            }}
-          >
-            ✦
-          </span>
-        ))}
-      </div>
 
       {/* CSS Animations */}
       <style jsx>{`
@@ -204,11 +209,6 @@ export default function TitleDisplay({
           }
         }
 
-        @keyframes twinkle {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-
         .pulse-soft {
           animation: pulse-soft 3s ease-in-out infinite;
         }
@@ -227,10 +227,6 @@ export default function TitleDisplay({
 
         .animate-float-up {
           animation: float-up 2s ease-out infinite;
-        }
-
-        .animate-twinkle {
-          animation: twinkle 1.5s ease-in-out infinite;
         }
 
         .title-icon {
@@ -255,14 +251,4 @@ export default function TitleDisplay({
       `}</style>
     </div>
   );
-}
-
-function getRarityStars(rarity) {
-  switch(rarity.toLowerCase()) {
-    case 'common': return 0;
-    case 'rare': return 2;
-    case 'epic': return 3;
-    case 'legendary': return 4;
-    default: return 0;
-  }
 }
