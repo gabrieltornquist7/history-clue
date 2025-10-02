@@ -13,28 +13,46 @@ const RARITY_COLORS = {
   legendary: { border: 'rgba(234, 179, 8, 0.5)', glow: 'rgba(234, 179, 8, 0.2)', text: '#eab308' }
 };
 
+const VIP_DESCRIPTIONS = {
+  vip_bronze: {
+    figure: 'Leonardo da Vinci',
+    subtitle: 'The Renaissance Master',
+    description: 'Channel the genius of history\'s greatest polymath. Leonardo mastered art, science, and invention - now unlock your potential.',
+    emoji: '🎨'
+  },
+  vip_silver: {
+    figure: 'Alexander the Great',
+    subtitle: 'The Conqueror',
+    description: 'Command the power of history\'s greatest military strategist. Alexander conquered the known world by age 30 - claim your victories.',
+    emoji: '⚔️'
+  },
+  vip_gold: {
+    figure: 'Genghis Khan',
+    subtitle: 'The Empire Builder',
+    description: 'Rule with the might of history\'s most successful conqueror. Genghis Khan built the largest contiguous empire ever - build your legacy.',
+    emoji: '🏇'
+  }
+};
+
 const VIP_BENEFITS = {
   vip_bronze: [
     '+10% coin earnings on all games',
-    'Exclusive Bronze VIP Avatar Frame',
-    'VIP badge on your profile',
-    'Support game development'
+    'Exclusive Leonardo da Vinci avatar frame',
+    'Special VIP badge on your profile'
   ],
   vip_silver: [
     '+20% coin earnings on all games',
-    'Exclusive Silver VIP Avatar Frame',
-    'Weekly bonus challenges (coming soon)',
-    'VIP badge on your profile',
-    'Support game development'
+    'Exclusive Alexander the Great avatar frame',
+    'Priority matchmaking (coming soon)',
+    'Special VIP badge on your profile'
   ],
   vip_gold: [
     '+30% coin earnings on all games',
-    'Exclusive Gold VIP Avatar Frame',
+    'Exclusive Genghis Khan avatar frame',
     'Custom challenge creation (coming soon)',
     'Early access to new features',
-    'VIP badge on your profile',
-    'Premium support',
-    'Support game development'
+    'Special VIP badge on your profile',
+    'Premium support'
   ]
 };
 
@@ -133,7 +151,14 @@ export default function Shop({ setView, session }) {
           // VIP frame is auto-granted, add it to purchases
           const vipFrameId = `frame_vip_${result.vip_tier}`;
           setUserPurchases([...userPurchases, item.id, vipFrameId]);
-          showNotification(`Welcome to ${item.name}! Your exclusive frame has been added to your collection. Earn ${item.id === 'vip_bronze' ? '+10%' : item.id === 'vip_silver' ? '+20%' : '+30%'} more coins now!`, 'success');
+          showNotification(`Welcome, ${
+            item.id === 'vip_bronze' ? 'Leonardo da Vinci' :
+            item.id === 'vip_silver' ? 'Alexander the Great' :
+            'Genghis Khan'
+          }! Your exclusive frame has been added. Earn ${
+            item.id === 'vip_bronze' ? '+10%' : 
+            item.id === 'vip_silver' ? '+20%' : '+30%'
+          } more coins now!`, 'success');
         } else {
           showNotification(result.message, 'error');
         }
@@ -370,7 +395,9 @@ export default function Shop({ setView, session }) {
                     color: '#000'
                   }}
                 >
-                  {userVipTier} VIP ✨
+                  {userVipTier === 'bronze' ? '🎨 LEONARDO' :
+                   userVipTier === 'silver' ? '⚔️ ALEXANDER' :
+                   '🏇 GENGHIS KHAN'} ✨
                 </span>
               </div>
             )}
@@ -494,6 +521,20 @@ export default function Shop({ setView, session }) {
                   <p className="text-gray-400 text-sm mb-4 italic text-center">
                     {item.description}
                   </p>
+
+                  {/* VIP Historical Description */}
+                  {isVipTier && VIP_DESCRIPTIONS[item.id] && (
+                    <div className="mb-4 bg-black/50 rounded-lg p-4 border border-yellow-500/30">
+                      <div className="text-center mb-3">
+                        <div className="text-4xl mb-2">{VIP_DESCRIPTIONS[item.id].emoji}</div>
+                        <h4 className="text-lg font-bold text-yellow-400">{VIP_DESCRIPTIONS[item.id].figure}</h4>
+                        <p className="text-xs text-yellow-500/80 uppercase tracking-wider">{VIP_DESCRIPTIONS[item.id].subtitle}</p>
+                      </div>
+                      <p className="text-sm text-gray-300 italic mb-3 text-center">
+                        {VIP_DESCRIPTIONS[item.id].description}
+                      </p>
+                    </div>
+                  )}
 
                   {/* VIP Benefits */}
                   {isVipTier && VIP_BENEFITS[item.id] && (

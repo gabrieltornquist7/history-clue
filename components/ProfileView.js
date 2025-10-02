@@ -397,7 +397,10 @@ export default function ProfileView({ setView, session, userId = null }) {
                         color: '#000'
                       }}
                     >
-                      {profile.vip_tier} VIP ✨
+                      {profile.vip_tier === 'bronze' ? '🎨 LEONARDO' :
+                       profile.vip_tier === 'silver' ? '⚔️ ALEXANDER' :
+                       profile.vip_tier === 'gold' ? '🏇 GENGHIS KHAN' : 
+                       profile.vip_tier.toUpperCase()} VIP ✨
                     </span>
                   </div>
                 )}
