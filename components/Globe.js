@@ -149,20 +149,27 @@ export default function Globe() {
     const globe = new THREE.Mesh(geometry, material);
     scene.add(globe);
 
-    // Atmospheric glow with multiple layers
+    // Atmospheric glow - only on sides, not front
     const atmosphereGeometry = new THREE.SphereGeometry(1.15, 64, 64);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       uniforms: {},
       vertexShader: `
         varying vec3 vNormal;
+        varying vec3 vPosition;
         void main() {
           vNormal = normalize(normalMatrix * normal);
+          vPosition = normalize((modelViewMatrix * vec4(position, 1.0)).xyz);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         varying vec3 vNormal;
+        varying vec3 vPosition;
         void main() {
+          // Only show atmosphere on the sides and back, not the front
+          float frontFacing = vPosition.z;
+          if (frontFacing > -0.2) discard; // Remove front-facing atmosphere
+          
           float intensity = pow(0.8 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
           gl_FragColor = vec4(0.3, 0.6, 0.9, 1.0) * intensity;
         }
@@ -192,14 +199,7 @@ export default function Globe() {
     ring2.rotation.z = -Math.PI / 6;
     scene.add(ring2);
 
-    // Animated connection lines between cities
-    const connectionMaterial = new THREE.LineBasicMaterial({
-      color: 0xffd700,
-      transparent: true,
-      opacity: 0.2,
-    });
-
-    const connections = [];
+    // Historical sites
     const historicalSites = [
       { lat: 51.5074, lon: -0.1278 },   // London
       { lat: 41.9028, lon: 12.4964 },   // Rome
@@ -224,49 +224,55 @@ export default function Globe() {
       );
     };
 
-    // Create pulsing city markers
-    historicalSites.forEach((site, i) => {
-      const pos = latLonToVector3(site.lat, site.lon, 1.02);
+    // Create pin markers (similar to game pins)
+    const pinMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffd700,
+      transparent: true,
+      opacity: 0.9,
+    });
+
+    historicalSites.forEach((site) => {
+      const pos = latLonToVector3(site.lat, site.lon, 1.0);
       
-      // Main marker
-      const markerGeometry = new THREE.SphereGeometry(0.012, 8, 8);
-      const markerMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffd700,
-        transparent: true,
-        opacity: 1,
-      });
-      const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-      marker.position.copy(pos);
-      globe.add(marker);
+      // Create pin shape
+      const pinGroup = new THREE.Group();
       
-      // Pulsing glow
-      const glowGeometry = new THREE.SphereGeometry(0.025, 8, 8);
+      // Pin head (sphere)
+      const headGeometry = new THREE.SphereGeometry(0.015, 8, 8);
+      const head = new THREE.Mesh(headGeometry, pinMaterial);
+      head.position.y = 0.025;
+      pinGroup.add(head);
+      
+      // Pin body (cone/cylinder)
+      const bodyGeometry = new THREE.CylinderGeometry(0.003, 0.003, 0.025, 8);
+      const body = new THREE.Mesh(bodyGeometry, pinMaterial);
+      body.position.y = 0.0125;
+      pinGroup.add(body);
+      
+      // Pin point (small cone)
+      const pointGeometry = new THREE.ConeGeometry(0.005, 0.01, 8);
+      const point = new THREE.Mesh(pointGeometry, pinMaterial);
+      point.position.y = 0;
+      point.rotation.x = Math.PI;
+      pinGroup.add(point);
+      
+      // Position pin on globe
+      pinGroup.position.copy(pos);
+      pinGroup.lookAt(0, 0, 0);
+      pinGroup.rotateX(Math.PI);
+      
+      globe.add(pinGroup);
+      
+      // Add subtle glow around pin
+      const glowGeometry = new THREE.SphereGeometry(0.03, 8, 8);
       const glowMaterial = new THREE.MeshBasicMaterial({
         color: 0xffd700,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.15,
       });
       const glow = new THREE.Mesh(glowGeometry, glowMaterial);
       glow.position.copy(pos);
-      glow.userData.pulseOffset = i * 0.5;
       globe.add(glow);
-      connections.push(glow);
-      
-      // Draw connections to nearby cities
-      if (i < historicalSites.length - 1) {
-        const nextPos = latLonToVector3(historicalSites[i + 1].lat, historicalSites[i + 1].lon, 1.02);
-        const points = [];
-        const steps = 20;
-        for (let j = 0; j <= steps; j++) {
-          const t = j / steps;
-          const point = new THREE.Vector3().lerpVectors(pos, nextPos, t);
-          point.normalize().multiplyScalar(1.02 + Math.sin(t * Math.PI) * 0.1);
-          points.push(point);
-        }
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const line = new THREE.Line(lineGeometry, connectionMaterial);
-        globe.add(line);
-      }
     });
 
     // Enhanced star field with different sizes
@@ -346,13 +352,6 @@ export default function Globe() {
       ring2.rotation.z -= rotationSpeed * 0.5;
       stars.rotation.y += rotationSpeed * 0.05;
       stars.rotation.x += rotationSpeed * 0.02;
-      
-      // Pulse city markers
-      connections.forEach((glow) => {
-        const scale = 1 + Math.sin(time * 2 + glow.userData.pulseOffset) * 0.3;
-        glow.scale.set(scale, scale, scale);
-        glow.material.opacity = 0.3 + Math.sin(time * 2 + glow.userData.pulseOffset) * 0.2;
-      });
       
       renderer.render(scene, camera);
     };
