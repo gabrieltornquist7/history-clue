@@ -88,7 +88,7 @@ export default function MainMenu({ setView, session, onSignOut }) {
       `}</style>
 
       {/* Header */}
-      <header className="flex items-center justify-between p-8 pt-24 pb-2 relative z-10">
+      <header className="flex items-center justify-between p-8 pt-12 pb-2 relative z-10">
         <div className="flex-1"></div>
         <div className="text-center">
           {/* Logo */}

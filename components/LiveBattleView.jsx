@@ -445,7 +445,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
         
         {/* Round Results */}
         {showRoundResults && roundResults && (
-          <BattleRoundResults {...roundResults} onContinue={handleRoundContinue} />
+          <BattleRoundResults {...roundResults} puzzle={puzzle} onContinue={handleRoundContinue} />
         )}
         
         {/* Final Results */}
@@ -591,7 +591,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
       )}
       
       {showRoundResults && roundResults && (
-        <BattleRoundResults {...roundResults} onContinue={handleRoundContinue} />
+        <BattleRoundResults {...roundResults} puzzle={puzzle} onContinue={handleRoundContinue} />
       )}
       
       {showFinalResults && allRounds && (

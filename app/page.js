@@ -568,6 +568,19 @@ export default function Page() {
               `
             }}
           >
+            {/* Animated background elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div 
+                className="absolute w-96 h-96 rounded-full"
+                style={{
+                  top: '10%',
+                  right: '10%',
+                  background: 'radial-gradient(circle, rgba(212, 175, 55, 0.06) 0%, transparent 70%)',
+                  animation: 'pulse 8s ease-in-out infinite'
+                }}
+              />
+            </div>
+            
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -582,38 +595,133 @@ export default function Page() {
                 0% { background-position: 200% 0; }
                 100% { background-position: -200% 0; }
               }
+              @keyframes pulse {
+                0%, 100% { transform: scale(1); opacity: 0.4; }
+                50% { transform: scale(1.05); opacity: 0.6; }
+              }
             `}</style>
 
             <div 
-              className="p-8 rounded-2xl shadow-2xl max-w-lg text-center relative z-10 backdrop-blur border"
+              className="p-10 rounded-2xl shadow-2xl max-w-2xl w-full relative z-10 backdrop-blur-xl"
               style={{ 
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
+                backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                border: '1px solid rgba(212, 175, 55, 0.3)',
                 boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.1)'
               }}
             >
-              <h1 
-                className="text-3xl font-serif font-bold mb-4"
-                style={{ 
-                  color: '#d4af37',
-                  textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+              {/* Header */}
+              <div className="text-center mb-8">
+                <h1 
+                  className="text-4xl font-serif font-bold mb-3"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 30px rgba(212, 175, 55, 0.4)'
+                  }}
+                >
+                  Get in Touch
+                </h1>
+                <p className="text-gray-300 text-lg leading-relaxed">
+                  We value your feedback and are here to help
+                </p>
+              </div>
+
+              {/* Contact Info */}
+              <div 
+                className="p-6 rounded-xl mb-8"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.05) 0%, rgba(212, 175, 55, 0.02) 100%)',
+                  border: '1px solid rgba(212, 175, 55, 0.2)'
                 }}
               >
-                Contact Me
-              </h1>
-              <p className="text-lg text-white mb-4">
-                You can always reach me at:
-              </p>
-              <a
-                href="mailto:GABRIEL@HISTORYCLUE.COM"
-                className="text-xl font-semibold text-blue-400 underline hover:text-blue-300 transition-colors"
+                <div className="text-center mb-6">
+                  <p className="text-sm text-gray-400 uppercase tracking-wider mb-3 font-medium">Email Us</p>
+                  <a
+                    href="mailto:GABRIEL@HISTORYCLUE.COM"
+                    className="text-2xl font-bold transition-all duration-300 inline-block"
+                    style={{ color: '#d4af37' }}
+                    onMouseEnter={(e) => {
+                      e.target.style.color = '#f4cf67';
+                      e.target.style.textShadow = '0 0 20px rgba(212, 175, 55, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.color = '#d4af37';
+                      e.target.style.textShadow = 'none';
+                    }}
+                  >
+                    GABRIEL@HISTORYCLUE.COM
+                  </a>
+                </div>
+                
+                <div className="text-center text-sm text-gray-400 space-y-2">
+                  <p>We typically respond within 24-48 hours</p>
+                  <p>Available Monday through Friday, 9 AM - 6 PM EST</p>
+                </div>
+              </div>
+
+              {/* What We Help With */}
+              <div className="mb-8">
+                <h3 
+                  className="text-lg font-bold mb-4 text-center uppercase tracking-wider"
+                  style={{ color: '#d4af37' }}
+                >
+                  How Can We Help?
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { icon: '💬', title: 'General Inquiries', desc: 'Questions about the game' },
+                    { icon: '🐛', title: 'Technical Support', desc: 'Report bugs or issues' },
+                    { icon: '💡', title: 'Suggestions', desc: 'Share your ideas' },
+                    { icon: '🤝', title: 'Partnerships', desc: 'Collaboration opportunities' },
+                  ].map((item, i) => (
+                    <div 
+                      key={i}
+                      className="p-4 rounded-lg"
+                      style={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{item.icon}</span>
+                        <div>
+                          <h4 className="text-white font-semibold mb-1">{item.title}</h4>
+                          <p className="text-gray-400 text-sm">{item.desc}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Developer Info */}
+              <div 
+                className="p-6 rounded-xl text-center"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}
               >
-                GABRIEL@HISTORYCLUE.COM
-              </a>
-              <div className="mt-6">
+                <p className="text-sm text-gray-400 mb-2">Developed by</p>
+                <h2 
+                  className="text-2xl font-serif font-bold mb-2"
+                  style={{ 
+                    color: '#d4af37',
+                    textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
+                  }}
+                >
+                  Viii Wonder Development
+                </h2>
+                <p className="text-gray-300 text-sm leading-relaxed max-w-lg mx-auto">
+                  We are passionate about creating engaging, educational gaming experiences that bring history to life. 
+                  HistoryClue is our commitment to making learning about the past interactive and fun.
+                </p>
+              </div>
+
+              {/* Back Button */}
+              <div className="mt-8 text-center">
                 <button
                   onClick={() => handleSetView("menu")}
-                  className="px-7 py-5 font-bold text-white rounded-md transition-all duration-300 relative group"
+                  className="px-8 py-4 font-bold text-white rounded-xl transition-all duration-300"
                   style={{ 
                     background: 'linear-gradient(135deg, #8b0000 0%, #a52a2a 100%)',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -621,9 +729,11 @@ export default function Page() {
                     boxShadow: '0 10px 30px rgba(139, 0, 0, 0.3)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.boxShadow = '0 0 0 2px rgba(212, 175, 55, 0.4), 0 15px 40px rgba(139, 0, 0, 0.4)';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 15px 40px rgba(139, 0, 0, 0.5)';
                   }}
                   onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
                     e.target.style.boxShadow = '0 10px 30px rgba(139, 0, 0, 0.3)';
                   }}
                 >
