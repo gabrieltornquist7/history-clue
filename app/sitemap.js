@@ -59,6 +59,12 @@ export default function sitemap() {
       priority: 0.6,
     },
     {
+      url: `${baseUrl}/faq`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
       url: `${baseUrl}/info`,
       lastModified: currentDate,
       changeFrequency: 'monthly',

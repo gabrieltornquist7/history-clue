@@ -423,6 +423,12 @@ export default function MainMenu({ setView, session, onSignOut }) {
             <span className="text-xs">📰</span> News
           </button>
           <button
+            onClick={() => setView("faq")}
+            className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm flex items-center gap-2"
+          >
+            <span className="text-xs">❓</span> FAQ
+          </button>
+          <button
             onClick={() => setView("info")}
             className="text-gray-500 hover:text-yellow-400 font-medium transition-colors duration-300 text-sm flex items-center gap-2"
           >
