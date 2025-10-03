@@ -1,0 +1,25 @@
+# HistoryClue robots.txt
+# Allow all crawlers to index the site
+User-agent: *
+Allow: /
+
+# Crawl-delay to be respectful to servers
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://historyclue.com/sitemap.xml
+
+# Specific rules for major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Block access to admin/API routes if you have them
+# User-agent: *
+# Disallow: /api/
+# Disallow: /admin/
