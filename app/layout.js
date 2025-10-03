@@ -103,8 +103,8 @@ export const metadata = {
     canonical: 'https://historyclue.com',
   },
   verification: {
-    // Add your verification codes when you have them
-    // google: 'your-google-site-verification-code',
+    google: 'ZeriLe4jOE10_ExuXhzlBXc8JFZS3SVGJO_h4HdpC_M',
+    // Add other verification codes here when you have them:
     // yandex: 'your-yandex-verification-code',
     // bing: 'your-bing-verification-code',
   },
