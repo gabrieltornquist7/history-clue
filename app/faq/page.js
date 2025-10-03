@@ -375,7 +375,7 @@ export default function FAQPage() {
                 More Questions?
               </h2>
               <p className="text-gray-200 mb-6">
-                We're here to help!
+                We&apos;re here to help!
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
@@ -392,7 +392,7 @@ export default function FAQPage() {
                 </a>
                 
                 <a
-                  href="/"
+                  href="https://historyclue.com"
                   className="px-8 py-4 font-bold text-white rounded-xl transition-all duration-300 inline-block border-2"
                   style={{ 
                     background: 'linear-gradient(135deg, rgba(139, 0, 0, 0.5) 0%, rgba(165, 42, 42, 0.5) 100%)',

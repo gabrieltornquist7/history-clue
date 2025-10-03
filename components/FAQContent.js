@@ -133,11 +133,11 @@ export default function FAQContent({ handleSetView }) {
           </h2>
           <div className="text-gray-200 space-y-4 leading-relaxed">
             <p className="text-lg">
-              <strong className="text-green-400">Yes! HistoryClue is completely free.</strong> All game modes, features, and rewards are accessible without payment.
+            <strong className="text-green-400">Yes! HistoryClue is completely free.</strong> All game modes, features, and rewards are accessible without payment.
             </p>
             
             <div className="pl-6 border-l-4 border-green-500/30 bg-black/20 p-4 rounded-r space-y-2">
-              <h3 className="text-xl font-bold text-green-400 mb-3">✨ What's Free:</h3>
+              <h3 className="text-xl font-bold text-green-400 mb-3">✨ What&apos;s Free:</h3>
               <p className="text-gray-200">• All game modes (Daily, Endless, Challenge Friend, Live Battle)</p>
               <p className="text-gray-200">• Earn coins & XP through gameplay</p>
               <p className="text-gray-200">• Global leaderboards & rankings</p>
@@ -173,7 +173,7 @@ export default function FAQContent({ handleSetView }) {
           </h2>
           <div className="text-gray-200 space-y-4 leading-relaxed">
             <p className="text-lg">
-              The best way to improve is through <strong>consistent practice</strong>! Here's how:
+              The best way to improve is through <strong>consistent practice</strong>! Here&apos;s how:
             </p>
             
             <div className="grid md:grid-cols-2 gap-4">
@@ -245,7 +245,7 @@ export default function FAQContent({ handleSetView }) {
             <div className="mt-6 p-5 rounded-lg bg-gradient-to-r from-green-900/20 to-green-700/20 border border-green-500/30">
               <h3 className="text-xl font-bold text-green-400 mb-3">👨‍🏫 For Schools:</h3>
               <p className="text-gray-200 mb-3">
-                We're developing <strong>custom educational packages</strong> for classrooms!
+                We&apos;re developing <strong>custom educational packages</strong> for classrooms!
               </p>
               <p className="text-gray-200 text-sm">
                 Teachers can customize puzzles, difficulty, historical periods, and track student progress.
@@ -279,7 +279,7 @@ export default function FAQContent({ handleSetView }) {
             Still have questions?
           </h2>
           <p className="text-gray-200 text-center mb-6">
-            We're here to help! Contact us anytime.
+            We&apos;re here to help! Contact us anytime.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
