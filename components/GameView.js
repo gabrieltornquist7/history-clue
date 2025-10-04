@@ -954,18 +954,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
               {[1, 2, 3, 4, 5].map((num) => {
                 const isUnlocked = unlockedClues.includes(num);
                 const clueText = getClueText(num);
+                const isQuestion = num === 1;
                 
                 return (
                   <div 
                     key={num}
                     className={`backdrop-blur rounded-lg border transition-all duration-300 ${isUnlocked ? 'gold-reveal' : ''}`}
                     style={{ 
-                      backgroundColor: isUnlocked ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+                      backgroundColor: isUnlocked ? (isQuestion ? 'rgba(212, 175, 55, 0.08)' : 'rgba(0, 0, 0, 0.7)') : 'rgba(0, 0, 0, 0.5)',
                       border: isUnlocked 
-                        ? '2px solid rgba(212, 175, 55, 0.3)' 
+                        ? (isQuestion ? '2px solid rgba(212, 175, 55, 0.5)' : '2px solid rgba(212, 175, 55, 0.3)') 
                         : '1px solid rgba(255, 255, 255, 0.05)',
                       boxShadow: isUnlocked 
-                        ? '0 0 20px rgba(212, 175, 55, 0.1)' 
+                        ? (isQuestion ? '0 0 30px rgba(212, 175, 55, 0.2)' : '0 0 20px rgba(212, 175, 55, 0.1)') 
                         : 'none'
                     }}
                   >
@@ -986,10 +987,10 @@ export default function GameView({ setView, challenge = null, session, onChallen
                               textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
                             }}
                           >
-                            Clue {num}
+                            {isQuestion ? 'Question' : `Clue ${num}`}
                           </span>
                         </div>
-                        <p className={`text-gray-300 leading-relaxed ${num === 1 ? 'italic text-lg' : ''}`}>
+                        <p className={`text-gray-300 leading-relaxed ${isQuestion ? 'italic text-xl font-semibold' : ''}`}>
                           {clueText || 'Loading...'}
                         </p>
                       </div>
@@ -1006,8 +1007,8 @@ export default function GameView({ setView, challenge = null, session, onChallen
                               </svg>
                             </div>
                             <div>
-                              <span className="font-semibold text-white group-hover:text-yellow-500 transition-colors">Unlock Clue {num}</span>
-                              <p className="text-sm text-gray-500">Reveal the next piece of evidence</p>
+                              <span className="font-semibold text-white group-hover:text-yellow-500 transition-colors">{isQuestion ? 'View Question' : `Unlock Clue ${num}`}</span>
+                              <p className="text-sm text-gray-500">{isQuestion ? 'Start your investigation' : 'Reveal the next piece of evidence'}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -1778,18 +1779,19 @@ export default function GameView({ setView, challenge = null, session, onChallen
             {[1, 2, 3, 4, 5].map((num) => {
               const isUnlocked = unlockedClues.includes(num);
               const clueText = getClueText(num);
+              const isQuestion = num === 1;
               
               return (
                 <div 
                   key={num}
                   className={`backdrop-blur rounded-lg border transition-all duration-300 ${isUnlocked ? 'gold-reveal' : ''}`}
                   style={{ 
-                    backgroundColor: isUnlocked ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+                    backgroundColor: isUnlocked ? (isQuestion ? 'rgba(212, 175, 55, 0.08)' : 'rgba(0, 0, 0, 0.7)') : 'rgba(0, 0, 0, 0.5)',
                     border: isUnlocked 
-                      ? '2px solid rgba(212, 175, 55, 0.3)' 
+                      ? (isQuestion ? '2px solid rgba(212, 175, 55, 0.5)' : '2px solid rgba(212, 175, 55, 0.3)') 
                       : '1px solid rgba(255, 255, 255, 0.05)',
                     boxShadow: isUnlocked 
-                      ? '0 0 20px rgba(212, 175, 55, 0.1)' 
+                      ? (isQuestion ? '0 0 30px rgba(212, 175, 55, 0.2)' : '0 0 20px rgba(212, 175, 55, 0.1)') 
                       : 'none'
                   }}
                 >
@@ -1810,10 +1812,10 @@ export default function GameView({ setView, challenge = null, session, onChallen
                             textShadow: '0 0 10px rgba(212, 175, 55, 0.3)'
                           }}
                         >
-                          Clue {num}
+                          {isQuestion ? 'Question' : `Clue ${num}`}
                         </span>
                       </div>
-                      <p className={`text-gray-300 text-sm leading-relaxed ${num === 1 ? 'italic' : ''}`}>
+                      <p className={`text-gray-300 text-sm leading-relaxed ${isQuestion ? 'italic text-base font-semibold' : ''}`}>
                         {clueText || 'Loading...'}
                       </p>
                     </div>
@@ -1830,7 +1832,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                             </svg>
                           </div>
                           <div>
-                            <span className="text-sm font-semibold text-white group-hover:text-yellow-500 transition-colors">Unlock Clue {num}</span>
+                            <span className="text-sm font-semibold text-white group-hover:text-yellow-500 transition-colors">{isQuestion ? 'View Question' : `Unlock Clue ${num}`}</span>
                           </div>
                         </div>
                         <div className="text-right">
