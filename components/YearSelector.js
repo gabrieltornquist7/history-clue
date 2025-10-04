@@ -13,15 +13,43 @@ const historicalEras = [
 ];
 
 export default function YearSelector({ year, setYear }) {
-  // Start at 0
-  const currentYear = year || 0;
+  // Format year display
+  const formatYear = (y) => {
+    if (y === null || y === undefined || y === '') return '';
+    const yearNum = Number(y);
+    if (isNaN(yearNum)) return '';
+    if (yearNum < 0) {
+      return `${Math.abs(yearNum)} BCE`;
+    } else if (yearNum === 0) {
+      return '0';
+    } else {
+      return `${yearNum} CE`;
+    }
+  };
 
-  // Year adjustment buttons
-  const adjustYear = (amount) => {
-    const newYear = currentYear + amount;
-    // Allow range from -3000 to 2025
-    if (newYear >= -3000 && newYear <= 2025) {
-      setYear(newYear);
+  // Handle input changes - allow any text including just "-"
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    
+    // Allow empty string
+    if (value === '') {
+      setYear('');
+      return;
+    }
+    
+    // Allow just "-" for negative numbers
+    if (value === '-') {
+      setYear('-');
+      return;
+    }
+    
+    // Try to parse as number
+    const parsed = parseInt(value);
+    if (!isNaN(parsed)) {
+      // Clamp to valid range
+      if (parsed >= -3000 && parsed <= 2025) {
+        setYear(parsed);
+      }
     }
   };
 
@@ -30,92 +58,43 @@ export default function YearSelector({ year, setYear }) {
     setYear(targetYear);
   };
 
-  // Format year display
-  const formatYear = () => {
-    if (currentYear < 0) {
-      return `${Math.abs(currentYear)} BCE`;
-    } else if (currentYear === 0) {
-      return '0';
-    } else {
-      return `${currentYear} CE`;
-    }
-  };
+  const currentYear = year === '' || year === '-' ? year : (year || 0);
 
   return (
     <div className="space-y-4">
       {/* Year Display */}
       <div className="text-center">
         <div className="text-3xl font-bold text-white mb-2">
-          {formatYear()}
+          {formatYear(currentYear)}
         </div>
-        <input
-          type="number"
-          min="-3000"
-          max="2025"
-          value={currentYear}
-          onChange={(e) => {
-            const val = parseInt(e.target.value) || 0;
-            if (val >= -3000 && val <= 2025) {
-              setYear(val);
-            }
-          }}
-          className="w-32 px-3 py-2 bg-gray-900 text-white text-center rounded-md border border-gray-700/30 focus:border-yellow-500/50 focus:outline-none"
-        />
-      </div>
-
-      {/* Fine Adjustment Buttons */}
-      <div className="grid grid-cols-4 gap-2">
-        <button
-          onClick={() => adjustYear(-1000)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          -1000
-        </button>
-        <button
-          onClick={() => adjustYear(-100)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          -100
-        </button>
-        <button
-          onClick={() => adjustYear(-10)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          -10
-        </button>
-        <button
-          onClick={() => adjustYear(-1)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          -1
-        </button>
-      </div>
-
-      <div className="grid grid-cols-4 gap-2">
-        <button
-          onClick={() => adjustYear(1)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          +1
-        </button>
-        <button
-          onClick={() => adjustYear(10)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          +10
-        </button>
-        <button
-          onClick={() => adjustYear(100)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          +100
-        </button>
-        <button
-          onClick={() => adjustYear(1000)}
-          className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium"
-        >
-          +1000
-        </button>
+        <div className="flex items-center gap-2 justify-center">
+          <input
+            type="text"
+            value={currentYear}
+            onChange={handleInputChange}
+            placeholder="Enter year"
+            className="w-32 px-3 py-2 bg-gray-900 text-white text-center rounded-md border border-gray-700/30 focus:border-yellow-500/50 focus:outline-none"
+            style={{
+              color: '#d4af37',
+              '::placeholder': {
+                color: 'rgba(212, 175, 55, 0.3)'
+              }
+            }}
+          />
+          <button
+            onClick={() => setYear(currentYear === '' || currentYear === '-' ? 1 : Math.abs(Number(currentYear) || 1))}
+            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium border border-gray-700/30"
+          >
+            CE
+          </button>
+          <button
+            onClick={() => setYear(currentYear === '' || currentYear === '-' ? -1 : -Math.abs(Number(currentYear) || 1))}
+            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors text-sm font-medium border border-gray-700/30"
+          >
+            BCE
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Or type any year from 3000 BCE to 2025 CE</p>
       </div>
 
       {/* Historical Era Buttons */}
@@ -135,9 +114,9 @@ export default function YearSelector({ year, setYear }) {
                 className="relative px-2 py-1.5 text-xs font-medium rounded-md transition-all duration-300 group"
                 style={{
                   backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  color: Math.abs(currentYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                  color: Math.abs((Number(currentYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af',
                   border: '1px solid',
-                  borderColor: Math.abs(currentYear - era.value) < 100
+                  borderColor: Math.abs((Number(currentYear) || 0) - era.value) < 100
                     ? 'rgba(212, 175, 55, 0.5)'
                     : 'rgba(156, 163, 175, 0.15)',
                   backdropFilter: 'blur(4px)',
@@ -149,12 +128,12 @@ export default function YearSelector({ year, setYear }) {
                   e.currentTarget.style.color = '#d4af37';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = Math.abs(currentYear - era.value) < 100
+                  e.currentTarget.style.borderColor = Math.abs((Number(currentYear) || 0) - era.value) < 100
                     ? 'rgba(212, 175, 55, 0.5)'
                     : 'rgba(156, 163, 175, 0.15)';
                   e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.color = Math.abs(currentYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                  e.currentTarget.style.color = Math.abs((Number(currentYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af';
                 }}
               >
                 {era.label}
@@ -175,9 +154,9 @@ export default function YearSelector({ year, setYear }) {
                 className="relative px-2 py-1.5 text-xs font-medium rounded-md transition-all duration-300 group"
                 style={{
                   backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  color: Math.abs(currentYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                  color: Math.abs((Number(currentYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af',
                   border: '1px solid',
-                  borderColor: Math.abs(currentYear - era.value) < 100
+                  borderColor: Math.abs((Number(currentYear) || 0) - era.value) < 100
                     ? 'rgba(212, 175, 55, 0.5)'
                     : 'rgba(156, 163, 175, 0.15)',
                   backdropFilter: 'blur(4px)',
@@ -189,12 +168,12 @@ export default function YearSelector({ year, setYear }) {
                   e.currentTarget.style.color = '#d4af37';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = Math.abs(currentYear - era.value) < 100
+                  e.currentTarget.style.borderColor = Math.abs((Number(currentYear) || 0) - era.value) < 100
                     ? 'rgba(212, 175, 55, 0.5)'
                     : 'rgba(156, 163, 175, 0.15)';
                   e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.color = Math.abs(currentYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                  e.currentTarget.style.color = Math.abs((Number(currentYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af';
                 }}
               >
                 {era.label}

@@ -3,11 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getLandmarksForYear } from '../lib/landmarks';
-import { getCitiesForYear } from '../lib/cities';
-import { getEmpireLabelsForYear } from '../lib/empireLabels';
-import MapControls from './MapControls';
-import LandmarkPopup from './LandmarkPopup';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZnJlZW1hbjExMTExMSIsImEiOiJjbWc4MTRidHAwMnB3MmxzOHRueHFjdTA4In0.ZTM8iAIySz1g7IzCf0fNiA';
 
@@ -57,66 +52,12 @@ const RedPin = () => (
   </svg>
 );
 
-// Landmark Marker Component
-const LandmarkMarker = ({ landmark, onClick }) => (
-  <div
-    onClick={(e) => {
-      e.stopPropagation(); // Prevent map click
-      onClick(landmark);
-    }}
-    className="cursor-pointer transition-transform hover:scale-110"
-    style={{
-      fontSize: '28px',
-      filter: 'drop-shadow(0 2px 8px rgba(212, 175, 55, 0.6))',
-      animation: 'gentle-pulse 3s ease-in-out infinite'
-    }}
-    title={landmark.name}
-  >
-    {landmark.icon}
-  </div>
-);
-
-// City Marker Component (small dot)
-const CityMarker = ({ city }) => (
-  <div
-    className="cursor-pointer transition-all hover:scale-150"
-    style={{
-      width: '8px',
-      height: '8px',
-      borderRadius: '50%',
-      backgroundColor: '#d4af37',
-      border: '2px solid rgba(255, 215, 0, 0.8)',
-      boxShadow: '0 0 8px rgba(212, 175, 55, 0.8)',
-    }}
-    title={city.name}
-  />
-);
-
-// Empire Label Component
-const EmpireLabel = ({ empire }) => (
-  <div
-    className="pointer-events-none select-none"
-    style={{
-      fontSize: '14px',
-      fontWeight: 'bold',
-      color: '#d4af37',
-      textShadow: '0 0 8px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.9), 1px 1px 2px rgba(0, 0, 0, 1)',
-      letterSpacing: '0.5px',
-      whiteSpace: 'nowrap',
-      textTransform: 'uppercase',
-      opacity: 0.9
-    }}
-  >
-    {empire.name}
-  </div>
-);
-
 export default function GlobeMap({ 
   onGuess, 
   opponentPosition = null, 
   initialPosition = null, 
   guessCoords = null,
-  selectedYear = 2024 // Add selectedYear prop for time-travel feature
+  selectedYear = 2024
 }) {
   const mapRef = useRef(null);
   const [viewState, setViewState] = useState({
@@ -128,17 +69,6 @@ export default function GlobeMap({
   });
   const [playerPin, setPlayerPin] = useState(initialPosition);
   const [cursorStyle, setCursorStyle] = useState('grab');
-  
-  // Layer visibility state
-  const [showLandmarks, setShowLandmarks] = useState(true);
-  const [showCities, setShowCities] = useState(false);
-  const [showLabels, setShowLabels] = useState(false);
-  
-  // Data state
-  const [visibleLandmarks, setVisibleLandmarks] = useState([]);
-  const [visibleCities, setVisibleCities] = useState([]);
-  const [visibleEmpireLabels, setVisibleEmpireLabels] = useState([]);
-  const [selectedLandmark, setSelectedLandmark] = useState(null);
 
   // Update player pin when guessCoords changes (continent quick jump)
   useEffect(() => {
@@ -164,19 +94,6 @@ export default function GlobeMap({
     }
   }, [initialPosition]);
 
-  // Update visible data based on selected year (TIME-TRAVEL FEATURE!)
-  useEffect(() => {
-    const landmarks = getLandmarksForYear(selectedYear);
-    const cities = getCitiesForYear(selectedYear);
-    const empireLabels = getEmpireLabelsForYear(selectedYear);
-    
-    setVisibleLandmarks(landmarks);
-    setVisibleCities(cities);
-    setVisibleEmpireLabels(empireLabels);
-    
-    console.log(`Year ${selectedYear}: ${landmarks.length} landmarks, ${cities.length} cities, ${empireLabels.length} empires`);
-  }, [selectedYear]);
-
   const handleMapClick = useCallback((event) => {
     const { lngLat } = event;
     const newPin = { lng: lngLat.lng, lat: lngLat.lat };
@@ -187,14 +104,6 @@ export default function GlobeMap({
       onGuess(newPin);
     }
   }, [onGuess]);
-
-  const handleLandmarkClick = useCallback((landmark) => {
-    setSelectedLandmark(landmark);
-  }, []);
-
-  const handleClosePopup = useCallback(() => {
-    setSelectedLandmark(null);
-  }, []);
 
   return (
     <div className="h-full w-full relative">
@@ -258,45 +167,6 @@ export default function GlobeMap({
           }}
         />
 
-        {/* Empire Labels */}
-        {showLabels && visibleEmpireLabels.map((empire) => (
-          <Marker
-            key={empire.id}
-            longitude={empire.coordinates.lng}
-            latitude={empire.coordinates.lat}
-            anchor="center"
-          >
-            <EmpireLabel empire={empire} />
-          </Marker>
-        ))}
-
-        {/* City Markers */}
-        {showCities && visibleCities.map((city) => (
-          <Marker
-            key={city.id}
-            longitude={city.coordinates.lng}
-            latitude={city.coordinates.lat}
-            anchor="center"
-          >
-            <CityMarker city={city} />
-          </Marker>
-        ))}
-
-        {/* Landmark Markers */}
-        {showLandmarks && visibleLandmarks.map((landmark) => (
-          <Marker
-            key={landmark.id}
-            longitude={landmark.coordinates.lng}
-            latitude={landmark.coordinates.lat}
-            anchor="center"
-          >
-            <LandmarkMarker 
-              landmark={landmark} 
-              onClick={handleLandmarkClick}
-            />
-          </Marker>
-        ))}
-
         {/* Player's Golden Pin */}
         {playerPin && (
           <Marker 
@@ -330,39 +200,12 @@ export default function GlobeMap({
         )}
       </Map>
 
-      {/* Map Controls */}
-      <MapControls 
-        onToggleLandmarks={setShowLandmarks}
-        onToggleCities={setShowCities}
-        onToggleLabels={setShowLabels}
-      />
-
-      {/* Landmark Popup */}
-      {selectedLandmark && (
-        <LandmarkPopup 
-          landmark={selectedLandmark}
-          onClose={handleClosePopup}
-        />
-      )}
-
-      {/* Globe instruction overlay - REMOVED ON MOBILE */}
-
       <style jsx global>{`
         .mapboxgl-canvas {
           outline: none;
         }
         .mapboxgl-ctrl-logo {
           display: none !important;
-        }
-        @keyframes gentle-pulse {
-          0%, 100% {
-            transform: scale(1);
-            filter: drop-shadow(0 2px 8px rgba(212, 175, 55, 0.6));
-          }
-          50% {
-            transform: scale(1.05);
-            filter: drop-shadow(0 2px 12px rgba(212, 175, 55, 0.9));
-          }
         }
       `}</style>
     </div>

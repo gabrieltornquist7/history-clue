@@ -26,7 +26,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
   // Game state
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
-  const [selectedYear, setSelectedYear] = useState(0);
+  const [selectedYear, setSelectedYear] = useState('');
   const [guessCoords, setGuessCoords] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [timer, setTimer] = useState(null);
@@ -59,7 +59,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
       } else {
         setUnlockedClues([1]);
         setScore(10000);
-        setSelectedYear(0);
+        setSelectedYear('');
         setGuessCoords(null);
         setSubmitted(false);
         setShowRoundResults(false);
@@ -164,16 +164,53 @@ export default function LiveBattleView({ battleId, session, setView }) {
   
   const handleYearChange = (newYear) => {
     if (!submitted) {
-      const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 0));
-      setSelectedYear(year);
+      // Allow empty string
+      if (newYear === '') {
+        setSelectedYear('');
+        return;
+      }
+      // Allow just "-" for negative numbers
+      if (newYear === '-') {
+        setSelectedYear('-');
+        return;
+      }
+      // Try to parse as number
+      const parsed = parseInt(newYear);
+      if (!isNaN(parsed)) {
+        const year = Math.max(-3000, Math.min(2025, parsed));
+        setSelectedYear(year);
+      }
     }
   };
   
   const adjustYear = (amount) => {
     if (!submitted) {
-      const newYear = selectedYear + amount;
+      const currentVal = selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear);
+      const newYear = currentVal + amount;
       const adjustedYear = Math.max(-3000, Math.min(2025, newYear));
       setSelectedYear(adjustedYear);
+    }
+  };
+
+  // Handle CE button - make value positive
+  const handleCE = () => {
+    if (!submitted) {
+      if (selectedYear === '' || selectedYear === '-') {
+        setSelectedYear(1);
+      } else {
+        setSelectedYear(Math.abs(Number(selectedYear) || 1));
+      }
+    }
+  };
+
+  // Handle BCE button - make value negative
+  const handleBCE = () => {
+    if (!submitted) {
+      if (selectedYear === '' || selectedYear === '-') {
+        setSelectedYear(-1);
+      } else {
+        setSelectedYear(-Math.abs(Number(selectedYear) || 1));
+      }
     }
   };
   
@@ -187,7 +224,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
       puzzle,
       guessLat: coords.lat,
       guessLng: coords.lng,
-      guessYear: selectedYear,
+      guessYear: selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear),
       cluesUsed: unlockedClues,
       timeRemaining: 0
     });
@@ -197,7 +234,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
       playerId: session.user.id,
       score: result.finalScore,
       distanceKm: result.distance,
-      yearGuess: selectedYear,
+      yearGuess: selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear),
       cluesUsed: unlockedClues,
       guessLat: coords.lat,
       guessLng: coords.lng
@@ -218,7 +255,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
       puzzle,
       guessLat: guessCoords.lat,
       guessLng: guessCoords.lng,
-      guessYear: selectedYear,
+      guessYear: selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear),
       cluesUsed: unlockedClues,
       timeRemaining
     });
@@ -228,7 +265,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
       playerId: session.user.id,
       score: result.finalScore,
       distanceKm: result.distance,
-      yearGuess: selectedYear,
+      yearGuess: selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear),
       cluesUsed: unlockedClues,
       guessLat: guessCoords.lat,
       guessLng: guessCoords.lng
@@ -239,7 +276,9 @@ export default function LiveBattleView({ battleId, session, setView }) {
   };
   
   const displayYear = (year) => {
+    if (year === '' || year === '-') return '(no year set)';
     const yearNum = Number(year);
+    if (isNaN(yearNum)) return '(no year set)';
     if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
     if (yearNum === 0) return `Year 0`;
     return `${yearNum} CE`;
@@ -377,22 +416,19 @@ export default function LiveBattleView({ battleId, session, setView }) {
           
           {/* Year Selector */}
           <div className="backdrop-blur rounded-lg border p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
-            <h3 className="text-lg font-serif font-bold text-white mb-3">Year Guess</h3>
-            <div className="flex items-center gap-3 mb-3">
+            <h3 className="text-lg font-serif font-bold text-white mb-3">Guess Year</h3>
+            <div className="flex items-center gap-2 mb-3">
               <input
-                type="number"
+                type="text"
                 value={selectedYear}
                 onChange={(e) => handleYearChange(e.target.value)}
+                placeholder="Enter year"
                 disabled={submitted}
-                className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white text-center"
+                className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white text-center placeholder-gray-600"
                 style={{ color: '#d4af37' }}
               />
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => adjustYear(10)} disabled={submitted} className="px-3 py-2 bg-gray-800 text-gray-300 rounded">+10</button>
-                <button onClick={() => adjustYear(1)} disabled={submitted} className="px-3 py-2 bg-gray-800 text-gray-300 rounded">+1</button>
-                <button onClick={() => adjustYear(-10)} disabled={submitted} className="px-3 py-2 bg-gray-800 text-gray-300 rounded">-10</button>
-                <button onClick={() => adjustYear(-1)} disabled={submitted} className="px-3 py-2 bg-gray-800 text-gray-300 rounded">-1</button>
-              </div>
+              <button onClick={handleCE} disabled={submitted} className="px-4 py-3 bg-gray-800 text-white rounded hover:bg-gray-700">CE</button>
+              <button onClick={handleBCE} disabled={submitted} className="px-4 py-3 bg-gray-800 text-white rounded hover:bg-gray-700">BCE</button>
             </div>
             <div className="text-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
               <p className="text-sm text-gray-400 mb-1">Your guess:</p>

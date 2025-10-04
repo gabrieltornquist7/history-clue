@@ -26,7 +26,9 @@ const historicalEras = [
 ];
 
 const displayYear = (year) => {
+  if (year === '' || year === '-') return '';
   const yearNum = Number(year);
+  if (isNaN(yearNum)) return '';
   if (yearNum < 0) return `${Math.abs(yearNum)} BCE`;
   if (yearNum === 0) return `Year 0`;
   return `${yearNum} CE`;
@@ -42,6 +44,50 @@ export default function BottomControlBar({
   results,
   onMakeGuess 
 }) {
+  // Handle input changes - allow any text including just "-"
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    
+    // Allow empty string
+    if (value === '') {
+      onYearChange('');
+      return;
+    }
+    
+    // Allow just "-" for negative numbers
+    if (value === '-') {
+      onYearChange('-');
+      return;
+    }
+    
+    // Try to parse as number
+    const parsed = parseInt(value);
+    if (!isNaN(parsed)) {
+      // Clamp to valid range
+      if (parsed >= -3000 && parsed <= 2025) {
+        onYearChange(parsed);
+      }
+    }
+  };
+
+  // Handle CE button - make value positive
+  const handleCE = () => {
+    if (year === '' || year === '-') {
+      onYearChange(1);
+    } else {
+      onYearChange(Math.abs(Number(year) || 1));
+    }
+  };
+
+  // Handle BCE button - make value negative
+  const handleBCE = () => {
+    if (year === '' || year === '-') {
+      onYearChange(-1);
+    } else {
+      onYearChange(-Math.abs(Number(year) || 1));
+    }
+  };
+
   return (
     <div className="absolute bottom-4 left-4 right-4 z-10">
       <div 
@@ -54,46 +100,31 @@ export default function BottomControlBar({
       >
         {/* Year Controls */}
         <div className="flex items-center gap-4 mb-3">
-          <label className="text-white font-medium text-sm whitespace-nowrap">Year:</label>
+          <label className="text-white font-medium text-sm whitespace-nowrap">Guess Year:</label>
           <div className="flex items-center gap-2 flex-1">
             <input
-              type="number"
+              type="text"
               value={year}
-              onChange={(e) => onYearChange(e.target.value)}
-              min="-3000"
-              max="2025"
-              className="flex-1 max-w-[120px] px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors"
+              onChange={handleInputChange}
+              placeholder="Enter year"
+              className="flex-1 max-w-[140px] px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors placeholder-gray-600"
               style={{ 
                 color: '#d4af37',
                 textShadow: '0 0 10px rgba(212, 175, 55, 0.3)',
               }}
             />
-            <div className="flex gap-1">
-              <button
-                onClick={() => onAdjustYear(-10)}
-                className="px-2 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-              >
-                -10
-              </button>
-              <button
-                onClick={() => onAdjustYear(-1)}
-                className="px-2 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-              >
-                -1
-              </button>
-              <button
-                onClick={() => onAdjustYear(1)}
-                className="px-2 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-              >
-                +1
-              </button>
-              <button
-                onClick={() => onAdjustYear(10)}
-                className="px-2 py-1 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-              >
-                +10
-              </button>
-            </div>
+            <button
+              onClick={handleCE}
+              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium border border-gray-700/30"
+            >
+              CE
+            </button>
+            <button
+              onClick={handleBCE}
+              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium border border-gray-700/30"
+            >
+              BCE
+            </button>
           </div>
         </div>
         
@@ -107,9 +138,9 @@ export default function BottomControlBar({
               className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
               style={{
                 backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                color: Math.abs(year - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                color: Math.abs((Number(year) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af',
                 border: '1px solid',
-                borderColor: Math.abs(year - era.value) < 100
+                borderColor: Math.abs((Number(year) || 0) - era.value) < 100
                   ? 'rgba(212, 175, 55, 0.5)'
                   : 'rgba(156, 163, 175, 0.15)',
                 backdropFilter: 'blur(4px)',
@@ -121,12 +152,12 @@ export default function BottomControlBar({
                 e.currentTarget.style.color = '#d4af37';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = Math.abs(year - era.value) < 100
+                e.currentTarget.style.borderColor = Math.abs((Number(year) || 0) - era.value) < 100
                   ? 'rgba(212, 175, 55, 0.5)'
                   : 'rgba(156, 163, 175, 0.15)';
                 e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.color = Math.abs(year - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                e.currentTarget.style.color = Math.abs((Number(year) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af';
               }}
             >
               {era.label}
@@ -140,7 +171,7 @@ export default function BottomControlBar({
             <div className="text-sm">
               <span className="text-gray-400">Your Guess: </span>
               <span className="font-bold" style={{ color: '#d4af37' }}>
-                {displayYear(year)}
+                {displayYear(year) || '(no year set)'}
               </span>
             </div>
             <div className="text-sm">

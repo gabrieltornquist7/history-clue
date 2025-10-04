@@ -51,7 +51,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [puzzle, setPuzzle] = useState(null);
   const [unlockedClues, setUnlockedClues] = useState([1]);
   const [score, setScore] = useState(10000);
-  const [selectedYear, setSelectedYear] = useState(0);
+  const [selectedYear, setSelectedYear] = useState('');
   const [guessCoords, setGuessCoords] = useState(null);
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,7 +232,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
       setEndlessLevelResults(null);
       setUnlockedClues([1]);
       setScore(10000);
-      setSelectedYear(0);
+      setSelectedYear('');
       setGuessCoords(null);
       setError(null);
       setIsLoading(true);
@@ -317,14 +317,48 @@ export default function GameView({ setView, challenge = null, session, onChallen
   };
 
   const handleYearChange = (newYear) => {
-    const year = Math.max(-3000, Math.min(2025, parseInt(newYear) || 0));
-    setSelectedYear(year);
+    // Allow empty string
+    if (newYear === '') {
+      setSelectedYear('');
+      return;
+    }
+    // Allow just "-" for negative numbers
+    if (newYear === '-') {
+      setSelectedYear('-');
+      return;
+    }
+    // Try to parse as number
+    const parsed = parseInt(newYear);
+    if (!isNaN(parsed)) {
+      // Clamp to valid range
+      const year = Math.max(-3000, Math.min(2025, parsed));
+      setSelectedYear(year);
+    }
   };
 
   const adjustYear = (amount) => {
-    const newYear = selectedYear + amount;
+    const currentVal = selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear);
+    const newYear = currentVal + amount;
     const adjustedYear = Math.max(-3000, Math.min(2025, newYear));
     setSelectedYear(adjustedYear);
+  };
+
+  // Handle CE button - make value positive
+  const handleCE = () => {
+    if (selectedYear === '' || selectedYear === '-') {
+      setSelectedYear(1);
+    } else {
+      setSelectedYear(Math.abs(Number(selectedYear) || 1));
+    }
+  };
+
+  // Handle BCE button - make value negative
+  const handleBCE = () => {
+    if (selectedYear === '' || selectedYear === '-') {
+      setSelectedYear(-1);
+    } else {
+      setSelectedYear(-Math.abs(Number(selectedYear) || 1));
+    }
   };
 
   const handleGuessSubmit = async () => {
@@ -341,7 +375,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
     const distance = getDistance(guessCoords.lat, guessCoords.lng, parseFloat(puzzle.latitude), parseFloat(puzzle.longitude));
     const maxDistance = 20000;
     const distancePenalty = (distance / maxDistance) * 5000;
-    const yearDifference = Math.abs(selectedYear - puzzle.year);
+    const yearDifference = Math.abs((Number(selectedYear) || 0) - puzzle.year);
     const timePenalty = yearDifference * 25;
     const initialScore = 10000 - (10000 - score);
     let finalScore = Math.max(0, initialScore - distancePenalty - timePenalty);
@@ -662,7 +696,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
         historical_entity: puzzle.historical_entity, 
         year: puzzle.year 
       }, 
-      guess: { year: selectedYear },
+      guess: { year: selectedYear === '' || selectedYear === '-' ? 0 : Number(selectedYear) },
       passedTarget: dailyPuzzleInfo ? finalScoreRounded >= dailyPuzzleInfo.scoreTarget : true
     });
     
@@ -1120,17 +1154,16 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
               {/* Year Selector */}
               <div>
-                <h3 className="text-lg font-serif font-bold text-white mb-3">Year Guess</h3>
+                <h3 className="text-lg font-serif font-bold text-white mb-3">Guess Year</h3>
                 <div className="space-y-4">
                   {/* Direct Input */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <input
-                      type="number"
+                      type="text"
                       value={selectedYear}
                       onChange={(e) => handleYearChange(e.target.value)}
-                      min="-1000"
-                      max="2025"
-                      className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors text-lg"
+                      placeholder="Enter year"
+                      className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-md text-white font-mono text-center focus:border-yellow-500 focus:outline-none transition-colors text-lg placeholder-gray-600"
                       style={{ 
                         fontFamily: 'system-ui, -apple-system, sans-serif',
                         color: '#d4af37',
@@ -1138,36 +1171,18 @@ export default function GameView({ setView, challenge = null, session, onChallen
                         boxShadow: '0 0 0 0 rgba(212, 175, 55, 0.2)'
                       }}
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => adjustYear(10)}
-                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                        style={{ minWidth: '50px' }}
-                      >
-                        +10
-                      </button>
-                      <button
-                        onClick={() => adjustYear(1)}
-                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                        style={{ minWidth: '50px' }}
-                      >
-                        +1
-                      </button>
-                      <button
-                        onClick={() => adjustYear(-10)}
-                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                        style={{ minWidth: '50px' }}
-                      >
-                        -10
-                      </button>
-                      <button
-                        onClick={() => adjustYear(-1)}
-                        className="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors text-sm font-medium"
-                        style={{ minWidth: '50px' }}
-                      >
-                        -1
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleCE}
+                      className="px-4 py-3 bg-gray-800 text-white rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors font-medium"
+                    >
+                      CE
+                    </button>
+                    <button
+                      onClick={handleBCE}
+                      className="px-4 py-3 bg-gray-800 text-white rounded hover:bg-gray-700 hover:text-yellow-400 transition-colors font-medium"
+                    >
+                      BCE
+                    </button>
                   </div>
 
                   {/* Historical Era Quick Jump */}
@@ -1187,9 +1202,9 @@ export default function GameView({ setView, challenge = null, session, onChallen
                             className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
                             style={{
                               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                              color: Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                              color: Math.abs((Number(selectedYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af',
                               border: '1px solid',
-                              borderColor: Math.abs(selectedYear - era.value) < 100
+                              borderColor: Math.abs((Number(selectedYear) || 0) - era.value) < 100
                                 ? 'rgba(212, 175, 55, 0.5)'
                                 : 'rgba(156, 163, 175, 0.15)',
                               backdropFilter: 'blur(4px)',
@@ -1201,12 +1216,12 @@ export default function GameView({ setView, challenge = null, session, onChallen
                               e.currentTarget.style.color = '#d4af37';
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = Math.abs(selectedYear - era.value) < 100
+                              e.currentTarget.style.borderColor = Math.abs((Number(selectedYear) || 0) - era.value) < 100
                                 ? 'rgba(212, 175, 55, 0.5)'
                                 : 'rgba(156, 163, 175, 0.15)';
                               e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                               e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.color = Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                              e.currentTarget.style.color = Math.abs((Number(selectedYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af';
                             }}
                           >
                             {era.label}
@@ -1219,36 +1234,36 @@ export default function GameView({ setView, challenge = null, session, onChallen
                         ))}
                       </div>
                       <div className="grid grid-cols-4 gap-1">
-                        {historicalEras.slice(4).map((era) => (
-                          <button
-                            key={era.label}
-                            onClick={() => setSelectedYear(era.value)}
-                            title={era.tooltip}
-                            className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
-                            style={{
-                              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                              color: Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af',
-                              border: '1px solid',
-                              borderColor: Math.abs(selectedYear - era.value) < 100
-                                ? 'rgba(212, 175, 55, 0.5)'
-                                : 'rgba(156, 163, 175, 0.15)',
-                              backdropFilter: 'blur(4px)',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
-                              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.color = '#d4af37';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = Math.abs(selectedYear - era.value) < 100
-                                ? 'rgba(212, 175, 55, 0.5)'
-                                : 'rgba(156, 163, 175, 0.15)';
-                              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.color = Math.abs(selectedYear - era.value) < 100 ? '#d4af37' : '#9ca3af';
-                            }}
-                          >
+                      {historicalEras.slice(4).map((era) => (
+                      <button
+                      key={era.label}
+                      onClick={() => setSelectedYear(era.value)}
+                      title={era.tooltip}
+                      className="relative px-2 py-1 text-xs font-medium rounded transition-all duration-300 group"
+                      style={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      color: Math.abs((Number(selectedYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af',
+                      border: '1px solid',
+                      borderColor: Math.abs((Number(selectedYear) || 0) - era.value) < 100
+                      ? 'rgba(212, 175, 55, 0.5)'
+                      : 'rgba(156, 163, 175, 0.15)',
+                      backdropFilter: 'blur(4px)',
+                      }}
+                      onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.7)';
+                      e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.color = '#d4af37';
+                      }}
+                      onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = Math.abs((Number(selectedYear) || 0) - era.value) < 100
+                      ? 'rgba(212, 175, 55, 0.5)'
+                      : 'rgba(156, 163, 175, 0.15)';
+                      e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.color = Math.abs((Number(selectedYear) || 0) - era.value) < 100 ? '#d4af37' : '#9ca3af';
+                      }}
+                      >
                             {era.label}
 
                             {/* Tooltip on hover */}
@@ -1294,7 +1309,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
                         textShadow: '0 0 15px rgba(212, 175, 55, 0.5)'
                       }}
                     >
-                      {displayYear(selectedYear)}
+                      {selectedYear === '' || selectedYear === '-' ? '(no year set)' : displayYear(selectedYear)}
                     </p>
                   </div>
                 </div>
