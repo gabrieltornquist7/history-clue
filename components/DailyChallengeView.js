@@ -543,7 +543,7 @@ export default function DailyChallengeView({
                     
                     <div className="relative z-10">
                       <h3 
-                        className="text-2xl font-serif font-bold text-center mb-6"
+                        className="text-xl sm:text-2xl font-serif font-bold text-center mb-4 sm:mb-6"
                         style={{ 
                           color: '#d4af37',
                           textShadow: '0 0 15px rgba(212, 175, 55, 0.3)'
@@ -551,7 +551,7 @@ export default function DailyChallengeView({
                       >
                         Challenge Progression
                       </h3>
-                      <div className="grid grid-cols-5 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                         {SCORE_TARGETS.map((target, index) => (
                           <div 
                             key={index} 
@@ -568,7 +568,7 @@ export default function DailyChallengeView({
                               #{index + 1}
                             </div>
                             <div 
-                              className="text-xs uppercase tracking-wider mb-3 px-2 py-1 rounded"
+                              className="text-sm sm:text-xs uppercase tracking-wider mb-3 px-2 py-1 rounded font-semibold"
                               style={{ 
                                 backgroundColor: `rgba(212, 175, 55, ${0.1 + index * 0.05})`,
                                 color: '#d4af37'
@@ -577,12 +577,12 @@ export default function DailyChallengeView({
                               {DIFFICULTY_LABELS[index]}
                             </div>
                             <div 
-                              className="text-white font-bold text-lg"
+                              className="text-white font-bold text-lg sm:text-xl"
                               style={{ textShadow: '0 0 10px rgba(212, 175, 55, 0.3)' }}
                             >
                               {target.toLocaleString()}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">points</div>
+                            <div className="text-sm sm:text-xs text-gray-400 mt-1 font-medium">points</div>
                           </div>
                         ))}
                       </div>

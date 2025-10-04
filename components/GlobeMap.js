@@ -345,18 +345,7 @@ export default function GlobeMap({
         />
       )}
 
-      {/* Globe instruction overlay */}
-      <div 
-        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg text-xs font-medium pointer-events-none"
-        style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          color: '#d4af37',
-          border: '1px solid rgba(212, 175, 55, 0.3)',
-          backdropFilter: 'blur(8px)'
-        }}
-      >
-        🌍 Drag to rotate • Click landmarks for info • Click map to place pin • Scroll to zoom
-      </div>
+      {/* Globe instruction overlay - REMOVED ON MOBILE */}
 
       <style jsx global>{`
         .mapboxgl-canvas {

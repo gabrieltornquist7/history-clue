@@ -638,7 +638,7 @@ export default function Page() {
                   <p className="text-sm text-gray-400 uppercase tracking-wider mb-3 font-medium">Email Us</p>
                   <a
                     href="mailto:GABRIEL@HISTORYCLUE.COM"
-                    className="text-2xl font-bold transition-all duration-300 inline-block"
+                    className="text-sm sm:text-base md:text-xl lg:text-2xl font-bold transition-all duration-300 inline-block break-all"
                     style={{ color: '#d4af37' }}
                     onMouseEnter={(e) => {
                       e.target.style.color = '#f4cf67';
