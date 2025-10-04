@@ -37,7 +37,7 @@ export default function ContinentButtons({ onJumpToContinent }) {
             e.currentTarget.style.color = '#9ca3af';
           }}
         >
-          🧭 {continent.label}
+          {continent.label}
         </button>
       ))}
     </div>
