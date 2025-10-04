@@ -380,7 +380,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
                       <div className="flex items-center gap-2 mb-2">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
                         <span className="font-serif font-bold text-sm" style={{ color: '#d4af37' }}>
-                          Clue {num}
+                          {num === 1 ? 'Question' : `Clue ${num}`}
                         </span>
                       </div>
                       <p className="text-gray-300 text-sm">{clueText}</p>
@@ -392,7 +392,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
                       disabled={submitted}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-white text-sm">Unlock Clue {num}</span>
+                        <span className="text-white text-sm">{num === 1 ? 'View Question' : `Unlock Clue ${num}`}</span>
                         <span className="text-yellow-500 font-bold text-sm">
                           {CLUE_COSTS[num].toLocaleString()}
                         </span>
@@ -533,7 +533,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
                   <div className="p-3">
                     <div className="flex items-center gap-2 mb-1.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#d4af37' }}></div>
-                      <span className="font-serif font-bold text-xs" style={{ color: '#d4af37' }}>Clue {num}</span>
+                      <span className="font-serif font-bold text-xs" style={{ color: '#d4af37' }}>{num === 1 ? 'Question' : `Clue ${num}`}</span>
                     </div>
                     <p className="text-gray-300 text-xs leading-relaxed">{clueText}</p>
                   </div>
@@ -544,7 +544,7 @@ export default function LiveBattleView({ battleId, session, setView }) {
                     disabled={submitted}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-white text-xs">Unlock Clue {num}</span>
+                      <span className="text-white text-xs">{num === 1 ? 'View Question' : `Unlock Clue ${num}`}</span>
                       <span className="text-yellow-500 font-bold text-xs">{CLUE_COSTS[num].toLocaleString()}</span>
                     </div>
                   </button>
