@@ -9,6 +9,7 @@ import { useBadgeNotifications } from '../contexts/BadgeNotificationContext';
 import { useIsMobile } from '../lib/useIsMobile';
 import ContinentButtons from './ContinentButtons';
 import BottomControlBar from './BottomControlBar';
+import ReadyScreen from './ReadyScreen';
 
 // Historical eras with representative years
 const historicalEras = [
@@ -65,6 +66,7 @@ export default function GameView({ setView, challenge = null, session, onChallen
   const [endlessLevelResults, setEndlessLevelResults] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [resultsStage, setResultsStage] = useState(0);
+  const [showReadyScreen, setShowReadyScreen] = useState(!challenge && !dailyPuzzleInfo);
 
   const CLUE_COSTS = { 1: 0, 2: 1000, 3: 1500, 4: 2000, 5: 3000 };
   const DIFFICULTY_LABELS = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Super Hard'];
@@ -713,7 +715,10 @@ export default function GameView({ setView, challenge = null, session, onChallen
 
     if (challenge) onChallengeComplete();
     else if (dailyPuzzleInfo) onDailyStepComplete(results.finalScore);
-    else { setGameKey(prevKey => prevKey + 1); }
+    else { 
+      setShowReadyScreen(true); // Show ready screen for next endless mode round
+      setGameKey(prevKey => prevKey + 1); 
+    }
   };
   
   const displayYear = (year) => {
@@ -730,6 +735,21 @@ export default function GameView({ setView, challenge = null, session, onChallen
       return puzzle?.puzzle_translations?.[0]?.[`clue_${clueNumber}_text`];
     }
   };
+
+  // Show ready screen for endless mode only
+  if (showReadyScreen && !challenge && !dailyPuzzleInfo) {
+    return (
+      <ReadyScreen
+        mode="endless"
+        info={{
+          level: endlessModeLevel,
+          difficulty: getDifficultyLabel(endlessModeLevel),
+          threshold: getScoreThreshold(endlessModeLevel)
+        }}
+        onStart={() => setShowReadyScreen(false)}
+      />
+    );
+  }
 
   if (isLoading) {
     return (

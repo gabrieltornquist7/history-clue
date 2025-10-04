@@ -13,6 +13,7 @@ import BottomControlBar from './BottomControlBar';
 import BattleHeader from './battle/BattleHeader';
 import BattleRoundResults from './battle/BattleRoundResults';
 import BattleFinalResults from './battle/BattleFinalResults';
+import ReadyScreen from './ReadyScreen';
 
 const GlobeMap = dynamic(() => import('./GlobeMap'), { ssr: false });
 
@@ -37,6 +38,9 @@ export default function LiveBattleView({ battleId, session, setView }) {
   const [showFinalResults, setShowFinalResults] = useState(false);
   const [roundResults, setRoundResults] = useState(null);
   const [allRounds, setAllRounds] = useState(null);
+  
+  // Ready screen state
+  const [showReadyScreen, setShowReadyScreen] = useState(true);
   
   // Confirmation
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -296,6 +300,17 @@ export default function LiveBattleView({ battleId, session, setView }) {
   const handleExit = () => {
     setView('menu');
   };
+  
+  // Show ready screen at the start
+  if (showReadyScreen) {
+    return (
+      <ReadyScreen
+        mode="live"
+        info={{}}
+        onStart={() => setShowReadyScreen(false)}
+      />
+    );
+  }
   
   if (loading) {
     return (
